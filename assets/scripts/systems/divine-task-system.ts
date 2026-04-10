@@ -1,4 +1,5 @@
 import { DIVINE_TASK_CONFIG } from '../config/divine-task-config';
+import { UNIT_CONFIG } from '../config/unit-config';
 import { DivineTaskConfig, DivineTaskId, DivineTaskProgress, UnitId } from '../models/types';
 import { chance } from '../utils/random';
 
@@ -14,6 +15,16 @@ export class DivineTaskSystem {
 
   public tryAssignTask(unit: TaskAssignableUnit): DivineTaskProgress | null {
     if (unit.star !== 3 || unit.assignedTaskId) {
+      return null;
+    }
+
+    const unitCfg = UNIT_CONFIG[unit.unitId];
+    if (unitCfg.isDivine) {
+      return null;
+    }
+
+    const existingTask = this.progresses.find((progress) => progress.unitInstanceId === unit.instanceId && !progress.completed);
+    if (existingTask) {
       return null;
     }
 
