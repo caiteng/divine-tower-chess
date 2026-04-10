@@ -14,6 +14,13 @@ export class ShopSystem {
     return [...this.entries];
   }
 
+  public peek(slotIndex: number): UnitId | null {
+    if (slotIndex < 0 || slotIndex >= this.entries.length) {
+      return null;
+    }
+    return this.entries[slotIndex];
+  }
+
   public take(slotIndex: number): UnitId | null {
     if (slotIndex < 0 || slotIndex >= this.entries.length) {
       return null;

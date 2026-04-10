@@ -9,6 +9,16 @@ interface TaskRollUnitState {
   assignedTaskId?: DivineTaskId;
 }
 
+type MergeCandidate =
+  | {
+      source: 'placed';
+      unit: PlacedUnitState;
+    }
+  | {
+      source: 'bench';
+      unit: BenchUnitState;
+    };
+
 export class UnitSystem {
   private bench: BenchUnitState[] = [];
   private placed: PlacedUnitState[] = [];
@@ -29,23 +39,38 @@ export class UnitSystem {
   }
 
   private tryMerge(unitId: UnitId, star: 1 | 2): void {
-    const candidates = this.bench.filter((u) => u.unitId === unitId && u.star === star && !u.assignedTaskId);
+    const candidates = this.getMergeCandidates(unitId, star);
     if (candidates.length < 3) {
       return;
     }
 
-    const toRemove = candidates.slice(0, 3).map((u) => u.instanceId);
-    this.bench = this.bench.filter((u) => !toRemove.includes(u.instanceId));
+    const selected = candidates.slice(0, 3);
+    const keep = selected[0];
+    const consumedIds = selected.slice(1).map((candidate) => candidate.unit.instanceId);
+    const nextStar = (star + 1) as 2 | 3;
 
-    this.bench.push({
-      instanceId: nextId('unit'),
-      unitId,
-      star: (star + 1) as 2 | 3,
-    });
+    this.bench = this.bench.filter((u) => !consumedIds.includes(u.instanceId));
+    this.placed = this.placed.filter((u) => !consumedIds.includes(u.instanceId));
+
+    keep.unit.star = nextStar;
+    if (keep.source === 'placed') {
+      keep.unit.currentHp = UNIT_CONFIG[keep.unit.unitId].maxHp;
+      keep.unit.cooldownLeft = 0;
+    }
 
     if (star === 1) {
       this.tryMerge(unitId, 2);
     }
+  }
+
+  private getMergeCandidates(unitId: UnitId, star: 1 | 2): MergeCandidate[] {
+    const placed = this.placed
+      .filter((u) => u.unitId === unitId && u.star === star && !u.assignedTaskId)
+      .map((unit) => ({ source: 'placed' as const, unit }));
+    const bench = this.bench
+      .filter((u) => u.unitId === unitId && u.star === star && !u.assignedTaskId)
+      .map((unit) => ({ source: 'bench' as const, unit }));
+    return [...placed, ...bench];
   }
 
   public placeFromBench(instanceId: string, lane: number, tileIndex: number): boolean {
@@ -94,6 +119,20 @@ export class UnitSystem {
     unit.lane = lane;
     unit.tileIndex = tileIndex;
     return true;
+  }
+
+  public resetDefeatedPlacedUnits(): number {
+    let resetCount = 0;
+    for (const unit of this.placed) {
+      if (unit.currentHp > 0) {
+        continue;
+      }
+
+      unit.currentHp = UNIT_CONFIG[unit.unitId].maxHp;
+      unit.cooldownLeft = 0;
+      resetCount += 1;
+    }
+    return resetCount;
   }
 
   public getBenchUnits(): BenchUnitState[] {

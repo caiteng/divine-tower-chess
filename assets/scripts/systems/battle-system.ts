@@ -2,6 +2,8 @@ import { ENEMY_CONFIG } from '../config/enemy-config';
 import { UNIT_CONFIG } from '../config/unit-config';
 import { EnemyState, PlacedUnitState } from '../models/types';
 
+type EngagementMap = Map<string, PlacedUnitState>;
+
 export interface BattleTickResult {
   crystalDamage: number;
   killedEnemyIds: string[];
@@ -13,13 +15,18 @@ export interface BattleTickResult {
 export class BattleSystem {
   private readonly lanePathLength = [14, 15.5];
   private readonly enemyDpsPerUnit = 5;
+  private readonly firstTileDistance = 2;
+  private readonly tileDistanceStep = 1.8;
 
   public tick(units: PlacedUnitState[], enemies: EnemyState[], dt: number): BattleTickResult {
     const killsByUnit: Record<string, number> = {};
     const healingDoneByUnit: Record<string, number> = {};
+    let engagements = this.assignEngagements(units, enemies);
 
     for (const enemy of enemies) {
       if (enemy.currentHp <= 0) continue;
+      if (engagements.has(enemy.instanceId)) continue;
+
       const cfg = ENEMY_CONFIG[enemy.enemyId];
       enemy.distanceOnPath += cfg.speed * dt;
       if (enemy.distanceOnPath >= this.lanePathLength[enemy.lane]) {
@@ -27,7 +34,8 @@ export class BattleSystem {
       }
     }
 
-    this.applyEnemyPressure(units, enemies, dt);
+    engagements = this.assignEngagements(units, enemies);
+    this.applyEnemyPressure(engagements, dt);
 
     for (const unit of units) {
       if (unit.currentHp <= 0) {
@@ -84,26 +92,75 @@ export class BattleSystem {
     return { crystalDamage, killedEnemyIds, goldFromKills, healingDoneByUnit, killsByUnit };
   }
 
-  private applyEnemyPressure(units: PlacedUnitState[], enemies: EnemyState[], dt: number): void {
+  private assignEngagements(units: PlacedUnitState[], enemies: EnemyState[]): EngagementMap {
+    const engagements: EngagementMap = new Map();
+    const liveEnemies = enemies
+      .filter((enemy) => enemy.currentHp > 0 && !enemy.reachedCrystal)
+      .sort((a, b) => b.distanceOnPath - a.distanceOnPath);
+
     for (const lane of [0, 1]) {
-      const attackers = enemies.filter((enemy) => enemy.lane === lane && enemy.currentHp > 0 && !enemy.reachedCrystal).length;
-      if (attackers <= 0) {
-        continue;
-      }
+      const laneEnemies = liveEnemies.filter((enemy) => enemy.lane === lane);
 
-      const frontline = units
+      const blockers = units
         .filter((unit) => unit.lane === lane && unit.currentHp > 0)
-        .sort((a, b) => a.tileIndex - b.tileIndex)[0];
+        .filter((unit) => UNIT_CONFIG[unit.unitId].aggroRole === 'blocker')
+        .sort((a, b) => a.tileIndex - b.tileIndex);
 
-      if (!frontline) {
-        continue;
+      for (const enemy of laneEnemies) {
+        const blocker = blockers.find((unit) => this.isEnemyInUnitAggroRange(enemy, unit));
+        if (blocker) {
+          engagements.set(enemy.instanceId, blocker);
+        }
       }
 
-      frontline.currentHp -= attackers * this.enemyDpsPerUnit * dt;
-      if (frontline.currentHp < 0) {
-        frontline.currentHp = 0;
+      const meleeUnits = units
+        .filter((unit) => unit.lane === lane && unit.currentHp > 0)
+        .filter((unit) => UNIT_CONFIG[unit.unitId].aggroRole === 'melee')
+        .sort((a, b) => a.tileIndex - b.tileIndex);
+
+      for (const unit of meleeUnits) {
+        const target = laneEnemies.find((enemy) => !engagements.has(enemy.instanceId) && this.isEnemyInUnitAggroRange(enemy, unit));
+        if (target) {
+          engagements.set(target.instanceId, unit);
+        }
       }
     }
+
+    return engagements;
+  }
+
+  private applyEnemyPressure(engagements: EngagementMap, dt: number): void {
+    const attackersByUnit = new Map<string, { unit: PlacedUnitState; count: number }>();
+
+    for (const unit of engagements.values()) {
+      if (unit.currentHp <= 0) {
+        continue;
+      }
+
+      const current = attackersByUnit.get(unit.instanceId);
+      if (current) {
+        current.count += 1;
+      } else {
+        attackersByUnit.set(unit.instanceId, { unit, count: 1 });
+      }
+    }
+
+    for (const { unit, count } of attackersByUnit.values()) {
+      unit.currentHp -= count * this.enemyDpsPerUnit * dt;
+      if (unit.currentHp < 0) {
+        unit.currentHp = 0;
+      }
+    }
+  }
+
+  private isEnemyInUnitAggroRange(enemy: EnemyState, unit: PlacedUnitState): boolean {
+    const cfg = UNIT_CONFIG[unit.unitId];
+    const distance = Math.abs(enemy.distanceOnPath - this.getUnitPathDistance(unit));
+    return distance <= cfg.range;
+  }
+
+  private getUnitPathDistance(unit: PlacedUnitState): number {
+    return this.firstTileDistance + unit.tileIndex * this.tileDistanceStep;
   }
 
   private applyHeal(caster: PlacedUnitState, units: PlacedUnitState[]): number {

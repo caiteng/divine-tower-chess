@@ -52,6 +52,10 @@ export class GameSession {
   }
 
   public refreshShopByCost(): boolean {
+    if (this.phase !== 'prep') {
+      return false;
+    }
+
     const cost = DIFFICULTY_CONFIG[this.difficulty].refreshCost;
     if (!this.economy.spend(cost)) {
       return false;
@@ -61,7 +65,11 @@ export class GameSession {
   }
 
   public buyShopUnit(slotIndex: number): boolean {
-    const unitId = this.shop.take(slotIndex);
+    if (this.phase !== 'prep') {
+      return false;
+    }
+
+    const unitId = this.shop.peek(slotIndex);
     if (!unitId) return false;
 
     const cost = UNIT_CONFIG[unitId].cost;
@@ -69,11 +77,16 @@ export class GameSession {
       return false;
     }
 
+    this.shop.take(slotIndex);
     this.unitSystem.addToBench(unitId);
     return true;
   }
 
   public placeUnit(instanceId: string, lane: number, tileIndex: number): boolean {
+    if (this.phase !== 'prep') {
+      return false;
+    }
+
     return this.unitSystem.placeFromBench(instanceId, lane, tileIndex);
   }
 
@@ -84,10 +97,15 @@ export class GameSession {
     return this.unitSystem.movePlacedUnit(instanceId, lane, tileIndex);
   }
 
-  public beginBattle(): void {
+  public beginBattle(): boolean {
+    if (this.phase !== 'prep') {
+      return false;
+    }
+
     this.phase = 'battle';
     this.enemies = [];
     this.waveSystem.resetWave();
+    return true;
   }
 
   public tickBattle(dt = 0.2): void {
@@ -137,6 +155,7 @@ export class GameSession {
   }
 
   private onRoundPrepStart(): void {
+    this.unitSystem.resetDefeatedPlacedUnits();
     this.shop.refresh();
     for (const unit of this.unitSystem.getUnitsForTaskRoll()) {
       const progress = this.divine.tryAssignTask(unit);

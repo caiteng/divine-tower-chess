@@ -1,0 +1,226 @@
+{
+    "importBase": "import",
+    "nativeBase": "native",
+    "name": "resources",
+    "deps": [],
+    "uuids": [
+        "0273c6c23",
+        "0ef599b4-d60a-458d-b5e1-bd9ea03fca00",
+        "0ef599b4-d60a-458d-b5e1-bd9ea03fca00@6c48a",
+        "0f5ddd1d0",
+        "122b9ae9-75fa-4c5a-8738-62a7f97777ea",
+        "122b9ae9-75fa-4c5a-8738-62a7f97777ea@6c48a",
+        "33563b4e-70bc-44ac-8657-8a445a589895",
+        "33563b4e-70bc-44ac-8657-8a445a589895@6c48a",
+        "38f5f2ea-c275-45e3-b3b6-16a2d1fda93e",
+        "38f5f2ea-c275-45e3-b3b6-16a2d1fda93e@6c48a",
+        "4128662e-baa7-433f-abaa-86fecf7f01ec",
+        "4128662e-baa7-433f-abaa-86fecf7f01ec@6c48a",
+        "44eeddc2-f52a-4df3-b8f3-57e3305895f7",
+        "4ff6d0dd-6181-4035-9f7f-1b6ce8f86dba",
+        "4ff6d0dd-6181-4035-9f7f-1b6ce8f86dba@6c48a",
+        "5c6f8519-22b2-48ba-a056-3340605d5777",
+        "5c6f8519-22b2-48ba-a056-3340605d5777@6c48a",
+        "779d6b3b-6a76-4ba7-ac9b-298e3dcaea35",
+        "779d6b3b-6a76-4ba7-ac9b-298e3dcaea35@6c48a",
+        "a286d365-191d-4843-a3fe-f234136c3dd2",
+        "a286d365-191d-4843-a3fe-f234136c3dd2@6c48a",
+        "aca33d54-cfb9-464f-983e-7df61ee2a787",
+        "aca33d54-cfb9-464f-983e-7df61ee2a787@6c48a",
+        "bcf088f1-5809-47c2-adec-a0a197de780c",
+        "bcf088f1-5809-47c2-adec-a0a197de780c@6c48a",
+        "d44942d0-a4f1-4334-986f-1738e00ee31e",
+        "d44942d0-a4f1-4334-986f-1738e00ee31e@6c48a",
+        "d5766dc9-93e1-47a5-964b-82281f732d44",
+        "d5766dc9-93e1-47a5-964b-82281f732d44@6c48a",
+        "e099022a-1835-488c-b0b2-85abeff1595f",
+        "e099022a-1835-488c-b0b2-85abeff1595f@6c48a",
+        "e3d2d7cd-9288-4889-9cbf-210887839681",
+        "e3d2d7cd-9288-4889-9cbf-210887839681@6c48a"
+    ],
+    "paths": {
+        "aca33d54-cfb9-464f-983e-7df61ee2a787": [
+            "textures/board",
+            "cc.ImageAsset"
+        ],
+        "aca33d54-cfb9-464f-983e-7df61ee2a787@6c48a": [
+            "textures/board/texture",
+            "cc.Texture2D",
+            1
+        ],
+        "122b9ae9-75fa-4c5a-8738-62a7f97777ea": [
+            "textures/crystal",
+            "cc.ImageAsset"
+        ],
+        "122b9ae9-75fa-4c5a-8738-62a7f97777ea@6c48a": [
+            "textures/crystal/texture",
+            "cc.Texture2D",
+            1
+        ],
+        "a286d365-191d-4843-a3fe-f234136c3dd2": [
+            "textures/enemy",
+            "cc.ImageAsset"
+        ],
+        "a286d365-191d-4843-a3fe-f234136c3dd2@6c48a": [
+            "textures/enemy/texture",
+            "cc.Texture2D",
+            1
+        ],
+        "38f5f2ea-c275-45e3-b3b6-16a2d1fda93e": [
+            "textures/tile",
+            "cc.ImageAsset"
+        ],
+        "38f5f2ea-c275-45e3-b3b6-16a2d1fda93e@6c48a": [
+            "textures/tile/texture",
+            "cc.Texture2D",
+            1
+        ],
+        "d5766dc9-93e1-47a5-964b-82281f732d44": [
+            "textures/unit",
+            "cc.ImageAsset"
+        ],
+        "d5766dc9-93e1-47a5-964b-82281f732d44@6c48a": [
+            "textures/unit/texture",
+            "cc.Texture2D",
+            1
+        ],
+        "44eeddc2-f52a-4df3-b8f3-57e3305895f7": [
+            "textures/avatars/ATTRIBUTION",
+            "cc.Asset"
+        ],
+        "bcf088f1-5809-47c2-adec-a0a197de780c": [
+            "textures/avatars/archer",
+            "cc.ImageAsset"
+        ],
+        "bcf088f1-5809-47c2-adec-a0a197de780c@6c48a": [
+            "textures/avatars/archer/texture",
+            "cc.Texture2D",
+            1
+        ],
+        "4ff6d0dd-6181-4035-9f7f-1b6ce8f86dba": [
+            "textures/avatars/berserker",
+            "cc.ImageAsset"
+        ],
+        "4ff6d0dd-6181-4035-9f7f-1b6ce8f86dba@6c48a": [
+            "textures/avatars/berserker/texture",
+            "cc.Texture2D",
+            1
+        ],
+        "0ef599b4-d60a-458d-b5e1-bd9ea03fca00": [
+            "textures/avatars/cavalry",
+            "cc.ImageAsset"
+        ],
+        "0ef599b4-d60a-458d-b5e1-bd9ea03fca00@6c48a": [
+            "textures/avatars/cavalry/texture",
+            "cc.Texture2D",
+            1
+        ],
+        "d44942d0-a4f1-4334-986f-1738e00ee31e": [
+            "textures/avatars/light_mage",
+            "cc.ImageAsset"
+        ],
+        "d44942d0-a4f1-4334-986f-1738e00ee31e@6c48a": [
+            "textures/avatars/light_mage/texture",
+            "cc.Texture2D",
+            1
+        ],
+        "5c6f8519-22b2-48ba-a056-3340605d5777": [
+            "textures/avatars/mage",
+            "cc.ImageAsset"
+        ],
+        "5c6f8519-22b2-48ba-a056-3340605d5777@6c48a": [
+            "textures/avatars/mage/texture",
+            "cc.Texture2D",
+            1
+        ],
+        "e3d2d7cd-9288-4889-9cbf-210887839681": [
+            "textures/avatars/paladin",
+            "cc.ImageAsset"
+        ],
+        "e3d2d7cd-9288-4889-9cbf-210887839681@6c48a": [
+            "textures/avatars/paladin/texture",
+            "cc.Texture2D",
+            1
+        ],
+        "33563b4e-70bc-44ac-8657-8a445a589895": [
+            "textures/avatars/priest",
+            "cc.ImageAsset"
+        ],
+        "33563b4e-70bc-44ac-8657-8a445a589895@6c48a": [
+            "textures/avatars/priest/texture",
+            "cc.Texture2D",
+            1
+        ],
+        "4128662e-baa7-433f-abaa-86fecf7f01ec": [
+            "textures/avatars/shield_guard",
+            "cc.ImageAsset"
+        ],
+        "4128662e-baa7-433f-abaa-86fecf7f01ec@6c48a": [
+            "textures/avatars/shield_guard/texture",
+            "cc.Texture2D",
+            1
+        ],
+        "e099022a-1835-488c-b0b2-85abeff1595f": [
+            "textures/avatars/spearman",
+            "cc.ImageAsset"
+        ],
+        "e099022a-1835-488c-b0b2-85abeff1595f@6c48a": [
+            "textures/avatars/spearman/texture",
+            "cc.Texture2D",
+            1
+        ],
+        "779d6b3b-6a76-4ba7-ac9b-298e3dcaea35": [
+            "textures/avatars/warrior",
+            "cc.ImageAsset"
+        ],
+        "779d6b3b-6a76-4ba7-ac9b-298e3dcaea35@6c48a": [
+            "textures/avatars/warrior/texture",
+            "cc.Texture2D",
+            1
+        ]
+    },
+    "scenes": {},
+    "packs": {
+        "0f5ddd1d0": [
+            "0ef599b4-d60a-458d-b5e1-bd9ea03fca00",
+            "4ff6d0dd-6181-4035-9f7f-1b6ce8f86dba",
+            "5c6f8519-22b2-48ba-a056-3340605d5777",
+            "38f5f2ea-c275-45e3-b3b6-16a2d1fda93e",
+            "122b9ae9-75fa-4c5a-8738-62a7f97777ea",
+            "779d6b3b-6a76-4ba7-ac9b-298e3dcaea35",
+            "33563b4e-70bc-44ac-8657-8a445a589895",
+            "4128662e-baa7-433f-abaa-86fecf7f01ec",
+            "a286d365-191d-4843-a3fe-f234136c3dd2",
+            "aca33d54-cfb9-464f-983e-7df61ee2a787",
+            "bcf088f1-5809-47c2-adec-a0a197de780c",
+            "d5766dc9-93e1-47a5-964b-82281f732d44",
+            "d44942d0-a4f1-4334-986f-1738e00ee31e",
+            "e3d2d7cd-9288-4889-9cbf-210887839681",
+            "e099022a-1835-488c-b0b2-85abeff1595f"
+        ],
+        "0273c6c23": [
+            "0ef599b4-d60a-458d-b5e1-bd9ea03fca00@6c48a",
+            "4ff6d0dd-6181-4035-9f7f-1b6ce8f86dba@6c48a",
+            "5c6f8519-22b2-48ba-a056-3340605d5777@6c48a",
+            "38f5f2ea-c275-45e3-b3b6-16a2d1fda93e@6c48a",
+            "122b9ae9-75fa-4c5a-8738-62a7f97777ea@6c48a",
+            "779d6b3b-6a76-4ba7-ac9b-298e3dcaea35@6c48a",
+            "33563b4e-70bc-44ac-8657-8a445a589895@6c48a",
+            "4128662e-baa7-433f-abaa-86fecf7f01ec@6c48a",
+            "a286d365-191d-4843-a3fe-f234136c3dd2@6c48a",
+            "aca33d54-cfb9-464f-983e-7df61ee2a787@6c48a",
+            "bcf088f1-5809-47c2-adec-a0a197de780c@6c48a",
+            "d5766dc9-93e1-47a5-964b-82281f732d44@6c48a",
+            "d44942d0-a4f1-4334-986f-1738e00ee31e@6c48a",
+            "e3d2d7cd-9288-4889-9cbf-210887839681@6c48a",
+            "e099022a-1835-488c-b0b2-85abeff1595f@6c48a"
+        ]
+    },
+    "versions": {
+        "import": [],
+        "native": []
+    },
+    "redirect": [],
+    "debug": true,
+    "extensionMap": {}
+}

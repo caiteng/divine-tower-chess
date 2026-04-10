@@ -44,6 +44,10 @@ export class DivineTaskSystem {
   }
 
   public addMetric(unitInstanceId: string, metric: 'kills' | 'healing', amount: number): DivineTaskProgress | null {
+    if (amount <= 0) {
+      return null;
+    }
+
     const progress = this.progresses.find((p) => p.unitInstanceId === unitInstanceId && !p.completed);
     if (!progress) {
       return null;

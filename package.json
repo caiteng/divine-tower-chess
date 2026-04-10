@@ -1,0 +1,19 @@
+{
+  "name": "divine-tower-chess",
+  "version": "3.4.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "verify:rules": "tsx assets/scripts/core/verify-divine-task-rules.ts",
+    "test": "npm run typecheck && npm run verify:rules"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.0"
+  },
+  "creator": {
+    "version": "3.4.0"
+  },
+  "uuid": "525e1146-1fcb-4d25-894a-4fded677997d"
+}

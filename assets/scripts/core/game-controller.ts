@@ -30,8 +30,8 @@ export class GameController {
     return this.session.movePlacedUnit(instanceId, lane, tileIndex);
   }
 
-  public beginBattle(): void {
-    this.session.beginBattle();
+  public beginBattle(): boolean {
+    return this.session.beginBattle();
   }
 
   public tick(dt: number): void {

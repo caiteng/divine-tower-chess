@@ -27,6 +27,7 @@ export interface UnitConfig {
   maxHp: number;
   healPower?: number;
   skillType: 'single' | 'aoe' | 'heal' | 'none';
+  aggroRole: 'blocker' | 'melee' | 'ranged' | 'none';
 }
 
 export interface EnemyConfig {
