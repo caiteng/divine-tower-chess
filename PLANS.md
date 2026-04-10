@@ -1,55 +1,26 @@
 # PLANS.md
 
-## Phase 1
-Create the first playable prototype loop.
+## 阶段进度（2026-04-10）
 
-### Goals
-- Main menu
-- Difficulty selection
-- One map
-- Shop system
-- Unit purchase
-- Unit placement
-- Enemy wave spawning
-- Crystal HP / lose condition
-- Gold reward from kills
-- Round flow
-- Beginner difficulty with 10 waves playable end-to-end
+- [x] 第一步：建立项目目录结构与核心模块设计
+- [x] 第二步：实现配置系统、商店系统、金币系统、棋子基础数据结构
+- [x] 第三步：实现地图（逻辑路径）、敌人路径移动、水晶、防守战斗最小闭环
+- [x] 第四步：实现棋子摆放、攻击、简单技能
+- [x] 第五步：实现升星系统
+- [x] 第六步：实现神品进阶任务系统（战士->狂战士、牧师->光法师）
+- [x] 第七步：实现三种难度和基础UI流程（逻辑层）
+- [x] 第八步：补充 README 和手动验证说明
 
-## Phase 2
-Add unit combat behaviors and skills.
+## 当前可玩范围
 
-### Goals
-- Basic attack logic
-- Unit targeting
-- Enemy path movement
-- Priest heal logic
-- Mage area damage logic
-- Placeholder skill effects
+- 可完成一局新手难度 10 波完整流程（准备 -> 战斗 -> 下一波 -> 结算）。
+- 普通/困难波次数据已配置，可用于后续平衡测试。
+- 逻辑层已具备可扩展结构：配置、系统、核心流程分层。
 
-## Phase 3
-Add merge and star upgrade system.
+## 下阶段计划（v0.2）
 
-### Goals
-- 3-to-1 merge
-- Star level upgrade
-- Upgrade feedback in UI
-
-## Phase 4
-Add divine advancement system.
-
-### Goals
-- 3-star 10% task trigger
-- Berserker advancement task
-- Light Mage advancement task
-- Progress accumulation across rounds
-- Replace unit with divine version after completion
-
-## Phase 5
-Improve difficulty scaling and content expansion hooks.
-
-### Goals
-- Normal difficulty 30 waves
-- Hard difficulty 60 waves
-- Expandable config structure
-- Better balancing hooks
+1. 把逻辑层接入 Cocos Creator 场景节点与 Prefab，提供可视化调试面板。
+2. 增加战斗表现层（子弹、技能动画、受击反馈）。
+3. 增加更完善的放置交互（拖拽上阵、撤回、格子高亮）。
+4. 增加基础结算 UI（胜利/失败页 + 重开）。
+5. 新手难度体验调优（金币曲线、怪物强度、单位费用）。
