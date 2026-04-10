@@ -25,6 +25,8 @@
 
 - `assets/scripts/systems/divine-task-system.ts`
   - 任务分配输入改为实例视角，支持每个3星实例独立判定与并行任务。
+- `assets/scripts/systems/divine-task-system.ts`
+  - 增加神品单位兜底过滤（`isDivine`）与“同实例仅1个未完成任务”保护，防止重复分配。
 - `assets/scripts/systems/unit-system.ts`
   - 新增 `movePlacedUnit`，并提供回合开始任务判定所需的实例列表。
 - `assets/scripts/core/game-session.ts`
