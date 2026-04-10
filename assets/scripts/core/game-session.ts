@@ -32,7 +32,7 @@ export class GameSession {
     this.crystalHp = diff.crystalHp;
     this.enemies = [];
     this.economy.setStartingGold(diff.startingGold);
-    this.shop.refresh();
+    this.onRoundPrepStart();
   }
 
   public getSnapshot() {
@@ -77,17 +77,17 @@ export class GameSession {
     return this.unitSystem.placeFromBench(instanceId, lane, tileIndex);
   }
 
+  public movePlacedUnit(instanceId: string, lane: number, tileIndex: number): boolean {
+    if (this.phase !== 'prep') {
+      return false;
+    }
+    return this.unitSystem.movePlacedUnit(instanceId, lane, tileIndex);
+  }
+
   public beginBattle(): void {
     this.phase = 'battle';
     this.enemies = [];
     this.waveSystem.resetWave();
-
-    for (const unit of this.unitSystem.getPlacedUnits()) {
-      const progress = this.divine.tryAssignTask(unit);
-      if (progress) {
-        this.unitSystem.setAssignedTask(unit.instanceId, progress.taskId);
-      }
-    }
   }
 
   public tickBattle(dt = 0.2): void {
@@ -107,6 +107,7 @@ export class GameSession {
         this.unitSystem.evolveUnit(unitId, completed.targetUnitId);
       }
     }
+
     for (const [unitId, healAmount] of Object.entries(result.healingDoneByUnit)) {
       this.divine.addMetric(unitId, 'healing', healAmount);
       const completed = this.divine.resolveCompleted(unitId);
@@ -130,7 +131,17 @@ export class GameSession {
       } else {
         this.waveNumber += 1;
         this.phase = 'prep';
-        this.shop.refresh();
+        this.onRoundPrepStart();
+      }
+    }
+  }
+
+  private onRoundPrepStart(): void {
+    this.shop.refresh();
+    for (const unit of this.unitSystem.getUnitsForTaskRoll()) {
+      const progress = this.divine.tryAssignTask(unit);
+      if (progress) {
+        this.unitSystem.setAssignedTask(unit.instanceId, progress.taskId);
       }
     }
   }

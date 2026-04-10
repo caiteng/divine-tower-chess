@@ -42,8 +42,11 @@ After each implementation step:
 - Units can be bought with gold
 - 3 same 1-star units merge into 1 2-star unit
 - 3 same 2-star units merge into 1 3-star unit
-- 3-star units have a 10% chance each round to receive a divine advancement task
+- Divine task assignment is instance-based, not global or profession-shared
+- Every eligible 3-star non-divine unit instance rolls its own 10% task chance at round start
+- Multiple unit instances can hold divine tasks simultaneously
+- Divine progress binds to unit instance ID and accumulates across rounds in one run
 - Current divine tasks:
-  - Warrior -> Berserker: kill 1000 enemies
-  - Priest -> Light Mage: heal 100000 HP
-- Task progress accumulates across rounds within the same run
+  - Warrior -> Berserker: kill 1000 enemies (per instance)
+  - Priest -> Light Mage: heal 100000 HP as actual healing only (per instance)
+- Preparation phase supports moving placed units without losing instance identity or task progress
