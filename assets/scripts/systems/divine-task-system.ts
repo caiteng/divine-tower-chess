@@ -1,11 +1,18 @@
 import { DIVINE_TASK_CONFIG } from '../config/divine-task-config';
-import { DivineTaskConfig, DivineTaskId, DivineTaskProgress, PlacedUnitState } from '../models/types';
+import { DivineTaskConfig, DivineTaskId, DivineTaskProgress, UnitId } from '../models/types';
 import { chance } from '../utils/random';
+
+interface TaskAssignableUnit {
+  instanceId: string;
+  unitId: UnitId;
+  star: 1 | 2 | 3;
+  assignedTaskId?: DivineTaskId;
+}
 
 export class DivineTaskSystem {
   private progresses: DivineTaskProgress[] = [];
 
-  public tryAssignTask(unit: PlacedUnitState): DivineTaskProgress | null {
+  public tryAssignTask(unit: TaskAssignableUnit): DivineTaskProgress | null {
     if (unit.star !== 3 || unit.assignedTaskId) {
       return null;
     }
@@ -34,15 +41,12 @@ export class DivineTaskSystem {
     if (task.metric !== metric) {
       return null;
     }
+
     progress.progress += amount;
     if (progress.progress >= task.requirement) {
       progress.completed = true;
     }
     return progress;
-  }
-
-  public getProgressForUnit(unitInstanceId: string): DivineTaskProgress | undefined {
-    return this.progresses.find((p) => p.unitInstanceId === unitInstanceId);
   }
 
   public resolveCompleted(unitInstanceId: string): DivineTaskConfig | null {

@@ -1,6 +1,13 @@
 import { UNIT_CONFIG } from '../config/unit-config';
-import { BenchUnitState, PlacedUnitState, UnitId } from '../models/types';
+import { BenchUnitState, DivineTaskId, PlacedUnitState, UnitId } from '../models/types';
 import { nextId } from '../utils/id';
+
+interface TaskRollUnitState {
+  instanceId: string;
+  unitId: UnitId;
+  star: 1 | 2 | 3;
+  assignedTaskId?: DivineTaskId;
+}
 
 export class UnitSystem {
   private bench: BenchUnitState[] = [];
@@ -69,6 +76,26 @@ export class UnitSystem {
     return true;
   }
 
+  public movePlacedUnit(instanceId: string, lane: number, tileIndex: number): boolean {
+    const laneTiles = this.lanes[lane];
+    if (!laneTiles || !laneTiles.includes(tileIndex)) {
+      return false;
+    }
+    const unit = this.placed.find((u) => u.instanceId === instanceId);
+    if (!unit) {
+      return false;
+    }
+
+    const occupied = this.placed.some((u) => u.instanceId !== instanceId && u.lane === lane && u.tileIndex === tileIndex);
+    if (occupied) {
+      return false;
+    }
+
+    unit.lane = lane;
+    unit.tileIndex = tileIndex;
+    return true;
+  }
+
   public getBenchUnits(): BenchUnitState[] {
     return [...this.bench];
   }
@@ -77,28 +104,37 @@ export class UnitSystem {
     return [...this.placed];
   }
 
-  public setAssignedTask(unitInstanceId: string, taskId: string): void {
+  public getUnitsForTaskRoll(): TaskRollUnitState[] {
+    return [...this.bench, ...this.placed].map((u) => ({
+      instanceId: u.instanceId,
+      unitId: u.unitId,
+      star: u.star,
+      assignedTaskId: u.assignedTaskId,
+    }));
+  }
+
+  public setAssignedTask(unitInstanceId: string, taskId: DivineTaskId): void {
     const benchUnit = this.bench.find((u) => u.instanceId === unitInstanceId);
     if (benchUnit) {
-      benchUnit.assignedTaskId = taskId as any;
+      benchUnit.assignedTaskId = taskId;
     }
     const placedUnit = this.placed.find((u) => u.instanceId === unitInstanceId);
     if (placedUnit) {
-      placedUnit.assignedTaskId = taskId as any;
+      placedUnit.assignedTaskId = taskId;
     }
   }
 
   public evolveUnit(unitInstanceId: string, targetUnitId: UnitId): void {
-    const apply = (u: { unitId: UnitId; star: 1 | 2 | 3; assignedTaskId?: string }) => {
+    const apply = (u: { unitId: UnitId; star: 1 | 2 | 3; assignedTaskId?: DivineTaskId }) => {
       u.unitId = targetUnitId;
       u.star = 3;
       u.assignedTaskId = undefined;
     };
 
     const benchUnit = this.bench.find((u) => u.instanceId === unitInstanceId);
-    if (benchUnit) apply(benchUnit as any);
+    if (benchUnit) apply(benchUnit);
 
     const placedUnit = this.placed.find((u) => u.instanceId === unitInstanceId);
-    if (placedUnit) apply(placedUnit as any);
+    if (placedUnit) apply(placedUnit);
   }
 }
