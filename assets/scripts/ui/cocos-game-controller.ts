@@ -9,6 +9,8 @@ const { ccclass, property } = _decorator;
 
 @ccclass('CocosGameController')
 export class CocosGameController extends Component {
+  private readonly avatarIconScale = 0.62;
+  private readonly avatarAttackWindow = 0.18;
   @property(SpriteFrame)
   public boardSprite: SpriteFrame | null = null;
 
@@ -763,7 +765,12 @@ export class CocosGameController extends Component {
     for (const unit of snapshot.placed) {
       const pos = this.getCocosTilePosition(unit.lane, unit.tileIndex);
       const unitClick = () => this.selectUnit(unit.instanceId, 'placed');
-      this.createCocosUnitAvatar(this.cocosBoardRoot, `Unit${unit.instanceId}`, unit.unitId, unit.star, pos.x, pos.y + 4, 48, unit.currentHp <= 0, unitClick);
+      const unitAttackInterval = UNIT_CONFIG[unit.unitId].attackInterval;
+      const isAttacking =
+        snapshot.phase === 'battle' &&
+        unit.currentHp > 0 &&
+        unit.cooldownLeft > Math.max(0, unitAttackInterval - Math.min(this.avatarAttackWindow, unitAttackInterval * 0.5));
+      this.createCocosUnitAvatar(this.cocosBoardRoot, `Unit${unit.instanceId}`, unit.unitId, unit.star, pos.x, pos.y + 4, 48, unit.currentHp <= 0, isAttacking, unitClick);
       const selected = this.selectedUnitInstanceId === unit.instanceId;
       this.createCocosText(
         `UnitLabel${unit.instanceId}`,
@@ -804,7 +811,7 @@ export class CocosGameController extends Component {
       const x = -325 + index * 80;
       const selected = this.selectedUnitInstanceId === unit.instanceId;
       const benchClick = () => this.selectUnit(unit.instanceId, 'bench');
-      this.createCocosUnitAvatar(this.cocosBenchRoot, `BenchUnit${unit.instanceId}`, unit.unitId, unit.star, x, -4, 34, false, benchClick);
+      this.createCocosUnitAvatar(this.cocosBenchRoot, `BenchUnit${unit.instanceId}`, unit.unitId, unit.star, x, -4, 34, false, false, benchClick);
       this.createCocosTextInRoot(
         this.cocosBenchRoot!,
         `BenchUnitLabel${unit.instanceId}`,
@@ -832,6 +839,7 @@ export class CocosGameController extends Component {
     y: number,
     size: number,
     defeated: boolean,
+    attacking: boolean,
     onClick?: () => void,
   ): void {
     if (!root) return;
@@ -840,7 +848,9 @@ export class CocosGameController extends Component {
     const node = new Node(name);
     node.layer = Layers.Enum.UI_2D;
     root.addChild(node);
-    node.setPosition(new Vec3(x, y, 0));
+    const attackShake = attacking ? Math.sin(this.avatarPulseTime * 50) * size * 0.03 : 0;
+    const attackBump = attacking ? Math.cos(this.avatarPulseTime * 65) * size * 0.015 : 0;
+    node.setPosition(new Vec3(x + attackShake, y + attackBump, 0));
     const transform = node.addComponent(UITransform);
     transform.setContentSize(size, size);
 
@@ -858,6 +868,18 @@ export class CocosGameController extends Component {
     graphics.fillColor = style.fill;
     graphics.circle(0, 0, size * 0.38);
     graphics.fill();
+    if (attacking) {
+      graphics.strokeColor = new Color(255, 244, 214, 240);
+      graphics.lineWidth = Math.max(2, Math.floor(size * 0.08));
+      graphics.moveTo(size * 0.08, size * 0.32);
+      graphics.lineTo(size * 0.36, size * 0.08);
+      graphics.stroke();
+      graphics.strokeColor = new Color(255, 180, 120, 220);
+      graphics.lineWidth = Math.max(1.5, Math.floor(size * 0.05));
+      graphics.moveTo(size * 0.02, size * 0.26);
+      graphics.lineTo(size * 0.28, size * 0.03);
+      graphics.stroke();
+    }
 
     if (onClick) {
       node.addComponent(Button);
@@ -871,8 +893,8 @@ export class CocosGameController extends Component {
         `${name}IconSprite`,
         0,
         1,
-        size * 0.64,
-        size * 0.64,
+        size * this.avatarIconScale,
+        size * this.avatarIconScale,
         avatarSprite,
         defeated ? new Color(210, 214, 220, 210) : style.text,
         onClick,
@@ -1009,6 +1031,8 @@ export class CocosGameController extends Component {
     const sprite = node.addComponent(Sprite);
     sprite.spriteFrame = spriteFrame;
     sprite.color = color;
+    sprite.sizeMode = Sprite.SizeMode.CUSTOM;
+    sprite.trim = false;
     if (onClick) {
       node.addComponent(Button);
       node.on(Button.EventType.CLICK, onClick, this);
