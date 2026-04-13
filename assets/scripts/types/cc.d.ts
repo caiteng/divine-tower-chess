@@ -43,9 +43,14 @@ declare module 'cc' {
 
   export class Graphics extends Component {
     public fillColor: Color;
+    public strokeColor: Color;
+    public lineWidth: number;
     public rect(x: number, y: number, width: number, height: number): void;
     public circle(x: number, y: number, radius: number): void;
+    public moveTo(x: number, y: number): void;
+    public lineTo(x: number, y: number): void;
     public fill(): void;
+    public stroke(): void;
   }
 
   export class Button extends Component {
@@ -55,8 +60,13 @@ declare module 'cc' {
   }
 
   export class Sprite extends Component {
+    public static SizeMode: {
+      CUSTOM: number;
+    };
     public spriteFrame: SpriteFrame | null;
     public color: Color;
+    public sizeMode: number;
+    public trim: boolean;
   }
 
   export class SpriteFrame {
