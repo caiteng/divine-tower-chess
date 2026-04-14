@@ -1,7 +1,0 @@
-Place your real generated image at:
-
-assets/art/reference/unit_star_progression.png
-
-Why this placeholder exists:
-- Page Codex merge flow currently does not support committing binary files in this repository workflow.
-- Keep this text placeholder tracked, then add/replace the PNG from a local git client.
