@@ -7,11 +7,13 @@
 - [x] 阶段 3：迁移战场配置与出怪逻辑（battlefield-config / wave-system）。
 - [x] 阶段 4：适配会话与控制器接口（game-session / game-controller）。
 - [x] 阶段 5：联动 UI 与脚本验证入口（cocos-game-controller / simulate-run / verify-divine-task-rules）。
+
 - [x] 阶段 6（本次推进）：补充关键回归样例（敌人出生区域校验）并修正文案残留。
 - [x] 阶段 7（本次推进）：接入星级贴图路径规范与文档规格。
 - [x] 阶段 8（本次推进）：补充部署区域可视化提示（Cocos 部署区高亮 + 占位状态色）。
 - [x] 阶段 9（本次推进）：提供冲突恢复脚本与操作文档（保留 Codex 最终态）。
 - [ ] 阶段 10：后续优化（更多端到端自动化回归样例）。
+
 
 ## 本轮完成摘要（统一方向）
 
@@ -56,3 +58,4 @@
 
 - 新增 `docs/ops/merge-recovery.md`，给出从最新目标分支恢复并应用 `88e7330` 的步骤。
 - 新增 `scripts/apply_codex_final_state.sh`，一键执行 `cherry-pick -X ours 88e7330` + `npm test`。
+

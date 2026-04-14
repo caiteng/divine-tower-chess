@@ -84,4 +84,3 @@ npm test
 1. 优先按 `unitId + star` 路径加载（如 `textures/avatars/warrior/star2`）
 2. 若缺失则回退到单位基础路径（如 `textures/avatars/warrior`）
 3. 保持 2D sprite 工作流，不引入 3D 管线
-

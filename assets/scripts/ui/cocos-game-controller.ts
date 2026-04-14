@@ -744,11 +744,13 @@ export class CocosGameController extends Component {
     this.createCocosImageOrRect('BoardBackground', 0, 0, 720, 220, new Color(215, 226, 236, 255), this.boardSprite);
     this.createCocosImageOrRect('Crystal', 315, 0, 38, 90, new Color(56, 189, 248, 255), this.crystalSprite);
     this.createCocosText('CrystalLabel', '水晶', 315, 0, 34, 17, new Color(8, 51, 68, 255));
+
     this.createCocosDeploymentRegionHint();
 
     for (const anchor of snapshot.deploymentAnchors) {
       const pos = { x: this.worldToCocosX(anchor.position.x), y: this.worldToCocosY(anchor.position.y) };
       const occupied = snapshot.placed.some((unit) => unit.deploymentAnchorId === anchor.id);
+
       const isSelectedTarget = Boolean(this.selectedUnitInstanceId);
       const tileClick = () => this.handleAnchorClick(anchor.id);
       this.createCocosImageOrRect(
@@ -762,6 +764,7 @@ export class CocosGameController extends Component {
           : occupied
             ? new Color(251, 191, 36, 130)
             : new Color(248, 250, 252, 120),
+
         this.tileSprite,
         tileClick,
       );

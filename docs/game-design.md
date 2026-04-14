@@ -95,3 +95,4 @@
 - 规格文档放置于：`docs/art/unit_star_progression_spec.md`
 - 运行时贴图优先按 `unitId + star` 映射路径加载，缺失时回退到单位基础头像路径。
 - 仅使用 2D sprite 资源流程，不引入 3D 模型管线。
+
