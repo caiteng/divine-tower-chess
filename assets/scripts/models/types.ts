@@ -16,6 +16,11 @@ export type EnemyId = 'slime' | 'wolf' | 'brute';
 
 export type DivineTaskId = 'warrior_to_berserker' | 'priest_to_light_mage';
 
+export interface Vec2 {
+  x: number;
+  y: number;
+}
+
 export interface UnitConfig {
   id: UnitId;
   name: string;
@@ -23,20 +28,29 @@ export interface UnitConfig {
   cost: number;
   baseDamage: number;
   attackInterval: number;
-  range: number;
   maxHp: number;
+  detectionRange: number;
+  attackRange: number;
+  moveSpeed: number;
+  projectileSpeed?: number;
   healPower?: number;
+  skillRadius?: number;
   skillType: 'single' | 'aoe' | 'heal' | 'none';
-  aggroRole: 'blocker' | 'melee' | 'ranged' | 'none';
+  behaviorRole: 'melee' | 'ranged' | 'healer' | 'mage';
 }
 
 export interface EnemyConfig {
   id: EnemyId;
   name: string;
   maxHp: number;
-  speed: number;
+  moveSpeed: number;
   goldReward: number;
   crystalDamage: number;
+  attackDamage: number;
+  attackInterval: number;
+  detectionRange: number;
+  attackRange: number;
+  separationWeight?: number;
 }
 
 export interface WaveEnemyEntry {
@@ -74,8 +88,13 @@ export interface PlacedUnitState {
   star: 1 | 2 | 3;
   lane: number;
   tileIndex: number;
+  placementPointId: string;
+  position: Vec2;
+  velocity: Vec2;
+  radius: number;
   cooldownLeft: number;
   currentHp: number;
+  targetEnemyId?: string;
   assignedTaskId?: DivineTaskId;
 }
 
@@ -90,8 +109,11 @@ export interface EnemyState {
   instanceId: string;
   enemyId: EnemyId;
   currentHp: number;
-  lane: number;
-  distanceOnPath: number;
+  position: Vec2;
+  velocity: Vec2;
+  radius: number;
+  cooldownLeft: number;
+  targetUnitId?: string;
   reachedCrystal: boolean;
 }
 
@@ -100,4 +122,21 @@ export interface DivineTaskProgress {
   unitInstanceId: string;
   progress: number;
   completed: boolean;
+}
+
+export interface PlacementPoint {
+  id: string;
+  lane: number;
+  tileIndex: number;
+  position: Vec2;
+}
+
+export interface BattlefieldConfig {
+  width: number;
+  height: number;
+  crystalPosition: Vec2;
+  crystalRadius: number;
+  allySpawnAnchor: Vec2;
+  enemySpawnAnchor: Vec2;
+  placementPoints: PlacementPoint[];
 }

@@ -1,3 +1,4 @@
+import { BATTLEFIELD_CONFIG } from '../config/battlefield-config';
 import { ENEMY_CONFIG } from '../config/enemy-config';
 import { WAVE_CONFIG } from '../config/wave-config';
 import { DifficultyId, EnemyState } from '../models/types';
@@ -18,32 +19,35 @@ export class WaveSystem {
 
   public tickSpawn(difficulty: DifficultyId, waveNumber: number, dt: number): EnemyState[] {
     const wave = WAVE_CONFIG[difficulty][waveNumber - 1];
-    if (!wave) {
-      return [];
-    }
-    const spawned: EnemyState[] = [];
+    if (!wave) return [];
 
+    const spawned: EnemyState[] = [];
     this.cursor.spawnCooldown -= dt;
+
     while (this.cursor.spawnCooldown <= 0) {
       const entry = wave.entries[this.cursor.entryIndex];
-      if (!entry) {
-        break;
-      }
+      if (!entry) break;
 
-      const lane = this.cursor.spawnedInCurrentEntry % 2;
-      const config = ENEMY_CONFIG[entry.enemyId];
+      const cfg = ENEMY_CONFIG[entry.enemyId];
+      const index = this.cursor.spawnedInCurrentEntry;
+      const lane = index % 2;
+      const rowOffset = lane === 0 ? -120 : 120;
       spawned.push({
         instanceId: nextId('enemy'),
         enemyId: entry.enemyId,
-        currentHp: config.maxHp,
-        lane,
-        distanceOnPath: 0,
+        currentHp: cfg.maxHp,
+        position: {
+          x: BATTLEFIELD_CONFIG.enemySpawnAnchor.x + (index % 3) * 10,
+          y: BATTLEFIELD_CONFIG.enemySpawnAnchor.y + rowOffset + ((index % 5) - 2) * 12,
+        },
+        velocity: { x: 0, y: 0 },
+        radius: 20,
+        cooldownLeft: 0,
         reachedCrystal: false,
       });
 
       this.cursor.spawnedInCurrentEntry += 1;
       this.cursor.spawnCooldown += entry.spawnInterval;
-
       if (this.cursor.spawnedInCurrentEntry >= entry.count) {
         this.cursor.entryIndex += 1;
         this.cursor.spawnedInCurrentEntry = 0;

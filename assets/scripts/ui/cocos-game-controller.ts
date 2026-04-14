@@ -657,9 +657,11 @@ export class CocosGameController extends Component {
         return `${config.sourceUnitId}->${config.targetUnitId} ${Math.floor(task.progress)}/${config.requirement}${task.completed ? ' 完成' : ''}`;
       })
       .join('  ') || '空';
-    const enemiesByLane = [0, 1]
-      .map((lane) => `路线${lane}: ${snapshot.enemies.filter((enemy) => enemy.lane === lane).length}`)
-      .join('  ');
+    const enemiesByZone = [
+      `左压:${snapshot.enemies.filter((enemy) => enemy.position.x < 350).length}`,
+      `中场:${snapshot.enemies.filter((enemy) => enemy.position.x >= 350 && enemy.position.x < 700).length}`,
+      `右侧:${snapshot.enemies.filter((enemy) => enemy.position.x >= 700).length}`,
+    ].join('  ');
     const spriteCount = [this.boardSprite, this.tileSprite, this.unitSprite, this.enemySprite, this.crystalSprite].filter(Boolean).length;
     const benchSummary = snapshot.bench.length > 4 ? `${snapshot.bench.length}个：${snapshot.bench.slice(0, 4).map((unit) => `${UNIT_CONFIG[unit.unitId].name}${unit.star}星`).join('  ')}...` : bench;
     const placedSummary =
@@ -675,7 +677,7 @@ export class CocosGameController extends Component {
       message ? `提示: ${message}` : '提示: 购买棋子 -> 自动上阵 -> 开战',
       `商店: ${shop}`,
       `备战区: ${benchSummary}  |  上阵区: ${placedSummary}`,
-      `敌人: ${enemiesByLane}  |  神品任务: ${tasks}`,
+      `敌人: ${enemiesByZone}  |  神品任务: ${tasks}`,
     ].join('\n');
 
     if (this.domStatus) {
@@ -763,7 +765,7 @@ export class CocosGameController extends Component {
     }
 
     for (const unit of snapshot.placed) {
-      const pos = this.getCocosTilePosition(unit.lane, unit.tileIndex);
+      const pos = { x: this.worldToCocosX(unit.position.x), y: this.worldToCocosY(unit.position.y) };
       const unitClick = () => this.selectUnit(unit.instanceId, 'placed');
       const unitAttackInterval = UNIT_CONFIG[unit.unitId].attackInterval;
       const isAttacking =
@@ -787,8 +789,8 @@ export class CocosGameController extends Component {
     for (const enemy of snapshot.enemies) {
       this.createCocosImageOrCircle(
         `Enemy${enemy.instanceId}`,
-        this.getCocosEnemyX(enemy.distanceOnPath),
-        this.getCocosLaneY(enemy.lane),
+        this.worldToCocosX(enemy.position.x),
+        this.worldToCocosY(enemy.position.y),
         18,
         new Color(194, 65, 12, 255),
         this.enemySprite,
@@ -1101,7 +1103,7 @@ export class CocosGameController extends Component {
     }
 
     for (const unit of snapshot.placed) {
-      const pos = this.getBoardTilePosition(unit.lane, unit.tileIndex);
+      const pos = { x: this.worldToDomX(unit.position.x), y: this.worldToDomY(unit.position.y) };
       const el = globalThis.document.createElement('div');
       el.style.position = 'absolute';
       el.style.left = `${pos.x - 28}px`;
@@ -1123,8 +1125,8 @@ export class CocosGameController extends Component {
     }
 
     for (const enemy of snapshot.enemies) {
-      const x = this.getEnemyX(enemy.distanceOnPath);
-      const y = this.getLaneY(enemy.lane);
+      const x = this.worldToDomX(enemy.position.x);
+      const y = this.worldToDomY(enemy.position.y);
       const el = globalThis.document.createElement('div');
       el.style.position = 'absolute';
       el.style.left = `${x - 10}px`;
@@ -1200,8 +1202,12 @@ export class CocosGameController extends Component {
     };
   }
 
-  private getEnemyX(distanceOnPath: number): number {
-    return Math.min(650, 45 + distanceOnPath * 39);
+  private worldToDomX(x: number): number {
+    return 40 + (x / 1000) * 610;
+  }
+
+  private worldToDomY(y: number): number {
+    return 18 + (y / 800) * 204;
   }
 
   private getLaneY(lane: number): number {
@@ -1215,8 +1221,12 @@ export class CocosGameController extends Component {
     };
   }
 
-  private getCocosEnemyX(distanceOnPath: number): number {
-    return Math.min(290, -315 + distanceOnPath * 39);
+  private worldToCocosX(x: number): number {
+    return -320 + (x / 1000) * 640;
+  }
+
+  private worldToCocosY(y: number): number {
+    return 95 - (y / 800) * 190;
   }
 
   private getCocosLaneY(lane: number): number {

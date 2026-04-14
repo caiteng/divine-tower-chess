@@ -60,3 +60,9 @@ After each implementation step:
 - Healing task progress must use actual restored HP only; overheal, full-HP targets, and virtual healing must not count
 - A placed unit with HP reduced to 0 is defeated for the current battle round and cannot attack or heal
 - Defeated placed units reset to full HP when the next preparation phase starts
+
+
+## 战斗系统方向（v0.3）
+- 战斗必须是二维连续空间（x/y），禁止退回固定三路推进。
+- 索敌必须基于 detectionRange / attackRange 半径机制。
+- 允许内部空间分区优化，但玩家体验不能表现为战棋格子移动。
