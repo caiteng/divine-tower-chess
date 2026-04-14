@@ -30,16 +30,13 @@ export class WaveSystem {
 
       const cfg = ENEMY_CONFIG[entry.enemyId];
       const index = this.cursor.spawnedInCurrentEntry;
-      const lane = index % 2;
-      const rowOffset = lane === 0 ? -120 : 120;
+      const spawnPos = this.pickSpawnPosition(index);
+
       spawned.push({
         instanceId: nextId('enemy'),
         enemyId: entry.enemyId,
         currentHp: cfg.maxHp,
-        position: {
-          x: BATTLEFIELD_CONFIG.enemySpawnAnchor.x + (index % 3) * 10,
-          y: BATTLEFIELD_CONFIG.enemySpawnAnchor.y + rowOffset + ((index % 5) - 2) * 12,
-        },
+        position: spawnPos,
         velocity: { x: 0, y: 0 },
         radius: 20,
         cooldownLeft: 0,
@@ -55,6 +52,15 @@ export class WaveSystem {
     }
 
     return spawned;
+  }
+
+  private pickSpawnPosition(index: number): { x: number; y: number } {
+    const region = BATTLEFIELD_CONFIG.enemySpawnRegion;
+    const ySpan = Math.max(1, region.yMax - region.yMin);
+    const yStep = 37;
+    const y = region.yMin + (index * yStep) % ySpan;
+    const x = region.xMax - (index % 4) * 8;
+    return { x, y };
   }
 
   public isWaveSpawnFinished(difficulty: DifficultyId, waveNumber: number): boolean {

@@ -44,9 +44,7 @@ function makePlaced(unitId: UnitId, id: string, x: number, y: number): PlacedUni
     instanceId: id,
     unitId,
     star: 3,
-    lane: 0,
-    tileIndex: 0,
-    placementPointId: 'test',
+    deploymentAnchorId: 'test_anchor',
     position: { x, y },
     velocity: { x: 0, y: 0 },
     radius: 24,
@@ -87,9 +85,12 @@ function verifyMovementKeepsTask(): void {
   withGuaranteedTaskRoll(() => assignAllEligibleTasks(unitSystem, divine));
   const task = requireValue(divine.getAllProgress()[0], 'task should exist');
 
-  assertRule(unitSystem.placeFromBench(task.unitInstanceId, 0, 0), 'place should succeed');
+  const firstAnchor = BATTLEFIELD_CONFIG.allyDeploymentAnchors[0];
+  const secondAnchor = BATTLEFIELD_CONFIG.allyDeploymentAnchors[1];
+  assertRule(Boolean(firstAnchor) && Boolean(secondAnchor), 'deployment anchors should exist');
+  assertRule(unitSystem.placeFromBench(task.unitInstanceId, firstAnchor.id), 'place should succeed');
   divine.addMetric(task.unitInstanceId, 'kills', 25);
-  assertRule(unitSystem.movePlacedUnit(task.unitInstanceId, 1, 5), 'reposition should succeed');
+  assertRule(unitSystem.movePlacedUnit(task.unitInstanceId, secondAnchor.id), 'reposition should succeed');
 
   const moved = requireValue(unitSystem.getPlacedUnits().find((u) => u.instanceId === task.unitInstanceId), 'unit should exist after move');
   const progress = requireValue(divine.getAllProgress().find((u) => u.unitInstanceId === task.unitInstanceId), 'task progress should exist');
