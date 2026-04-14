@@ -1,6 +1,6 @@
 import { BATTLEFIELD_CONFIG } from '../config/battlefield-config';
 import { UNIT_CONFIG } from '../config/unit-config';
-import { BenchUnitState, DivineTaskId, PlacementPoint, PlacedUnitState, UnitId } from '../models/types';
+import { BenchUnitState, DeploymentAnchor, DivineTaskId, PlacedUnitState, UnitId, Vec2 } from '../models/types';
 import { nextId } from '../utils/id';
 
 interface TaskRollUnitState {
@@ -56,53 +56,76 @@ export class UnitSystem {
     return [...placed, ...bench];
   }
 
-  public placeFromBench(instanceId: string, lane: number, tileIndex: number): boolean {
-    const point = this.findPlacementPoint(lane, tileIndex);
-    if (!point) return false;
-    if (this.placed.some((u) => u.placementPointId === point.id)) return false;
+  public placeFromBench(instanceId: string, deploymentAnchorId: string): boolean {
+    const anchor = this.findDeploymentAnchor(deploymentAnchorId);
+    if (!anchor) return false;
+    if (this.placed.some((u) => u.deploymentAnchorId === anchor.id)) return false;
 
     const benchUnit = this.bench.find((u) => u.instanceId === instanceId);
     if (!benchUnit) return false;
 
     this.bench = this.bench.filter((u) => u.instanceId !== instanceId);
     const config = UNIT_CONFIG[benchUnit.unitId];
-    this.placed.push({
-      instanceId: benchUnit.instanceId,
-      unitId: benchUnit.unitId,
-      star: benchUnit.star,
-      lane,
-      tileIndex,
-      placementPointId: point.id,
-      position: { ...point.position },
-      velocity: { x: 0, y: 0 },
-      radius: 24,
-      cooldownLeft: 0,
-      currentHp: config.maxHp,
-      assignedTaskId: benchUnit.assignedTaskId,
-    });
+    this.placed.push(this.buildPlacedUnit(benchUnit, anchor, config.maxHp));
     return true;
   }
 
-  public movePlacedUnit(instanceId: string, lane: number, tileIndex: number): boolean {
-    const point = this.findPlacementPoint(lane, tileIndex);
-    if (!point) return false;
+  public movePlacedUnit(instanceId: string, deploymentAnchorId: string): boolean {
+    const anchor = this.findDeploymentAnchor(deploymentAnchorId);
+    if (!anchor) return false;
 
     const unit = this.placed.find((u) => u.instanceId === instanceId);
     if (!unit) return false;
-    if (this.placed.some((u) => u.instanceId !== instanceId && u.placementPointId === point.id)) return false;
+    if (this.placed.some((u) => u.instanceId !== instanceId && u.deploymentAnchorId === anchor.id)) return false;
 
-    unit.lane = lane;
-    unit.tileIndex = tileIndex;
-    unit.placementPointId = point.id;
-    unit.position.x = point.position.x;
-    unit.position.y = point.position.y;
+    unit.deploymentAnchorId = anchor.id;
+    unit.position.x = anchor.position.x;
+    unit.position.y = anchor.position.y;
     unit.velocity.x = 0;
     unit.velocity.y = 0;
     return true;
   }
 
-  private findPlacementPoint(lane: number, tileIndex: number): PlacementPoint | undefined {
-    return BATTLEFIELD_CONFIG.placementPoints.find((point) => point.lane === lane && point.tileIndex === tileIndex);
+  private buildPlacedUnit(benchUnit: BenchUnitState, anchor: DeploymentAnchor, maxHp: number): PlacedUnitState {
+    return {
+      instanceId: benchUnit.instanceId,
+      unitId: benchUnit.unitId,
+      star: benchUnit.star,
+      deploymentAnchorId: anchor.id,
+      position: { ...anchor.position },
+      velocity: { x: 0, y: 0 },
+      radius: 24,
+      cooldownLeft: 0,
+      currentHp: maxHp,
+      assignedTaskId: benchUnit.assignedTaskId,
+    };
+  }
+
+  public placeFromBenchAtPosition(instanceId: string, position: Vec2): boolean {
+    const anchor = this.findNearestAvailableAnchor(position);
+    if (!anchor) return false;
+    return this.placeFromBench(instanceId, anchor.id);
+  }
+
+  public movePlacedUnitToPosition(instanceId: string, position: Vec2): boolean {
+    const anchor = this.findNearestAvailableAnchor(position, instanceId);
+    if (!anchor) return false;
+    return this.movePlacedUnit(instanceId, anchor.id);
+  }
+
+  private findDeploymentAnchor(deploymentAnchorId: string): DeploymentAnchor | undefined {
+    return BATTLEFIELD_CONFIG.allyDeploymentAnchors.find((anchor) => anchor.id === deploymentAnchorId);
+  }
+
+  private findNearestAvailableAnchor(position: Vec2, ignoreInstanceId?: string): DeploymentAnchor | undefined {
+    const isOccupied = (anchorId: string) => this.placed.some((unit) => unit.instanceId !== ignoreInstanceId && unit.deploymentAnchorId === anchorId);
+    return [...BATTLEFIELD_CONFIG.allyDeploymentAnchors]
+      .filter((anchor) => !isOccupied(anchor.id))
+      .sort((a, b) => {
+        const da = Math.hypot(a.position.x - position.x, a.position.y - position.y);
+        const db = Math.hypot(b.position.x - position.x, b.position.y - position.y);
+        return da - db;
+      })[0];
   }
 
   public resetDefeatedPlacedUnits(): number {

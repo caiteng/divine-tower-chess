@@ -1,3 +1,4 @@
+import { BATTLEFIELD_CONFIG } from '../config/battlefield-config';
 import { DIFFICULTY_CONFIG } from '../config/difficulty-config';
 import { UNIT_CONFIG } from '../config/unit-config';
 import { BattleSystem } from '../systems/battle-system';
@@ -48,6 +49,7 @@ export class GameSession {
       placed: this.unitSystem.getPlacedUnits(),
       divineTasks: this.divine.getAllProgress(),
       enemies: this.enemies,
+      deploymentAnchors: BATTLEFIELD_CONFIG.allyDeploymentAnchors,
     };
   }
 
@@ -82,19 +84,19 @@ export class GameSession {
     return true;
   }
 
-  public placeUnit(instanceId: string, lane: number, tileIndex: number): boolean {
+  public placeUnit(instanceId: string, deploymentAnchorId: string): boolean {
     if (this.phase !== 'prep') {
       return false;
     }
 
-    return this.unitSystem.placeFromBench(instanceId, lane, tileIndex);
+    return this.unitSystem.placeFromBench(instanceId, deploymentAnchorId);
   }
 
-  public movePlacedUnit(instanceId: string, lane: number, tileIndex: number): boolean {
+  public movePlacedUnit(instanceId: string, deploymentAnchorId: string): boolean {
     if (this.phase !== 'prep') {
       return false;
     }
-    return this.unitSystem.movePlacedUnit(instanceId, lane, tileIndex);
+    return this.unitSystem.movePlacedUnit(instanceId, deploymentAnchorId);
   }
 
   public beginBattle(): boolean {

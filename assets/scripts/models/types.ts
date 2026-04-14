@@ -82,13 +82,23 @@ export interface DivineTaskConfig {
   requirement: number;
 }
 
+export interface DeploymentAnchor {
+  id: string;
+  position: Vec2;
+}
+
+export interface RectRegion {
+  xMin: number;
+  xMax: number;
+  yMin: number;
+  yMax: number;
+}
+
 export interface PlacedUnitState {
   instanceId: string;
   unitId: UnitId;
   star: 1 | 2 | 3;
-  lane: number;
-  tileIndex: number;
-  placementPointId: string;
+  deploymentAnchorId: string;
   position: Vec2;
   velocity: Vec2;
   radius: number;
@@ -96,6 +106,13 @@ export interface PlacedUnitState {
   currentHp: number;
   targetEnemyId?: string;
   assignedTaskId?: DivineTaskId;
+
+  /** @deprecated 仅用于短期存档兼容，核心逻辑禁止依赖。 */
+  lane?: number;
+  /** @deprecated 仅用于短期存档兼容，核心逻辑禁止依赖。 */
+  tileIndex?: number;
+  /** @deprecated 仅用于短期存档兼容，核心逻辑禁止依赖。 */
+  placementPointId?: string;
 }
 
 export interface BenchUnitState {
@@ -124,19 +141,12 @@ export interface DivineTaskProgress {
   completed: boolean;
 }
 
-export interface PlacementPoint {
-  id: string;
-  lane: number;
-  tileIndex: number;
-  position: Vec2;
-}
-
 export interface BattlefieldConfig {
   width: number;
   height: number;
   crystalPosition: Vec2;
   crystalRadius: number;
-  allySpawnAnchor: Vec2;
-  enemySpawnAnchor: Vec2;
-  placementPoints: PlacementPoint[];
+  allyDeploymentRegion: RectRegion;
+  allyDeploymentAnchors: DeploymentAnchor[];
+  enemySpawnRegion: RectRegion;
 }
