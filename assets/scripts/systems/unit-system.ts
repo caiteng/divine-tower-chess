@@ -1,5 +1,6 @@
+import { BATTLEFIELD_CONFIG } from '../config/battlefield-config';
 import { UNIT_CONFIG } from '../config/unit-config';
-import { BenchUnitState, DivineTaskId, PlacedUnitState, UnitId } from '../models/types';
+import { BenchUnitState, DivineTaskId, PlacementPoint, PlacedUnitState, UnitId } from '../models/types';
 import { nextId } from '../utils/id';
 
 interface TaskRollUnitState {
@@ -10,29 +11,15 @@ interface TaskRollUnitState {
 }
 
 type MergeCandidate =
-  | {
-      source: 'placed';
-      unit: PlacedUnitState;
-    }
-  | {
-      source: 'bench';
-      unit: BenchUnitState;
-    };
+  | { source: 'placed'; unit: PlacedUnitState }
+  | { source: 'bench'; unit: BenchUnitState };
 
 export class UnitSystem {
   private bench: BenchUnitState[] = [];
   private placed: PlacedUnitState[] = [];
-  private lanes = [
-    [0, 1, 2, 3, 4, 5],
-    [0, 1, 2, 3, 4, 5],
-  ];
 
   public addToBench(unitId: UnitId): BenchUnitState {
-    const instance: BenchUnitState = {
-      instanceId: nextId('unit'),
-      unitId,
-      star: 1,
-    };
+    const instance: BenchUnitState = { instanceId: nextId('unit'), unitId, star: 1 };
     this.bench.push(instance);
     this.tryMerge(unitId, 1);
     return instance;
@@ -40,9 +27,7 @@ export class UnitSystem {
 
   private tryMerge(unitId: UnitId, star: 1 | 2): void {
     const candidates = this.getMergeCandidates(unitId, star);
-    if (candidates.length < 3) {
-      return;
-    }
+    if (candidates.length < 3) return;
 
     const selected = candidates.slice(0, 3);
     const keep = selected[0];
@@ -58,9 +43,7 @@ export class UnitSystem {
       keep.unit.cooldownLeft = 0;
     }
 
-    if (star === 1) {
-      this.tryMerge(unitId, 2);
-    }
+    if (star === 1) this.tryMerge(unitId, 2);
   }
 
   private getMergeCandidates(unitId: UnitId, star: 1 | 2): MergeCandidate[] {
@@ -74,18 +57,13 @@ export class UnitSystem {
   }
 
   public placeFromBench(instanceId: string, lane: number, tileIndex: number): boolean {
-    const laneTiles = this.lanes[lane];
-    if (!laneTiles || !laneTiles.includes(tileIndex)) {
-      return false;
-    }
-    const occupied = this.placed.some((u) => u.lane === lane && u.tileIndex === tileIndex);
-    if (occupied) {
-      return false;
-    }
+    const point = this.findPlacementPoint(lane, tileIndex);
+    if (!point) return false;
+    if (this.placed.some((u) => u.placementPointId === point.id)) return false;
+
     const benchUnit = this.bench.find((u) => u.instanceId === instanceId);
-    if (!benchUnit) {
-      return false;
-    }
+    if (!benchUnit) return false;
+
     this.bench = this.bench.filter((u) => u.instanceId !== instanceId);
     const config = UNIT_CONFIG[benchUnit.unitId];
     this.placed.push({
@@ -94,6 +72,10 @@ export class UnitSystem {
       star: benchUnit.star,
       lane,
       tileIndex,
+      placementPointId: point.id,
+      position: { ...point.position },
+      velocity: { x: 0, y: 0 },
+      radius: 24,
       cooldownLeft: 0,
       currentHp: config.maxHp,
       assignedTaskId: benchUnit.assignedTaskId,
@@ -102,34 +84,35 @@ export class UnitSystem {
   }
 
   public movePlacedUnit(instanceId: string, lane: number, tileIndex: number): boolean {
-    const laneTiles = this.lanes[lane];
-    if (!laneTiles || !laneTiles.includes(tileIndex)) {
-      return false;
-    }
-    const unit = this.placed.find((u) => u.instanceId === instanceId);
-    if (!unit) {
-      return false;
-    }
+    const point = this.findPlacementPoint(lane, tileIndex);
+    if (!point) return false;
 
-    const occupied = this.placed.some((u) => u.instanceId !== instanceId && u.lane === lane && u.tileIndex === tileIndex);
-    if (occupied) {
-      return false;
-    }
+    const unit = this.placed.find((u) => u.instanceId === instanceId);
+    if (!unit) return false;
+    if (this.placed.some((u) => u.instanceId !== instanceId && u.placementPointId === point.id)) return false;
 
     unit.lane = lane;
     unit.tileIndex = tileIndex;
+    unit.placementPointId = point.id;
+    unit.position.x = point.position.x;
+    unit.position.y = point.position.y;
+    unit.velocity.x = 0;
+    unit.velocity.y = 0;
     return true;
+  }
+
+  private findPlacementPoint(lane: number, tileIndex: number): PlacementPoint | undefined {
+    return BATTLEFIELD_CONFIG.placementPoints.find((point) => point.lane === lane && point.tileIndex === tileIndex);
   }
 
   public resetDefeatedPlacedUnits(): number {
     let resetCount = 0;
     for (const unit of this.placed) {
-      if (unit.currentHp > 0) {
-        continue;
-      }
-
+      if (unit.currentHp > 0) continue;
       unit.currentHp = UNIT_CONFIG[unit.unitId].maxHp;
       unit.cooldownLeft = 0;
+      unit.velocity.x = 0;
+      unit.velocity.y = 0;
       resetCount += 1;
     }
     return resetCount;
@@ -154,13 +137,9 @@ export class UnitSystem {
 
   public setAssignedTask(unitInstanceId: string, taskId: DivineTaskId): void {
     const benchUnit = this.bench.find((u) => u.instanceId === unitInstanceId);
-    if (benchUnit) {
-      benchUnit.assignedTaskId = taskId;
-    }
+    if (benchUnit) benchUnit.assignedTaskId = taskId;
     const placedUnit = this.placed.find((u) => u.instanceId === unitInstanceId);
-    if (placedUnit) {
-      placedUnit.assignedTaskId = taskId;
-    }
+    if (placedUnit) placedUnit.assignedTaskId = taskId;
   }
 
   public evolveUnit(unitInstanceId: string, targetUnitId: UnitId): void {
@@ -174,6 +153,9 @@ export class UnitSystem {
     if (benchUnit) apply(benchUnit);
 
     const placedUnit = this.placed.find((u) => u.instanceId === unitInstanceId);
-    if (placedUnit) apply(placedUnit);
+    if (placedUnit) {
+      apply(placedUnit);
+      placedUnit.currentHp = Math.min(placedUnit.currentHp, UNIT_CONFIG[targetUnitId].maxHp);
+    }
   }
 }
