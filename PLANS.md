@@ -2,68 +2,57 @@
 
 ## 阶段进度（2026-04-14）
 
-- [x] 阶段 1（本次）：仓库审查与重构计划细化（仅分析，不做大规模实现）。
-- [ ] 阶段 2：建立 BattleWorld / Entity 基础骨架，彻底去除 lane/tile 作为战斗核心。
-- [ ] 阶段 3：落地移动 + 索敌（detectionRange / attackRange / moveSpeed）。
-- [ ] 阶段 4：职业行为（近战追击 / 远程拉扯 / 牧师真实治疗 / 法师AOE）与任务统计对齐。
-- [ ] 阶段 5：准备阶段部署区域化（坐标/部署点），支持重摆且保持实例身份。
-- [ ] 阶段 6：最简可视化与新手10波可玩性验收。
-- [ ] 文档收敛：README / docs/game-design / AGENTS（如需）去除残留误导描述。
+- [x] 阶段 1：统一文档口径（README / docs/game-design / AGENTS）。
+- [x] 阶段 2：迁移类型与部署接口（types / unit-system）。
+- [x] 阶段 3：迁移战场配置与出怪逻辑（battlefield-config / wave-system）。
+- [x] 阶段 4：适配会话与控制器接口（game-session / game-controller）。
+- [x] 阶段 5：联动 UI 与脚本验证入口（cocos-game-controller / simulate-run / verify-divine-task-rules）。
+- [x] 阶段 6（本次推进）：补充关键回归样例（敌人出生区域校验）并修正文案残留。
+- [x] 阶段 7（本次推进）：接入星级贴图路径规范与文档规格。
+- [x] 阶段 8（本次推进）：补充部署区域可视化提示（Cocos 部署区高亮 + 占位状态色）。
+- [x] 阶段 9（本次推进）：提供冲突恢复脚本与操作文档（保留 Codex 最终态）。
+- [ ] 阶段 10：后续优化（更多端到端自动化回归样例）。
 
-## 阶段 1 审查结论（保留 / 替换边界）
+## 本轮完成摘要（统一方向）
 
-### 可直接保留（不推倒）
-1. 经济与商店闭环：金币消耗/收益、3格商店刷新、失败购买不移除条目逻辑可继续沿用。
-2. 升星与实例规则：`bench + placed` 混合三合一、3星封顶、任务实例不可被普通合成消耗规则可继续沿用。
-3. 神品任务主干：按实例绑定、独立10%判定、多任务并行、按单位实例累计 metric 的设计可继续沿用。
-4. 难度/波次配置结构：difficulty + wave entry + spawnInterval 的数据驱动方向可继续沿用。
-5. Unit/Enemy 配置字段：`detectionRange / attackRange / moveSpeed / attackInterval` 等字段已具备新系统所需输入。
+1. 明确项目唯一方向为二维连续空间自动战斗，不再使用 fixed lane/fixed route/tile board 作为核心设计。
+2. `PlacedUnitState` 与部署接口完成迁移：主字段改为 `deploymentAnchorId + position`，旧字段仅保留 `@deprecated` 兼容注释。
+3. 战场配置改为：`width/height/crystal/allyDeploymentRegion/allyDeploymentAnchors/enemySpawnRegion`。
+4. 出怪逻辑改为右侧出生区域分布式生成，不再使用 lane/rowOffset 双路线生成。
+5. `GameSession` / `GameController` 对外接口改为 `place(instanceId, deploymentAnchorId)` 与 `movePlaced(instanceId, deploymentAnchorId)`。
+6. 保留并复用核心可玩主干：商店、经济、升星、神品任务实例规则、二维战斗行为。
 
-### 必须替换（旧模型残留）
-1. `lane/tile` 仍进入运行时主状态（`PlacedUnitState`、`PlacementPoint`、`GameController.place/movePlaced` 参数）。
-2. `BATTLEFIELD_CONFIG.placementPoints` 仍是双lane网格锚点模型，不符合“二维部署区域”目标。
-3. `WaveSystem.tickSpawn` 通过 `%2` 生成 lane 行偏移，属于旧双路线生成思维。
-4. UI 与控制器接口仍以 lane/tile 驱动，不利于后续做自由拖拽或坐标部署。
+## 验收对照（本轮）
 
-### 复用评估（按模块）
-- `BattleSystem`：核心战斗循环、距离计算、敌我行为框架可复用；但要拆分为 `Targeting/Movement/Combat/Healing/Crystal/Spawn` 子系统。
-- `UnitSystem`：实例管理、升星、任务绑定字段维护可复用；摆放接口需改为坐标/部署点，不再暴露 lane/tile。
-- `WaveSystem`：波次游标与节拍可复用；出生点扰动逻辑需改为二维随机带而非 lane 偏移。
-- `GameSession`：phase 流程（menu/prep/battle/win/lose）可复用；调用接口需迁移到新 Placement/BattleWorld API。
+- [x] README / docs / AGENTS / PLANS 口径统一
+- [x] 项目不再自我描述为固定双路线塔防
+- [x] 类型层不再以 lane/tile 作为核心战斗模型
+- [x] 部署接口不再要求 lane/tileIndex
+- [x] 出怪逻辑不再模拟双路线
+- [x] battle-system 二维连续战斗行为保持可用
+- [x] 神品任务系统保持实例级与并行规则
+- [x] 调整部署后任务绑定与进度保留
 
-## 阶段 1 输出：重构执行计划
+## 后续未完成项（下一步）
 
-### 阶段 2：新战场模型
-- 新增 `BattleWorld`（二维边界、实体容器、时间步推进）。
-- 新增 `BattleEntity / UnitEntity / EnemyEntity` 运行时结构，避免把配置字段散落在系统间。
-- 将 `PlacedUnitState` 从 `lane/tile/placementPointId` 迁移为 `deployPosition`（或 `deploymentSlotId + position`）。
+1. 补充更多端到端自动化回归（波次完成、胜败分支、多实例神品并行压力样例）。
+2. 用户在家里电脑重传真实 `unit_star_progression.png` 后，用本地 git 客户端补提二进制文件并做一次资源加载回归。
 
-### 阶段 3：移动与索敌
-- 拆分 `TargetingSystem` 与 `MovementSystem`：
-  - 感知内选目标；
-  - 超出攻击范围则追近/拉扯；
-  - 到攻击范围后停身输出。
-- 敌人主逻辑：无目标则向水晶推进；有目标时切换战斗。
 
-### 阶段 4：职业行为与统计
-- `CombatSystem` 处理单体/范围伤害。
-- `HealingSystem` 处理真实治疗并返回 `actualHeal`。
-- `BattleMetrics` 统一输出 `killsByUnitInstance` 与 `healingByUnitInstance`，确保神品统计不回归。
+## 本次补充（贴图接入）
 
-### 阶段 5：准备阶段部署重构
-- 新增 `PlacementSystem`：部署区域校验（左侧区域、多点可放、支持重摆）。
-- `place/move` 入参改为坐标或部署位ID，移动后必须保留 instance/task/progress/divine/star。
+- 新增 `assets/art/reference/unit_star_progression.placeholder.txt`（二进制 PNG 由本地 git 客户端后续补提）。
+- 新增 `docs/art/unit_star_progression_spec.md`，将图像参考转为可执行文字规格。
+- 新增 `assets/scripts/config/unit-star-sprite-config.ts`，提供 `unitId + star -> sprite path` 映射。
+- `CocosGameController` 运行时改为优先加载星级贴图，缺失时回退基础头像路径。
 
-### 阶段 6：最简表现 + 验收
-- Cocos 映射连续坐标，区分敌我、水晶、受击/治疗反馈。
-- 跑通新手10波，验证完整流程与失败/胜利分支。
+## 本次补充（部署可视化）
 
-## 文档过时项（待后续阶段同步）
-1. README 与 game-design 整体方向已更新为二维连续战斗，但“部署锚点 + lane/tile 索引兼容 UI”描述仍会误导为旧模型，应在阶段5后彻底替换为“部署区域/坐标”。
-2. 代码注释中仍保留 `place(instanceId, lane, tileIndex)` 形式，需与新接口一致化。
+- Cocos 战场加入部署区高亮区域提示。
+- 部署锚点加入占位状态色：空位与已占位颜色区分，便于准备阶段调位操作。
 
-## 后续待办（阶段 2+）
-1. 完成数据结构迁移后补 `npm test` 与模拟回归。
-2. 补充“多3星并行任务 + 重摆不丢任务”的集成测试样例。
-3. 将 battle 相关系统从单文件拆分为多系统文件，降低耦合。
-4. 在 UI 层增加部署区域可视化，替代 lane/tile 按钮语义。
+
+## 本次补充（冲突恢复）
+
+- 新增 `docs/ops/merge-recovery.md`，给出从最新目标分支恢复并应用 `88e7330` 的步骤。
+- 新增 `scripts/apply_codex_final_state.sh`，一键执行 `cherry-pick -X ours 88e7330` + `npm test`。

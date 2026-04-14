@@ -5,7 +5,8 @@ import { DifficultyId } from '../models/types';
  * Cocos Creator 接入建议：
  * 1. 将该控制器挂在主场景节点上。
  * 2. 将按钮事件绑定到 startGame/refreshShop/buy/place/movePlaced/beginBattle。
- * 3. 在 update(dt) 中调用 tick。
+ * 3. place/movePlaced 使用 deploymentAnchorId，而非 lane/tile。
+ * 4. 在 update(dt) 中调用 tick。
  */
 export class GameController {
   private readonly session = new GameSession();
@@ -22,12 +23,12 @@ export class GameController {
     return this.session.buyShopUnit(slotIndex);
   }
 
-  public place(instanceId: string, lane: number, tileIndex: number): boolean {
-    return this.session.placeUnit(instanceId, lane, tileIndex);
+  public place(instanceId: string, deploymentAnchorId: string): boolean {
+    return this.session.placeUnit(instanceId, deploymentAnchorId);
   }
 
-  public movePlaced(instanceId: string, lane: number, tileIndex: number): boolean {
-    return this.session.movePlacedUnit(instanceId, lane, tileIndex);
+  public movePlaced(instanceId: string, deploymentAnchorId: string): boolean {
+    return this.session.movePlacedUnit(instanceId, deploymentAnchorId);
   }
 
   public beginBattle(): boolean {

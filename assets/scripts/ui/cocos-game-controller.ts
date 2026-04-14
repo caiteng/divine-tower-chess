@@ -1,5 +1,7 @@
 import { _decorator, Button, Camera, Canvas, Color, Component, director, Graphics, ImageAsset, Label, Layers, Node, resources, Sprite, SpriteFrame, UITransform, Vec3 } from 'cc';
+import { BATTLEFIELD_CONFIG } from '../config/battlefield-config';
 import { DIFFICULTY_CONFIG } from '../config/difficulty-config';
+import { UNIT_STAR_SPRITE_BASE_FALLBACK, UNIT_STAR_SPRITE_PATHS } from '../config/unit-star-sprite-config';
 import { DIVINE_TASK_CONFIG } from '../config/divine-task-config';
 import { UNIT_CONFIG } from '../config/unit-config';
 import { GameController } from '../core/game-controller';
@@ -41,7 +43,7 @@ export class CocosGameController extends Component {
   private pendingDifficulty: DifficultyId = 'beginner';
   private volume = 80;
   private avatarPulseTime = 0;
-  private readonly unitAvatarSprites: Partial<Record<UnitId, SpriteFrame>> = {};
+  private readonly unitAvatarSprites: Partial<Record<UnitId, Partial<Record<1 | 2 | 3, SpriteFrame>>>> = {};
   private speed = 1;
 
   public onLoad(): void {
@@ -106,12 +108,12 @@ export class CocosGameController extends Component {
     this.refreshStatus(`自动购买${bought}个棋子`);
   }
 
-  public place(instanceId: string, lane: number, tileIndex: number): void {
-    this.logAndRefresh(`上阵${instanceId}`, this.controller.place(instanceId, lane, tileIndex));
+  public place(instanceId: string, deploymentAnchorId: string): void {
+    this.logAndRefresh(`上阵${instanceId}`, this.controller.place(instanceId, deploymentAnchorId));
   }
 
-  public movePlaced(instanceId: string, lane: number, tileIndex: number): void {
-    this.logAndRefresh(`移动${instanceId}`, this.controller.movePlaced(instanceId, lane, tileIndex));
+  public movePlaced(instanceId: string, deploymentAnchorId: string): void {
+    this.logAndRefresh(`移动${instanceId}`, this.controller.movePlaced(instanceId, deploymentAnchorId));
   }
 
   public autoPlaceBench(): void {
@@ -119,11 +121,11 @@ export class CocosGameController extends Component {
     let placedCount = 0;
 
     for (const unit of snapshot.bench) {
-      const position = this.findFirstOpenTile();
+      const position = this.findFirstOpenAnchor();
       if (!position) {
         break;
       }
-      if (this.controller.place(unit.instanceId, position.lane, position.tileIndex)) {
+      if (this.controller.place(unit.instanceId, position.id)) {
         placedCount += 1;
       }
     }
@@ -139,13 +141,13 @@ export class CocosGameController extends Component {
       return;
     }
 
-    const position = this.findFirstOpenTile(first.instanceId);
+    const position = this.findFirstOpenAnchor(first.instanceId);
     if (!position) {
       this.refreshStatus('没有空位可移动');
       return;
     }
 
-    this.logAndRefresh(`移动${first.instanceId}`, this.controller.movePlaced(first.instanceId, position.lane, position.tileIndex));
+    this.logAndRefresh(`移动${first.instanceId}`, this.controller.movePlaced(first.instanceId, position.id));
   }
 
   public beginBattle(): void {
@@ -212,22 +214,24 @@ export class CocosGameController extends Component {
   }
 
   private loadDefaultUnitAvatars(): void {
-    const avatarPaths: Record<UnitId, string> = {
-      archer: 'textures/avatars/archer',
-      paladin: 'textures/avatars/paladin',
-      shield_guard: 'textures/avatars/shield_guard',
-      warrior: 'textures/avatars/warrior',
-      mage: 'textures/avatars/mage',
-      priest: 'textures/avatars/priest',
-      cavalry: 'textures/avatars/cavalry',
-      spearman: 'textures/avatars/spearman',
-      berserker: 'textures/avatars/berserker',
-      light_mage: 'textures/avatars/light_mage',
-    };
+    (Object.keys(UNIT_STAR_SPRITE_PATHS) as UnitId[]).forEach((unitId) => {
+      ([1, 2, 3] as const).forEach((star) => {
+        const starPath = UNIT_STAR_SPRITE_PATHS[unitId][star];
+        this.loadSpriteIfEmpty(starPath, (spriteFrame) => {
+          if (!this.unitAvatarSprites[unitId]) {
+            this.unitAvatarSprites[unitId] = {};
+          }
+          this.unitAvatarSprites[unitId]![star] = spriteFrame;
+        });
+      });
 
-    (Object.keys(avatarPaths) as UnitId[]).forEach((unitId) => {
-      this.loadSpriteIfEmpty(avatarPaths[unitId], (spriteFrame) => {
-        this.unitAvatarSprites[unitId] = spriteFrame;
+      this.loadSpriteIfEmpty(UNIT_STAR_SPRITE_BASE_FALLBACK[unitId], (spriteFrame) => {
+        if (!this.unitAvatarSprites[unitId]) {
+          this.unitAvatarSprites[unitId] = {};
+        }
+        this.unitAvatarSprites[unitId]![1] = this.unitAvatarSprites[unitId]![1] ?? spriteFrame;
+        this.unitAvatarSprites[unitId]![2] = this.unitAvatarSprites[unitId]![2] ?? spriteFrame;
+        this.unitAvatarSprites[unitId]![3] = this.unitAvatarSprites[unitId]![3] ?? spriteFrame;
       });
     });
   }
@@ -299,7 +303,7 @@ export class CocosGameController extends Component {
     this.createCocosTextInRoot(root, 'MapTitle', '选择地图', 0, 210, 360, 26, new Color(24, 47, 79, 255));
     this.createCocosRectInRoot(root, 'MapCard', 0, 50, 520, 230, new Color(215, 226, 236, 255));
     this.createCocosTextInRoot(root, 'MapCardTitle', '当前地图', 0, 115, 240, 24, new Color(17, 24, 39, 255));
-    this.createCocosTextInRoot(root, 'MapCardInfo', '双路线水晶防守', 0, 72, 260, 16, new Color(71, 85, 105, 255));
+    this.createCocosTextInRoot(root, 'MapCardInfo', '二维部署与水晶防守', 0, 72, 260, 16, new Color(71, 85, 105, 255));
     this.createCocosTextInRoot(root, 'DifficultyTitle', '难度', -220, -98, 100, 16, new Color(30, 41, 59, 255));
     this.createDifficultyButton('新手', 'beginner', -90);
     this.createDifficultyButton('普通', 'normal', 0);
@@ -618,14 +622,12 @@ export class CocosGameController extends Component {
     label.lineHeight = 18;
   }
 
-  private findFirstOpenTile(ignoreInstanceId?: string): { lane: number; tileIndex: number } | null {
+  private findFirstOpenAnchor(ignoreInstanceId?: string): { id: string } | null {
     const placed = this.controller.snapshot().placed;
-    for (let lane = 0; lane < 2; lane += 1) {
-      for (let tileIndex = 0; tileIndex < 6; tileIndex += 1) {
-        const occupied = placed.some((unit) => unit.instanceId !== ignoreInstanceId && unit.lane === lane && unit.tileIndex === tileIndex);
-        if (!occupied) {
-          return { lane, tileIndex };
-        }
+    for (const anchor of this.controller.snapshot().deploymentAnchors) {
+      const occupied = placed.some((unit) => unit.instanceId !== ignoreInstanceId && unit.deploymentAnchorId === anchor.id);
+      if (!occupied) {
+        return { id: anchor.id };
       }
     }
     return null;
@@ -697,31 +699,31 @@ export class CocosGameController extends Component {
 
     this.selectedUnitInstanceId = instanceId;
     this.selectedUnitSource = source;
-    this.refreshStatus(`已选择${instanceId}，点击棋盘空格放置或移动`);
+    this.refreshStatus(`已选择${instanceId}，点击部署点放置或移动`);
   }
 
-  private handleTileClick(lane: number, tileIndex: number): void {
+  private handleAnchorClick(anchorId: string): void {
     const snapshot = this.controller.snapshot();
-    const unitOnTile = snapshot.placed.find((unit) => unit.lane === lane && unit.tileIndex === tileIndex);
+    const unitOnTile = snapshot.placed.find((unit) => unit.deploymentAnchorId === anchorId);
 
     if (!this.selectedUnitInstanceId || !this.selectedUnitSource) {
       if (unitOnTile) {
         this.selectUnit(unitOnTile.instanceId, 'placed');
         return;
       }
-      this.refreshStatus('先点击备战区或棋盘上的棋子');
+      this.refreshStatus('先点击备战区或已部署棋子');
       return;
     }
 
     if (unitOnTile && unitOnTile.instanceId !== this.selectedUnitInstanceId) {
-      this.refreshStatus('目标格已有棋子，请选择空格移动');
+      this.refreshStatus('目标部署点已有棋子，请选择其他部署点移动');
       return;
     }
 
     const success =
       this.selectedUnitSource === 'bench'
-        ? this.controller.place(this.selectedUnitInstanceId, lane, tileIndex)
-        : this.controller.movePlaced(this.selectedUnitInstanceId, lane, tileIndex);
+        ? this.controller.place(this.selectedUnitInstanceId, anchorId)
+        : this.controller.movePlaced(this.selectedUnitInstanceId, anchorId);
 
     const action = this.selectedUnitSource === 'bench' ? '上阵' : '移动';
     if (success) {
@@ -742,26 +744,28 @@ export class CocosGameController extends Component {
     this.createCocosImageOrRect('BoardBackground', 0, 0, 720, 220, new Color(215, 226, 236, 255), this.boardSprite);
     this.createCocosImageOrRect('Crystal', 315, 0, 38, 90, new Color(56, 189, 248, 255), this.crystalSprite);
     this.createCocosText('CrystalLabel', '水晶', 315, 0, 34, 17, new Color(8, 51, 68, 255));
+    this.createCocosDeploymentRegionHint();
 
-    for (let lane = 0; lane < 2; lane += 1) {
-      const y = this.getCocosLaneY(lane);
-      this.createCocosRect(`Lane${lane}`, 0, y, 590, 14, new Color(148, 163, 184, 255));
-      for (let tileIndex = 0; tileIndex < 6; tileIndex += 1) {
-        const pos = this.getCocosTilePosition(lane, tileIndex);
-        const isSelectedTarget = Boolean(this.selectedUnitInstanceId);
-        const tileClick = () => this.handleTileClick(lane, tileIndex);
-        this.createCocosImageOrRect(
-          `Tile${lane}-${tileIndex}`,
-          pos.x,
-          pos.y,
-          54,
-          54,
-          isSelectedTarget ? new Color(222, 247, 236, 180) : new Color(248, 250, 252, 120),
-          this.tileSprite,
-          tileClick,
-        );
-        this.createCocosText(`TileLabel${lane}-${tileIndex}`, `${lane}-${tileIndex}`, pos.x, pos.y - 20, 40, 11, new Color(71, 85, 105, 255), tileClick);
-      }
+    for (const anchor of snapshot.deploymentAnchors) {
+      const pos = { x: this.worldToCocosX(anchor.position.x), y: this.worldToCocosY(anchor.position.y) };
+      const occupied = snapshot.placed.some((unit) => unit.deploymentAnchorId === anchor.id);
+      const isSelectedTarget = Boolean(this.selectedUnitInstanceId);
+      const tileClick = () => this.handleAnchorClick(anchor.id);
+      this.createCocosImageOrRect(
+        `DeployAnchor${anchor.id}`,
+        pos.x,
+        pos.y,
+        54,
+        54,
+        isSelectedTarget
+          ? new Color(222, 247, 236, 180)
+          : occupied
+            ? new Color(251, 191, 36, 130)
+            : new Color(248, 250, 252, 120),
+        this.tileSprite,
+        tileClick,
+      );
+      this.createCocosText(`DeployAnchorLabel${anchor.id}`, `${anchor.id.replace('deploy_', '#')}`, pos.x, pos.y - 20, 52, 11, new Color(71, 85, 105, 255), tileClick);
     }
 
     for (const unit of snapshot.placed) {
@@ -798,6 +802,20 @@ export class CocosGameController extends Component {
     }
   }
 
+  private createCocosDeploymentRegionHint(): void {
+    const region = BATTLEFIELD_CONFIG.allyDeploymentRegion;
+    const xMin = this.worldToCocosX(region.xMin);
+    const xMax = this.worldToCocosX(region.xMax);
+    const yTop = this.worldToCocosY(region.yMax);
+    const yBottom = this.worldToCocosY(region.yMin);
+    const centerX = (xMin + xMax) * 0.5;
+    const centerY = (yTop + yBottom) * 0.5;
+    const width = Math.max(8, Math.abs(xMax - xMin));
+    const height = Math.max(8, Math.abs(yBottom - yTop));
+    this.createCocosRect('DeploymentRegion', centerX, centerY, width, height, new Color(147, 197, 253, 56));
+    this.createCocosText('DeploymentRegionLabel', '部署区', centerX, centerY + height * 0.5 - 12, 60, 12, new Color(30, 64, 175, 255));
+  }
+
   private renderCocosBench(): void {
     if (!this.cocosBenchRoot) {
       return;
@@ -806,7 +824,7 @@ export class CocosGameController extends Component {
     const snapshot = this.controller.snapshot();
     this.cocosBenchRoot.removeAllChildren();
     this.createCocosRectInRoot(this.cocosBenchRoot, 'BenchBackground', 0, 0, 760, 58, new Color(224, 231, 238, 255));
-    this.createCocosTextInRoot(this.cocosBenchRoot, 'BenchTitle', '备战区：点棋子再点格子', -285, 19, 180, 12, new Color(30, 41, 59, 255));
+    this.createCocosTextInRoot(this.cocosBenchRoot, 'BenchTitle', '备战区：点棋子再点部署点', -285, 19, 180, 12, new Color(30, 41, 59, 255));
 
     const shown = snapshot.bench.slice(0, 8);
     shown.forEach((unit, index) => {
@@ -888,7 +906,7 @@ export class CocosGameController extends Component {
       node.on(Button.EventType.CLICK, onClick, this);
     }
 
-    const avatarSprite = this.unitAvatarSprites[unitId];
+    const avatarSprite = this.unitAvatarSprites[unitId]?.[star] ?? this.unitAvatarSprites[unitId]?.[1];
     if (avatarSprite) {
       this.createCocosSpriteInRoot(
         node,
@@ -1095,11 +1113,9 @@ export class CocosGameController extends Component {
     this.domBoard.innerHTML = '';
 
     this.createDomCrystal();
-    for (let lane = 0; lane < 2; lane += 1) {
-      this.createDomLane(lane);
-      for (let tileIndex = 0; tileIndex < 6; tileIndex += 1) {
-        this.createDomTile(lane, tileIndex);
-      }
+    this.createDomDeploymentRegion();
+    for (const anchor of snapshot.deploymentAnchors) {
+      this.createDomDeploymentAnchor(anchor.id, anchor.position.x, anchor.position.y);
     }
 
     for (const unit of snapshot.placed) {
@@ -1141,23 +1157,28 @@ export class CocosGameController extends Component {
     }
   }
 
-  private createDomLane(lane: number): void {
+  private createDomDeploymentRegion(): void {
     if (!this.domBoard) return;
-    const y = this.getLaneY(lane);
-    const line = globalThis.document.createElement('div');
-    line.style.position = 'absolute';
-    line.style.left = '40px';
-    line.style.top = `${y - 8}px`;
-    line.style.width = '610px';
-    line.style.height = '16px';
-    line.style.background = '#94a3b8';
-    line.style.borderRadius = '8px';
-    this.domBoard.appendChild(line);
+    const region = BATTLEFIELD_CONFIG.allyDeploymentRegion;
+    const x = this.worldToDomX(region.xMin);
+    const y = this.worldToDomY(region.yMax);
+    const width = this.worldToDomX(region.xMax) - this.worldToDomX(region.xMin);
+    const height = this.worldToDomY(region.yMin) - this.worldToDomY(region.yMax);
+    const area = globalThis.document.createElement('div');
+    area.style.position = 'absolute';
+    area.style.left = `${x}px`;
+    area.style.top = `${y}px`;
+    area.style.width = `${Math.max(8, width)}px`;
+    area.style.height = `${Math.max(8, height)}px`;
+    area.style.border = '1px solid #94a3b8';
+    area.style.background = 'rgba(148, 163, 184, 0.12)';
+    area.style.borderRadius = '8px';
+    this.domBoard.appendChild(area);
   }
 
-  private createDomTile(lane: number, tileIndex: number): void {
+  private createDomDeploymentAnchor(anchorId: string, worldX: number, worldY: number): void {
     if (!this.domBoard) return;
-    const pos = this.getBoardTilePosition(lane, tileIndex);
+    const pos = { x: this.worldToDomX(worldX), y: this.worldToDomY(worldY) };
     const tile = globalThis.document.createElement('div');
     tile.style.position = 'absolute';
     tile.style.left = `${pos.x - 32}px`;
@@ -1172,7 +1193,7 @@ export class CocosGameController extends Component {
     tile.style.fontSize = '11px';
     tile.style.textAlign = 'center';
     tile.style.lineHeight = '64px';
-    tile.textContent = `${lane}-${tileIndex}`;
+    tile.textContent = anchorId.replace('deploy_', '#');
     this.domBoard.appendChild(tile);
   }
 
@@ -1195,12 +1216,6 @@ export class CocosGameController extends Component {
     this.domBoard.appendChild(crystal);
   }
 
-  private getBoardTilePosition(lane: number, tileIndex: number): { x: number; y: number } {
-    return {
-      x: 90 + tileIndex * 86,
-      y: this.getLaneY(lane),
-    };
-  }
 
   private worldToDomX(x: number): number {
     return 40 + (x / 1000) * 610;
@@ -1210,16 +1225,6 @@ export class CocosGameController extends Component {
     return 18 + (y / 800) * 204;
   }
 
-  private getLaneY(lane: number): number {
-    return lane === 0 ? 85 : 175;
-  }
-
-  private getCocosTilePosition(lane: number, tileIndex: number): { x: number; y: number } {
-    return {
-      x: -270 + tileIndex * 82,
-      y: this.getCocosLaneY(lane),
-    };
-  }
 
   private worldToCocosX(x: number): number {
     return -320 + (x / 1000) * 640;
@@ -1229,7 +1234,4 @@ export class CocosGameController extends Component {
     return 95 - (y / 800) * 190;
   }
 
-  private getCocosLaneY(lane: number): number {
-    return lane === 0 ? 36 : -36;
-  }
 }

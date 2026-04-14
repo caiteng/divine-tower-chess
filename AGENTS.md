@@ -66,3 +66,10 @@ After each implementation step:
 - 战斗必须是二维连续空间（x/y），禁止退回固定三路推进。
 - 索敌必须基于 detectionRange / attackRange 半径机制。
 - 允许内部空间分区优化，但玩家体验不能表现为战棋格子移动。
+
+
+## 统一方向约束（v0.3+）
+- 严禁将战斗模型回退为 fixed lane / fixed route / tile board。
+- 部署点（deployment anchors/points）仅是部署区域内候选落点，不得使用 lane/tile 语义作为核心接口。
+- 核心逻辑层（types / unit-system / game-session / game-controller / wave-system）不得继续依赖 lane、tileIndex、placementPointId。
+- Divine task 必须保持实例级独立分配与累计，禁止改回职业共享进度。
