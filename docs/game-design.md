@@ -86,3 +86,13 @@
 - 不做高成本美术/动画
 
 目标是：让文档、类型、接口、出怪、部署模型全部服务同一套二维连续战斗设计。
+
+---
+
+## 6. 资源接入约定（v1）
+
+- 参考图目标路径：`assets/art/reference/unit_star_progression.png`（当前仓库追踪文本占位文件）
+- 规格文档放置于：`docs/art/unit_star_progression_spec.md`
+- 运行时贴图优先按 `unitId + star` 映射路径加载，缺失时回退到单位基础头像路径。
+- 仅使用 2D sprite 资源流程，不引入 3D 模型管线。
+

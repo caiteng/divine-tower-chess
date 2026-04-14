@@ -1,6 +1,7 @@
 import { _decorator, Button, Camera, Canvas, Color, Component, director, Graphics, ImageAsset, Label, Layers, Node, resources, Sprite, SpriteFrame, UITransform, Vec3 } from 'cc';
 import { BATTLEFIELD_CONFIG } from '../config/battlefield-config';
 import { DIFFICULTY_CONFIG } from '../config/difficulty-config';
+import { UNIT_STAR_SPRITE_BASE_FALLBACK, UNIT_STAR_SPRITE_PATHS } from '../config/unit-star-sprite-config';
 import { DIVINE_TASK_CONFIG } from '../config/divine-task-config';
 import { UNIT_CONFIG } from '../config/unit-config';
 import { GameController } from '../core/game-controller';
@@ -42,7 +43,7 @@ export class CocosGameController extends Component {
   private pendingDifficulty: DifficultyId = 'beginner';
   private volume = 80;
   private avatarPulseTime = 0;
-  private readonly unitAvatarSprites: Partial<Record<UnitId, SpriteFrame>> = {};
+  private readonly unitAvatarSprites: Partial<Record<UnitId, Partial<Record<1 | 2 | 3, SpriteFrame>>>> = {};
   private speed = 1;
 
   public onLoad(): void {
@@ -213,22 +214,24 @@ export class CocosGameController extends Component {
   }
 
   private loadDefaultUnitAvatars(): void {
-    const avatarPaths: Record<UnitId, string> = {
-      archer: 'textures/avatars/archer',
-      paladin: 'textures/avatars/paladin',
-      shield_guard: 'textures/avatars/shield_guard',
-      warrior: 'textures/avatars/warrior',
-      mage: 'textures/avatars/mage',
-      priest: 'textures/avatars/priest',
-      cavalry: 'textures/avatars/cavalry',
-      spearman: 'textures/avatars/spearman',
-      berserker: 'textures/avatars/berserker',
-      light_mage: 'textures/avatars/light_mage',
-    };
+    (Object.keys(UNIT_STAR_SPRITE_PATHS) as UnitId[]).forEach((unitId) => {
+      ([1, 2, 3] as const).forEach((star) => {
+        const starPath = UNIT_STAR_SPRITE_PATHS[unitId][star];
+        this.loadSpriteIfEmpty(starPath, (spriteFrame) => {
+          if (!this.unitAvatarSprites[unitId]) {
+            this.unitAvatarSprites[unitId] = {};
+          }
+          this.unitAvatarSprites[unitId]![star] = spriteFrame;
+        });
+      });
 
-    (Object.keys(avatarPaths) as UnitId[]).forEach((unitId) => {
-      this.loadSpriteIfEmpty(avatarPaths[unitId], (spriteFrame) => {
-        this.unitAvatarSprites[unitId] = spriteFrame;
+      this.loadSpriteIfEmpty(UNIT_STAR_SPRITE_BASE_FALLBACK[unitId], (spriteFrame) => {
+        if (!this.unitAvatarSprites[unitId]) {
+          this.unitAvatarSprites[unitId] = {};
+        }
+        this.unitAvatarSprites[unitId]![1] = this.unitAvatarSprites[unitId]![1] ?? spriteFrame;
+        this.unitAvatarSprites[unitId]![2] = this.unitAvatarSprites[unitId]![2] ?? spriteFrame;
+        this.unitAvatarSprites[unitId]![3] = this.unitAvatarSprites[unitId]![3] ?? spriteFrame;
       });
     });
   }
@@ -300,7 +303,7 @@ export class CocosGameController extends Component {
     this.createCocosTextInRoot(root, 'MapTitle', '选择地图', 0, 210, 360, 26, new Color(24, 47, 79, 255));
     this.createCocosRectInRoot(root, 'MapCard', 0, 50, 520, 230, new Color(215, 226, 236, 255));
     this.createCocosTextInRoot(root, 'MapCardTitle', '当前地图', 0, 115, 240, 24, new Color(17, 24, 39, 255));
-    this.createCocosTextInRoot(root, 'MapCardInfo', '双路线水晶防守', 0, 72, 260, 16, new Color(71, 85, 105, 255));
+    this.createCocosTextInRoot(root, 'MapCardInfo', '二维部署与水晶防守', 0, 72, 260, 16, new Color(71, 85, 105, 255));
     this.createCocosTextInRoot(root, 'DifficultyTitle', '难度', -220, -98, 100, 16, new Color(30, 41, 59, 255));
     this.createDifficultyButton('新手', 'beginner', -90);
     this.createDifficultyButton('普通', 'normal', 0);
@@ -742,8 +745,12 @@ export class CocosGameController extends Component {
     this.createCocosImageOrRect('Crystal', 315, 0, 38, 90, new Color(56, 189, 248, 255), this.crystalSprite);
     this.createCocosText('CrystalLabel', '水晶', 315, 0, 34, 17, new Color(8, 51, 68, 255));
 
+    this.createCocosDeploymentRegionHint();
+
     for (const anchor of snapshot.deploymentAnchors) {
       const pos = { x: this.worldToCocosX(anchor.position.x), y: this.worldToCocosY(anchor.position.y) };
+      const occupied = snapshot.placed.some((unit) => unit.deploymentAnchorId === anchor.id);
+
       const isSelectedTarget = Boolean(this.selectedUnitInstanceId);
       const tileClick = () => this.handleAnchorClick(anchor.id);
       this.createCocosImageOrRect(
@@ -752,7 +759,12 @@ export class CocosGameController extends Component {
         pos.y,
         54,
         54,
-        isSelectedTarget ? new Color(222, 247, 236, 180) : new Color(248, 250, 252, 120),
+        isSelectedTarget
+          ? new Color(222, 247, 236, 180)
+          : occupied
+            ? new Color(251, 191, 36, 130)
+            : new Color(248, 250, 252, 120),
+
         this.tileSprite,
         tileClick,
       );
@@ -791,6 +803,20 @@ export class CocosGameController extends Component {
         this.enemySprite,
       );
     }
+  }
+
+  private createCocosDeploymentRegionHint(): void {
+    const region = BATTLEFIELD_CONFIG.allyDeploymentRegion;
+    const xMin = this.worldToCocosX(region.xMin);
+    const xMax = this.worldToCocosX(region.xMax);
+    const yTop = this.worldToCocosY(region.yMax);
+    const yBottom = this.worldToCocosY(region.yMin);
+    const centerX = (xMin + xMax) * 0.5;
+    const centerY = (yTop + yBottom) * 0.5;
+    const width = Math.max(8, Math.abs(xMax - xMin));
+    const height = Math.max(8, Math.abs(yBottom - yTop));
+    this.createCocosRect('DeploymentRegion', centerX, centerY, width, height, new Color(147, 197, 253, 56));
+    this.createCocosText('DeploymentRegionLabel', '部署区', centerX, centerY + height * 0.5 - 12, 60, 12, new Color(30, 64, 175, 255));
   }
 
   private renderCocosBench(): void {
@@ -883,7 +909,7 @@ export class CocosGameController extends Component {
       node.on(Button.EventType.CLICK, onClick, this);
     }
 
-    const avatarSprite = this.unitAvatarSprites[unitId];
+    const avatarSprite = this.unitAvatarSprites[unitId]?.[star] ?? this.unitAvatarSprites[unitId]?.[1];
     if (avatarSprite) {
       this.createCocosSpriteInRoot(
         node,

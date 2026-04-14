@@ -4,6 +4,7 @@ import { GameSession } from './game-session';
 import { BattleSystem } from '../systems/battle-system';
 import { DivineTaskSystem } from '../systems/divine-task-system';
 import { UnitSystem } from '../systems/unit-system';
+import { WaveSystem } from '../systems/wave-system';
 import { EnemyState, PlacedUnitState, UnitId } from '../models/types';
 
 declare const require: { main?: unknown } | undefined;
@@ -146,8 +147,27 @@ function verifyRoundPhaseGuards(): void {
   const session = new GameSession();
   assertRule(!session.refreshShopByCost(), 'refresh should fail before game start');
   session.startNewGame('beginner');
+  const snapshot = session.getSnapshot();
+  assertRule(snapshot.deploymentAnchors.length > 0, 'snapshot should expose deployment anchors');
   assertRule(session.beginBattle(), 'battle should start from prep');
   assertRule(!session.buyShopUnit(0), 'buy should fail in battle phase');
+}
+
+function verifyWaveSpawnRegion(): void {
+  const wave = new WaveSystem();
+  wave.resetWave();
+
+  const region = BATTLEFIELD_CONFIG.enemySpawnRegion;
+  const spawned: EnemyState[] = [];
+  for (let i = 0; i < 120; i += 1) {
+    spawned.push(...wave.tickSpawn('beginner', 1, 0.2));
+  }
+
+  assertRule(spawned.length > 0, 'wave should spawn enemies');
+  for (const enemy of spawned) {
+    assertRule(enemy.position.x >= region.xMin && enemy.position.x <= region.xMax, 'spawn x should stay in enemy spawn region');
+    assertRule(enemy.position.y >= region.yMin && enemy.position.y <= region.yMax, 'spawn y should stay in enemy spawn region');
+  }
 }
 
 function runAllRules(): void {
@@ -157,6 +177,7 @@ function runAllRules(): void {
   verifyContinuousBattleMovement();
   verifyCrystalThreat();
   verifyRoundPhaseGuards();
+  verifyWaveSpawnRegion();
   console.log('Divine task rules verified.');
 }
 

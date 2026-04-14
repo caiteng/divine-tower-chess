@@ -72,3 +72,15 @@ npm test
 2. `全买` -> `自动上阵` -> `开战`。
 3. 观察单位在二维空间中移动、索敌、追击、治疗、AOE。
 4. 每波结束回到准备阶段继续招募/调位，直至胜利或失败。
+
+
+## 贴图资源管线（v1 占位流程）
+
+- 参考图目标路径：`assets/art/reference/unit_star_progression.png`（仓库当前追踪文本占位 `unit_star_progression.placeholder.txt`）
+- 规格文档：`docs/art/unit_star_progression_spec.md`
+- 星级贴图路径映射：`assets/scripts/config/unit-star-sprite-config.ts`
+
+当前运行时策略：
+1. 优先按 `unitId + star` 路径加载（如 `textures/avatars/warrior/star2`）
+2. 若缺失则回退到单位基础路径（如 `textures/avatars/warrior`）
+3. 保持 2D sprite 工作流，不引入 3D 管线
