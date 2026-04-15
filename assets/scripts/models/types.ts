@@ -45,7 +45,6 @@ export interface EnemyConfig {
   maxHp: number;
   moveSpeed: number;
   goldReward: number;
-  crystalDamage: number;
   attackDamage: number;
   attackInterval: number;
   detectionRange: number;
@@ -70,7 +69,6 @@ export interface DifficultyConfig {
   totalWaves: number;
   startingGold: number;
   refreshCost: number;
-  crystalHp: number;
 }
 
 export interface DivineTaskConfig {
@@ -82,71 +80,9 @@ export interface DivineTaskConfig {
   requirement: number;
 }
 
-export interface DeploymentAnchor {
-  id: string;
-  position: Vec2;
-}
-
-export interface RectRegion {
-  xMin: number;
-  xMax: number;
-  yMin: number;
-  yMax: number;
-}
-
-export interface PlacedUnitState {
-  instanceId: string;
-  unitId: UnitId;
-  star: 1 | 2 | 3;
-  deploymentAnchorId: string;
-  position: Vec2;
-  velocity: Vec2;
-  radius: number;
-  cooldownLeft: number;
-  currentHp: number;
-  targetEnemyId?: string;
-  assignedTaskId?: DivineTaskId;
-
-  /** @deprecated 仅用于短期存档兼容，核心逻辑禁止依赖。 */
-  lane?: number;
-  /** @deprecated 仅用于短期存档兼容，核心逻辑禁止依赖。 */
-  tileIndex?: number;
-  /** @deprecated 仅用于短期存档兼容，核心逻辑禁止依赖。 */
-  placementPointId?: string;
-}
-
-export interface BenchUnitState {
-  instanceId: string;
-  unitId: UnitId;
-  star: 1 | 2 | 3;
-  assignedTaskId?: DivineTaskId;
-}
-
-export interface EnemyState {
-  instanceId: string;
-  enemyId: EnemyId;
-  currentHp: number;
-  position: Vec2;
-  velocity: Vec2;
-  radius: number;
-  cooldownLeft: number;
-  targetUnitId?: string;
-  reachedCrystal: boolean;
-}
-
 export interface DivineTaskProgress {
   taskId: DivineTaskId;
   unitInstanceId: string;
   progress: number;
   completed: boolean;
-}
-
-export interface BattlefieldConfig {
-  width: number;
-  height: number;
-  crystalPosition: Vec2;
-  crystalRadius: number;
-  allyDeploymentRegion: RectRegion;
-  allyDeploymentAnchors: DeploymentAnchor[];
-  enemySpawnRegion: RectRegion;
 }

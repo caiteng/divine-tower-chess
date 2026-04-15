@@ -5,7 +5,7 @@
   "type": "commonjs",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "verify:rules": "tsx assets/scripts/core/verify-divine-task-rules.ts",
+    "verify:rules": "tsx assets/scripts/core/verify-squad-rules.ts",
     "test": "npm run typecheck && npm run verify:rules"
   },
   "devDependencies": {

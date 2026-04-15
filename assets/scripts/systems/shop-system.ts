@@ -1,12 +1,13 @@
 import { SHOP_UNIT_POOL } from '../config/unit-config';
 import { UnitId } from '../models/types';
+import { SQUAD_SHOP_SLOTS } from '../squad/config/squad-ui-layout-config';
 import { pickN } from '../utils/random';
 
 export class ShopSystem {
   private entries: UnitId[] = [];
 
   public refresh(): UnitId[] {
-    this.entries = pickN(SHOP_UNIT_POOL, 3);
+    this.entries = pickN(SHOP_UNIT_POOL, SQUAD_SHOP_SLOTS);
     return [...this.entries];
   }
 
