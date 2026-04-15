@@ -10,6 +10,7 @@ import { SQUAD_BENCH_SLOTS, SQUAD_DEPLOY_SLOTS, SQUAD_SHOP_SLOTS, WaveTransition
 import { AttackSystem } from './systems/attack-system';
 import { EnemyAiSystem } from './systems/enemy-ai-system';
 import { HealingSystem } from './systems/healing-system';
+import { CollisionSystem } from './systems/collision-system';
 import { MovementSystem } from './systems/movement-system';
 import { RosterSystem } from './systems/roster-system';
 import { TargetingSystem } from './systems/targeting-system';
@@ -23,6 +24,7 @@ export class SquadBattleSession {
   private readonly attackSystem = new AttackSystem();
   private readonly healingSystem = new HealingSystem();
   private readonly enemyAiSystem = new EnemyAiSystem();
+  private readonly collisionSystem = new CollisionSystem();
 
   private readonly roster = new RosterSystem();
   private readonly economy = new EconomySystem();
@@ -131,6 +133,7 @@ export class SquadBattleSession {
 
     this.tickAllies(dt, killsByUnit, healingByUnit);
     this.enemyAiSystem.tick(this.enemies, this.allies, dt);
+    this.collisionSystem.resolve(this.allies, this.enemies, 3);
 
     this.enemies = this.enemies.filter((enemy) => enemy.alive);
 
