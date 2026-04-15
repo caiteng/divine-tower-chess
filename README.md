@@ -1,60 +1,44 @@
 # divine-tower-chess
 
-Cocos Creator + TypeScript 原型项目。当前版本定位为：**2D 横版 / 伪纵深的自动战斗原型**，并保留准备阶段养成闭环（商店、金币、三合一升星、实例级神品任务、波次推进与水晶防守）。
+Cocos Creator + TypeScript 原型项目。当前唯一方向：**Battleheart 风格的 2D 小队实时命令战斗**，并保留成长主线（商店、金币、3 合 1 升星、3 星后实例级神品任务）。
 
-## 当前真实状态（统一口径）
+## 项目定义（阶段 2 统一口径）
 
-### 战斗模型（已落地）
-- 战场为二维连续空间（`x/y`），单位与敌人都使用连续坐标。
-- 索敌与行为由半径机制驱动：`detectionRange` / `attackRange` / `moveSpeed`。
-- 敌人从右侧出生区域进入战场，向左侧水晶推进；接战后会攻击单位。
-- 单位行为已具备：
-  - 近战追击
-  - 远程保持距离输出
-  - 牧师治疗（按真实恢复量统计）
-  - 法师局部 AOE
+- 2D 横版 / 伪纵深连续坐标战场（x/y）。
+- 最多上阵 5 名角色。
+- 战斗间隙进入准备阶段：商店刷新、购买、升星、选择上阵、开始下一波。
+- 战斗中通过“选中角色 + 点地面/点敌人/点技能目标”进行指挥。
+- 不做真 3D，不做装备，不做复杂羁绊。
 
-### 准备阶段（已落地）
-- 回合开始自动刷新商店（3格）。
-- 购买、手动刷新、部署、调位、开战仅允许在准备阶段执行。
-- 部署基于**部署区域内的 deployment anchors（候选落点）**。
-  - 这些落点仅用于部署，不是 lane/tile 棋盘系统。
+## 胜负与回合规则（硬性）
 
-### 成长与任务（已落地）
-- 三合一升星：3个1星→2星，3个2星→3星。
-- 升星候选可来自备战区 + 已部署区。
-- 有神品任务的实例不会被普通升星消耗。
-- 神品任务为实例级独立规则：
-  - 每个符合条件的3星非神品单位实例独立 10% 判定
-  - 多实例可并行持有任务
-  - 进度绑定 unit instance ID，跨回合累计
-  - 牧师任务按真实治疗量累计（不计溢出/满血）
+- **失败条件**：当前上阵 5 名角色全部倒下，则本局失败。
+- **过关条件**：只要仍有至少 1 名角色存活，并清空本波敌人，即可进入下一轮准备阶段。
+- **跨波重置**：新一轮开始时，角色生命与普通战斗状态重置；仅保留神品任务进度（实例级累计）。
 
-## 关键目录
+## 命令驱动战斗规则（硬性）
 
-```text
-assets/scripts/
-  config/
-    battlefield-config.ts
-    difficulty-config.ts
-    divine-task-config.ts
-    enemy-config.ts
-    unit-config.ts
-    wave-config.ts
-  systems/
-    battle-system.ts
-    divine-task-system.ts
-    economy-system.ts
-    shop-system.ts
-    unit-system.ts
-    wave-system.ts
-  core/
-    game-controller.ts
-    game-session.ts
-    verify-divine-task-rules.ts
-  ui/
-    cocos-game-controller.ts
-```
+- 玩家不下命令时，角色不会全图自动索敌。
+- 远程角色不会主动向敌方推进，只攻击进入自身范围的目标。
+- 近战角色仅对近距离威胁做有限反应，不会全图追击。
+- 牧师无攻击能力；只能在玩家下达治疗命令后持续治疗指定友军；目标即使满血也保持治疗动作。
+
+## 成长系统（保留关键）
+
+- 商店每轮准备阶段刷新 3 个招募位。
+- 购买单位消耗金币，失败购买不会移除商店条目。
+- 3 合 1 升星：
+  - 3 个 1 星同单位 -> 1 个 2 星
+  - 3 个 2 星同单位 -> 1 个 3 星
+- 3 星后进入实例级神品任务体系：
+  - 战士 -> 狂战士：累计击杀 1000（按实例）
+  - 牧师 -> 光法师：累计真实治疗 100000（按实例）
+- 神品任务与进度绑定 `unit instance id`，多实例可并行，进度跨波累计。
+
+## 当前阶段边界
+
+本次仅完成**阶段 2：文档统一**。
+尚未进入大规模系统重构（阶段 3~5）。
 
 ## 本地验证
 
@@ -63,24 +47,3 @@ npm install
 npm test
 ```
 
-`npm test` 包含：
-1. `tsc --noEmit`
-2. `tsx assets/scripts/core/verify-divine-task-rules.ts`
-
-## 手动游玩建议
-1. 进入游戏后选择 `新手`。
-2. `全买` -> `自动上阵` -> `开战`。
-3. 观察单位在二维空间中移动、索敌、追击、治疗、AOE。
-4. 每波结束回到准备阶段继续招募/调位，直至胜利或失败。
-
-
-## 贴图资源管线（v1 占位流程）
-
-- 参考图目标路径：`assets/art/reference/unit_star_progression.png`（仓库当前追踪文本占位 `unit_star_progression.placeholder.txt`）
-- 规格文档：`docs/art/unit_star_progression_spec.md`
-- 星级贴图路径映射：`assets/scripts/config/unit-star-sprite-config.ts`
-
-当前运行时策略：
-1. 优先按 `unitId + star` 路径加载（如 `textures/avatars/warrior/star2`）
-2. 若缺失则回退到单位基础路径（如 `textures/avatars/warrior`）
-3. 保持 2D sprite 工作流，不引入 3D 管线
