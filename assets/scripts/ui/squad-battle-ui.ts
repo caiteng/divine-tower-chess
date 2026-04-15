@@ -1,4 +1,5 @@
 import { _decorator, Component } from 'cc';
+import { SQUAD_UNIT_STATS } from '../squad/config/squad-battle-config';
 import { SquadBattleSession } from '../squad/squad-battle-session';
 import { SquadUnitState } from '../squad/types';
 
@@ -6,7 +7,21 @@ const { ccclass } = _decorator;
 
 @ccclass('SquadBattleUi')
 export class SquadBattleUi extends Component {
+  /**
+   * Prototype-only DOM UI used for gameplay/interaction validation.
+   * This is NOT the final Cocos node-based UI architecture.
+   */
   private readonly session = new SquadBattleSession();
+  /**
+   * Prototype-only switches:
+   * - difficulty: default beginner to align with v1 baseline.
+   * - enablePrepBootstrap: optional debugging helper, default OFF.
+   */
+  private readonly prototypeConfig = {
+    difficulty: 'beginner' as const,
+    enablePrepBootstrap: false,
+  };
+
   private root: HTMLDivElement | null = null;
   private battlefieldLayer: HTMLDivElement | null = null;
   private commandLayer: SVGSVGElement | null = null;
@@ -17,14 +32,16 @@ export class SquadBattleUi extends Component {
   private lastMoveMarker: { x: number; y: number; until: number } | null = null;
 
   public onLoad(): void {
-    this.session.startNewRun('hard');
+    this.session.startNewRun(this.prototypeConfig.difficulty);
     this.ensureDom();
-    this.bootstrapPrepSquad();
-    globalThis.setInterval(() => this.tick(), 50);
+    if (this.prototypeConfig.enablePrepBootstrap) {
+      this.bootstrapPrepSquad();
+    }
   }
 
-  private tick(): void {
-    this.session.tick(0.05);
+  public update(dt: number): void {
+    // Use Cocos lifecycle tick first. This DOM UI is a prototype renderer only.
+    this.session.tick(Math.max(0.016, Math.min(0.05, dt || 0.016)));
     this.syncPhaseUi();
     this.render();
   }
@@ -97,6 +114,7 @@ export class SquadBattleUi extends Component {
     prep.style.borderRadius = '14px 14px 0 0';
     prep.style.transition = 'bottom 420ms cubic-bezier(0.22,1,0.36,1)';
     prep.style.overflow = 'auto';
+    prep.addEventListener('click', (evt) => this.handlePrepPanelClick(evt));
 
     this.battlefieldLayer = battlefield;
     this.commandLayer = commandLayer;
@@ -231,7 +249,9 @@ export class SquadBattleUi extends Component {
       hp.style.height = '6px';
       hp.style.background = '#1e293b';
       hp.style.border = '1px solid #0f172a';
-      hp.innerHTML = `<div style='height:100%;width:${Math.max(4, Math.min(100, (ally.currentHp / 700) * 100))}%;background:#4ade80'></div>`;
+      const maxHp = this.getUnitMaxHp(ally);
+      const hpPercent = maxHp > 0 ? (ally.currentHp / maxHp) * 100 : 0;
+      hp.innerHTML = `<div style='height:100%;width:${Math.max(4, Math.min(100, hpPercent))}%;background:#4ade80'></div>`;
       this.battlefieldLayer.appendChild(hp);
 
       if (ally.role === 'priest' && ally.command.type === 'channel_heal') {
@@ -340,37 +360,43 @@ export class SquadBattleUi extends Component {
         <button data-start='1'>开始下一波</button>
       </div>
     `;
+  }
 
-    this.prepPanel.querySelectorAll('button[data-buy]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const idx = Number((btn as HTMLButtonElement).dataset.buy);
-        this.session.buyShopUnit(idx);
-      });
-    });
-    this.prepPanel.querySelectorAll('button[data-deploy]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const id = (btn as HTMLButtonElement).dataset.deploy;
-        if (id) this.session.deployFromBench(id);
-      });
-    });
-    this.prepPanel.querySelectorAll('button[data-recall]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const id = (btn as HTMLButtonElement).dataset.recall;
-        if (id) this.session.recallFromDeployed(id);
-      });
-    });
-
-    this.prepPanel.querySelector('button[data-sell]')?.addEventListener('click', () => {
+  private handlePrepPanelClick(evt: Event): void {
+    const button = (evt.target as HTMLElement | null)?.closest('button');
+    if (!button) return;
+    const dataset = (button as HTMLButtonElement).dataset;
+    if (dataset.buy) {
+      this.session.buyShopUnit(Number(dataset.buy));
+      return;
+    }
+    if (dataset.deploy) {
+      this.session.deployFromBench(dataset.deploy);
+      return;
+    }
+    if (dataset.recall) {
+      this.session.recallFromDeployed(dataset.recall);
+      return;
+    }
+    if (dataset.sell) {
       if (this.selectedUnitId) this.session.sellUnit(this.selectedUnitId);
-    });
-
-    this.prepPanel.querySelector('button[data-refresh]')?.addEventListener('click', () => this.session.refreshShopByCost());
-
-    this.prepPanel.querySelector('button[data-start]')?.addEventListener('click', () => {
+      return;
+    }
+    if (dataset.refresh) {
+      this.session.refreshShopByCost();
+      return;
+    }
+    if (dataset.start) {
       const current = this.session.getSnapshot();
       if (current.uiState.nextWaveReady) {
         this.session.startNextWaveFromPrep();
       }
-    });
+    }
+  }
+
+  private getUnitMaxHp(unit: SquadUnitState): number {
+    const base = SQUAD_UNIT_STATS[unit.unitId].maxHp;
+    const hpMultiplier = 1 + (unit.star - 1) * 0.7;
+    return Math.round(base * hpMultiplier);
   }
 }
