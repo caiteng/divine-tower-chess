@@ -1,4 +1,4 @@
-import { _decorator, Color, Component, Label, Layers, Node, Sprite, UIOpacity, UITransform, Vec3 } from 'cc';
+import { _decorator, Color, Component, Graphics, Label, Layers, Node, Sprite, UIOpacity, UITransform, Vec3 } from 'cc';
 import { ENEMY_STATS, SQUAD_UNIT_STATS } from '../../squad/config/squad-battle-config';
 import { EnemyUnitState, SquadBattleSnapshot, SquadUnitState } from '../../squad/types';
 import { EnemySpriteResolver, UnitSpriteResolver } from '../resources/sprite-resolvers';
@@ -103,11 +103,14 @@ export class BattlefieldController extends Component {
       await this.createAlly(ally, selectedUnitId, snapshot.allies);
       if (ally.command.type === 'focus_enemy' && ally.command.targetEnemyId) {
         const target = snapshot.enemies.find((enemy) => enemy.instanceId === ally.command.targetEnemyId);
-        if (target) this.createCommandText(ally.position, target.position, '集火', new Color(245, 158, 11, 255));
+        if (target) this.createCommandVisual(ally.position, target.position, '集火', new Color(245, 158, 11, 255));
       }
       if (ally.command.type === 'channel_heal' && ally.command.targetAllyId) {
         const target = snapshot.allies.find((other) => other.instanceId === ally.command.targetAllyId);
-        if (target) this.createCommandText(ally.position, target.position, '治疗', new Color(96, 165, 250, 255));
+        if (target) this.createCommandVisual(ally.position, target.position, '治疗', new Color(96, 165, 250, 255));
+      }
+      if (ally.command.type === 'move' && ally.command.position) {
+        this.createCommandVisual(ally.position, ally.command.position, '移动', new Color(251, 191, 36, 255));
       }
     }
 
@@ -163,16 +166,36 @@ export class BattlefieldController extends Component {
     view.render(enemy, maxHp, frame);
   }
 
-  private createCommandText(from: { x: number; y: number }, to: { x: number; y: number }, text: string, color: Color): void {
+  private createCommandVisual(from: { x: number; y: number }, to: { x: number; y: number }, text: string, color: Color): void {
     if (!this.commandLayer) return;
-    const node = new Node(`Cmd-${text}`);
-    this.commandLayer.addChild(node);
     const fromPos = this.worldToUi(from.x, from.y);
     const toPos = this.worldToUi(to.x, to.y);
+
+    const lineNode = new Node(`CmdLine-${text}`);
+    this.commandLayer.addChild(lineNode);
+    lineNode.addComponent(UITransform).setContentSize(888, 348);
+    const graphics = lineNode.addComponent(Graphics);
+    graphics.lineWidth = 3;
+    graphics.strokeColor = color;
+    graphics.moveTo(fromPos.x, fromPos.y);
+    graphics.lineTo(toPos.x, toPos.y);
+    graphics.stroke();
+
+    const markerNode = new Node(`CmdMarker-${text}`);
+    this.commandLayer.addChild(markerNode);
+    markerNode.setPosition(new Vec3(toPos.x, toPos.y, 0));
+    markerNode.addComponent(UITransform).setContentSize(20, 20);
+    const marker = markerNode.addComponent(Graphics);
+    marker.fillColor = color;
+    marker.circle(0, 0, 6);
+    marker.fill();
+
+    const node = new Node(`CmdLabel-${text}`);
+    this.commandLayer.addChild(node);
     node.addComponent(UITransform).setContentSize(120, 20);
     node.setPosition(new Vec3((fromPos.x + toPos.x) / 2, (fromPos.y + toPos.y) / 2 + 18, 0));
     const label = node.addComponent(Label);
-    label.string = `${text} →`;
+    label.string = `${text}`;
     label.fontSize = 11;
     label.color = color;
   }

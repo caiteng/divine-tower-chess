@@ -15,6 +15,10 @@ export class ShopSystem {
     return [...this.entries];
   }
 
+  public setEntries(entries: UnitId[]): void {
+    this.entries = [...entries];
+  }
+
   public peek(slotIndex: number): UnitId | null {
     if (slotIndex < 0 || slotIndex >= this.entries.length) {
       return null;

@@ -1,4 +1,4 @@
-import { UnitId } from '../models/types';
+import { DifficultyId, DivineTaskId, UnitId } from '../models/types';
 
 export type SquadBattlePhase = 'prep' | 'battle' | 'victory' | 'defeat';
 
@@ -40,6 +40,7 @@ export interface SquadUnitState {
   instanceId: string;
   unitId: UnitId;
   star: 1 | 2 | 3;
+  isCaptain?: boolean;
   role: SquadRole;
   position: Vec2;
   velocity: Vec2;
@@ -67,7 +68,7 @@ export interface WaveSpawnPlan {
 
 export interface PersistentUnitProgress {
   unitInstanceId: string;
-  divineTaskId?: string;
+  divineTaskId?: DivineTaskId;
   divineProgress?: number;
 }
 
@@ -75,7 +76,39 @@ export interface RosterUnitState {
   instanceId: string;
   unitId: UnitId;
   star: 1 | 2 | 3;
-  assignedTaskId?: string;
+  assignedTaskId?: DivineTaskId;
+  isCaptain?: boolean;
+}
+
+export interface SavedAudioSettings {
+  master: number;
+  music: number;
+  sfx: number;
+}
+
+export interface SavedAchievements {
+  firstClear: boolean;
+}
+
+export interface SquadBattleSaveData {
+  difficulty: DifficultyId;
+  phase: SquadBattlePhase;
+  waveNumber: number;
+  gold: number;
+  shop: UnitId[];
+  bench: RosterUnitState[];
+  deployed: RosterUnitState[];
+  divineTasks: Array<{
+    taskId: DivineTaskId;
+    unitInstanceId: string;
+    progress: number;
+    completed: boolean;
+  }>;
+  selectedStarterUnitId?: UnitId;
+  pendingBattleStart: boolean;
+  uiState: SquadBattleSnapshot['uiState'];
+  allies: SquadUnitState[];
+  enemies: EnemyUnitState[];
 }
 
 export interface SquadBattleSnapshot {

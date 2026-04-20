@@ -117,6 +117,14 @@ declare module 'cc' {
     getScene(): Node | null;
   };
 
+  export const sys: {
+    localStorage: {
+      getItem(key: string): string | null;
+      setItem(key: string, value: string): void;
+      removeItem(key: string): void;
+    };
+  };
+
   export const resources: {
     load<T>(path: string, type: new () => T, callback: (err: Error | null, asset: T | null) => void): void;
   };

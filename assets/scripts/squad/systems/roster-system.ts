@@ -17,17 +17,28 @@ export class RosterSystem {
     this.deployed = [];
   }
 
+  public setState(bench: RosterUnitState[], deployed: RosterUnitState[]): void {
+    this.bench = bench.map((u) => ({ ...u }));
+    this.deployed = deployed.map((u) => ({ ...u }));
+  }
+
   public addToBench(unitId: UnitId): RosterUnitState | null {
+    return this.addToBenchWithState({ unitId, star: 1 });
+  }
+
+  public addToBenchWithState(template: Omit<RosterUnitState, 'instanceId'> & { instanceId?: string }): RosterUnitState | null {
     if (this.bench.length >= SQUAD_BENCH_SLOTS) {
       return null;
     }
     const instance: RosterUnitState = {
-      instanceId: nextId('roster_unit'),
-      unitId,
-      star: 1,
+      instanceId: template.instanceId ?? nextId('roster_unit'),
+      unitId: template.unitId,
+      star: template.star,
+      assignedTaskId: template.assignedTaskId,
+      isCaptain: template.isCaptain,
     };
     this.bench.push(instance);
-    this.tryMerge(unitId, 1);
+    this.tryMerge(template.unitId, 1);
     return instance;
   }
 

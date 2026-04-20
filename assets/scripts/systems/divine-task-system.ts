@@ -75,4 +75,8 @@ export class DivineTaskSystem {
   public getAllProgress(): DivineTaskProgress[] {
     return [...this.progresses];
   }
+
+  public setAllProgress(progresses: DivineTaskProgress[]): void {
+    this.progresses = progresses.map((progress) => ({ ...progress }));
+  }
 }

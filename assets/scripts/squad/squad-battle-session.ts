@@ -4,7 +4,7 @@ import { DifficultyId, DivineTaskId, UnitId } from '../models/types';
 import { DivineTaskSystem } from '../systems/divine-task-system';
 import { EconomySystem } from '../systems/economy-system';
 import { ShopSystem } from '../systems/shop-system';
-import { nextId } from '../utils/id';
+import { nextId, syncIdSeedFromIds } from '../utils/id';
 import { DEFAULT_WAVES, ENEMY_STATS, SQUAD_BATTLEFIELD, SQUAD_ROLE_MAP, SQUAD_UNIT_STATS } from './config/squad-battle-config';
 import { SQUAD_BENCH_SLOTS, SQUAD_DEPLOY_SLOTS, SQUAD_SHOP_SLOTS, WaveTransitionUiState } from './config/squad-ui-layout-config';
 import { AttackSystem } from './systems/attack-system';
@@ -15,9 +15,11 @@ import { MovementSystem } from './systems/movement-system';
 import { RosterSystem } from './systems/roster-system';
 import { TargetingSystem } from './systems/targeting-system';
 import { UnitCommandSystem } from './systems/unit-command-system';
-import { BattleOutcome, EnemyUnitState, SquadBattlePhase, SquadBattleSnapshot, SquadUnitState, Vec2, WaveSpawnPlan } from './types';
+import { BattleOutcome, EnemyUnitState, SquadBattlePhase, SquadBattleSaveData, SquadBattleSnapshot, SquadUnitState, Vec2, WaveSpawnPlan } from './types';
 
 export class SquadBattleSession {
+  public onVictory?: () => void;
+
   private readonly commandSystem = new UnitCommandSystem();
   private readonly movementSystem = new MovementSystem();
   private readonly targetingSystem = new TargetingSystem();
@@ -25,6 +27,7 @@ export class SquadBattleSession {
   private readonly healingSystem = new HealingSystem();
   private readonly enemyAiSystem = new EnemyAiSystem();
   private readonly collisionSystem = new CollisionSystem();
+  private selectedStarterUnitId: UnitId | undefined;
 
   private readonly roster = new RosterSystem();
   private readonly economy = new EconomySystem();
@@ -49,9 +52,10 @@ export class SquadBattleSession {
     this.waves = waves;
   }
 
-  public startNewRun(difficulty: DifficultyId = 'beginner'): void {
+  public startNewRun(difficulty: DifficultyId = 'beginner', starterUnitId?: UnitId): void {
     this.phase = 'prep';
     this.difficulty = difficulty;
+    this.selectedStarterUnitId = starterUnitId;
     this.waveNumber = 1;
     this.allies = [];
     this.enemies = [];
@@ -59,6 +63,13 @@ export class SquadBattleSession {
     this.divine = new DivineTaskSystem();
     this.economy.setStartingGold(DIFFICULTY_CONFIG[difficulty].startingGold);
     this.shop.refresh();
+    if (starterUnitId) {
+      this.roster.addToBenchWithState({
+        unitId: starterUnitId,
+        star: 1,
+        isCaptain: true,
+      });
+    }
     this.pendingBattleStart = false;
     this.uiState = {
       prepPanel: 'visible',
@@ -161,6 +172,7 @@ export class SquadBattleSession {
     if (this.enemies.length === 0) {
       if (this.waveNumber >= this.waves.length) {
         this.phase = 'victory';
+        this.onVictory?.();
         return { advancedWave: false, changedPhase: before !== this.phase };
       }
 
@@ -264,6 +276,50 @@ export class SquadBattleSession {
       allies: this.allies.map((u) => ({ ...u, position: { ...u.position }, velocity: { ...u.velocity }, command: { ...u.command } })),
       enemies: this.enemies.map((e) => ({ ...e, position: { ...e.position }, velocity: { ...e.velocity } })),
     };
+  }
+
+  public exportSaveData(): SquadBattleSaveData {
+    return {
+      difficulty: this.difficulty,
+      phase: this.phase,
+      waveNumber: this.waveNumber,
+      gold: this.economy.getGold(),
+      shop: this.shop.getEntries(),
+      bench: this.roster.getBench(),
+      deployed: this.roster.getDeployed(),
+      divineTasks: this.divine.getAllProgress().map((progress) => ({ ...progress })),
+      selectedStarterUnitId: this.selectedStarterUnitId,
+      pendingBattleStart: this.pendingBattleStart,
+      uiState: { ...this.uiState },
+      allies: this.allies.map((u) => ({ ...u, position: { ...u.position }, velocity: { ...u.velocity }, command: { ...u.command } })),
+      enemies: this.enemies.map((e) => ({ ...e, position: { ...e.position }, velocity: { ...e.velocity } })),
+    };
+  }
+
+  public loadFromSaveData(data: SquadBattleSaveData): boolean {
+    if (!data) return false;
+    this.phase = data.phase;
+    this.difficulty = data.difficulty;
+    this.selectedStarterUnitId = data.selectedStarterUnitId;
+    this.waveNumber = data.waveNumber;
+    this.pendingBattleStart = data.pendingBattleStart;
+    this.uiState = { ...data.uiState };
+    this.economy.setGold(data.gold);
+    this.shop.setEntries(data.shop);
+    this.roster.setState(data.bench, data.deployed);
+    this.divine = new DivineTaskSystem();
+    this.divine.setAllProgress(data.divineTasks.map((progress) => ({ ...progress })));
+    this.allies = data.allies.map((u) => ({ ...u, position: { ...u.position }, velocity: { ...u.velocity }, command: { ...u.command } }));
+    this.enemies = data.enemies.map((e) => ({ ...e, position: { ...e.position }, velocity: { ...e.velocity } }));
+    this.commandSystem.clearSelection();
+
+    syncIdSeedFromIds([
+      ...data.bench.map((u) => u.instanceId),
+      ...data.deployed.map((u) => u.instanceId),
+      ...data.allies.map((u) => u.instanceId),
+      ...data.enemies.map((u) => u.instanceId),
+    ]);
+    return true;
   }
 
   private tickAllies(dt: number, killsByUnit: Record<string, number>, healingByUnit: Record<string, number>): void {
@@ -374,10 +430,11 @@ export class SquadBattleSession {
   private buildBattleAlliesFromDeployedRoster(): SquadUnitState[] {
     const deploy = this.roster.getDeployUnitsForBattle().slice(0, 5);
     return deploy.map((unit, idx) => ({
-      instanceId: unit.instanceId,
-      unitId: unit.unitId,
-      star: unit.star,
-      role: SQUAD_ROLE_MAP[unit.unitId],
+        instanceId: unit.instanceId,
+        unitId: unit.unitId,
+        star: unit.star,
+        isCaptain: unit.isCaptain,
+        role: SQUAD_ROLE_MAP[unit.unitId],
       position: {
         x: SQUAD_BATTLEFIELD.centerLineX,
         y: SQUAD_BATTLEFIELD.centerLineY + (idx - Math.floor(deploy.length / 2)) * SQUAD_BATTLEFIELD.allySpawnGapY,

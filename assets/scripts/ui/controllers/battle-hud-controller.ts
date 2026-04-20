@@ -22,11 +22,11 @@ export class BattleHudController extends Component {
 
   public render(snapshot: SquadBattleSnapshot, selected: string | undefined, notice: string): void {
     if (!this.topLabel || !this.statusLabel || !this.taskLabel || !this.noticeLabel) return;
-    this.topLabel.string = `Phase ${snapshot.phase} · Wave ${snapshot.currentWave}/${snapshot.totalWaves} · Gold ${snapshot.gold} · Deployed ${snapshot.deployed.length}/${snapshot.slotConfig.deployed} · Bench ${snapshot.bench.length}/${snapshot.slotConfig.bench}`;
-    this.statusLabel.string = `Selected: ${selected ?? 'none'}`;
+    this.topLabel.string = `阶段 ${snapshot.phase} · 波次 ${snapshot.currentWave}/${snapshot.totalWaves} · 金币 ${snapshot.gold} · 上阵 ${snapshot.deployed.length}/${snapshot.slotConfig.deployed} · 备战 ${snapshot.bench.length}/${snapshot.slotConfig.bench}`;
+    this.statusLabel.string = `当前选择：${selected ?? 'none'} · ${snapshot.phase === 'prep' ? '准备阶段可调整阵容' : '战斗阶段可持续下达命令'}`;
     this.taskLabel.string = snapshot.divineTasks.length > 0
-      ? `Divine: ${snapshot.divineTasks.map((task) => `${task.unitInstanceId.slice(-4)}:${task.divineTaskId ?? '-'}(${Math.floor(task.divineProgress ?? 0)})`).join(' | ')}`
-      : 'Divine: none';
+      ? `神品进度：${snapshot.divineTasks.map((task) => `${task.unitInstanceId.slice(-4)}:${task.divineTaskId ?? '-'}(${Math.floor(task.divineProgress ?? 0)})`).join(' | ')}`
+      : '神品进度：none';
     this.noticeLabel.string = notice;
   }
 

@@ -9,10 +9,12 @@
 - 逻辑主链（唯一）：`assets/scripts/squad/*`
 - 会话入口（唯一）：`assets/scripts/squad/squad-battle-session.ts`
 - 正式 Cocos 场景编排入口：`assets/scripts/ui/battle-scene-controller.ts`
+- 默认打开流程：`主菜单 -> 开始 -> 准备阶段/战斗阶段`
 
 ## 当前 UI 架构
 
 - 正式 Cocos 表现层组件：
+  - `assets/scripts/ui/controllers/main-menu-controller.ts`
   - `assets/scripts/ui/controllers/battle-hud-controller.ts`
   - `assets/scripts/ui/controllers/prep-panel-controller.ts`
   - `assets/scripts/ui/controllers/battlefield-controller.ts`

@@ -5,6 +5,10 @@ export class EconomySystem {
     this.gold = value;
   }
 
+  public setGold(value: number): void {
+    this.gold = Math.max(0, Math.floor(value));
+  }
+
   public canSpend(cost: number): boolean {
     return this.gold >= cost;
   }
