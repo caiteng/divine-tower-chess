@@ -6,12 +6,17 @@ declare module 'cc' {
 
   export class Component {
     public node: Node;
+    public enabled: boolean;
   }
 
   export class Node {
+    public static EventType: {
+      TOUCH_END: string;
+    };
     public children: Node[];
     public layer: number;
     public parent: Node | null;
+    public active: boolean;
 
     public constructor(name?: string);
     public addChild(child: Node): void;
@@ -19,10 +24,13 @@ declare module 'cc' {
     public getComponent<T>(component: new () => T): T | null;
     public removeAllChildren(): void;
     public setPosition(position: Vec3): void;
-    public on(eventType: string, callback: () => void, target?: unknown): void;
+    public on(eventType: string, callback: (...args: unknown[]) => void, target?: unknown): void;
   }
 
   export class Vec3 {
+    public x: number;
+    public y: number;
+    public z: number;
     public constructor(x?: number, y?: number, z?: number);
   }
 
@@ -32,6 +40,11 @@ declare module 'cc' {
 
   export class UITransform extends Component {
     public setContentSize(width: number, height: number): void;
+    public convertToNodeSpaceAR(position: Vec3): Vec3;
+  }
+
+  export class UIOpacity extends Component {
+    public opacity: number;
   }
 
   export class Label extends Component {
@@ -57,6 +70,16 @@ declare module 'cc' {
     public static EventType: {
       CLICK: string;
     };
+  }
+
+  export class ProgressBar extends Component {
+    public static Mode: {
+      HORIZONTAL: number;
+    };
+    public barSprite: Sprite;
+    public mode: number;
+    public totalLength: number;
+    public progress: number;
   }
 
   export class Sprite extends Component {
@@ -97,4 +120,12 @@ declare module 'cc' {
   export const resources: {
     load<T>(path: string, type: new () => T, callback: (err: Error | null, asset: T | null) => void): void;
   };
+
+  export class Tween<T> {
+    public to(duration: number, props: Partial<T>): Tween<T>;
+    public start(): void;
+    public static stopAllByTarget(target: unknown): void;
+  }
+
+  export function tween<T>(target: T): Tween<T>;
 }
