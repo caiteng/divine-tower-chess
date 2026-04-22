@@ -160,8 +160,7 @@ export class BattlefieldController extends Component {
     view.onClick = () => this.onEnemyClick?.(enemy.instanceId);
     const pos = this.worldToUi(enemy.position.x, enemy.position.y);
     node.setPosition(new Vec3(pos.x, pos.y, 0));
-    const enemyId = enemy.enemyType === 'grunt' ? 'slime' : enemy.enemyType === 'boss' ? 'brute' : enemy.enemyType;
-    const frame = await this.enemyResolver.resolve(enemyId);
+    const frame = await this.enemyResolver.resolve(enemy.enemyType);
     const maxHp = ENEMY_STATS[enemy.enemyType].maxHp;
     view.render(enemy, maxHp, frame);
   }

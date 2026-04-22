@@ -12,7 +12,7 @@ export type UnitId =
   | 'berserker'
   | 'light_mage';
 
-export type EnemyId = 'slime' | 'wolf' | 'brute';
+export type EnemyId = 'grunt' | 'brute' | 'boss';
 
 export type DivineTaskId = 'warrior_to_berserker' | 'priest_to_light_mage';
 
@@ -37,30 +37,6 @@ export interface UnitConfig {
   skillRadius?: number;
   skillType: 'single' | 'aoe' | 'heal' | 'none';
   behaviorRole: 'melee' | 'ranged' | 'healer' | 'mage';
-}
-
-export interface EnemyConfig {
-  id: EnemyId;
-  name: string;
-  maxHp: number;
-  moveSpeed: number;
-  goldReward: number;
-  attackDamage: number;
-  attackInterval: number;
-  detectionRange: number;
-  attackRange: number;
-  separationWeight?: number;
-}
-
-export interface WaveEnemyEntry {
-  enemyId: EnemyId;
-  count: number;
-  spawnInterval: number;
-}
-
-export interface WaveConfig {
-  waveNumber: number;
-  entries: WaveEnemyEntry[];
 }
 
 export interface DifficultyConfig {
