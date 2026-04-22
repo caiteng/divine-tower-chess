@@ -22,7 +22,8 @@
   - `assets/scripts/ui/controllers/wave-transition-controller.ts`
   - `assets/scripts/ui/views/unit-view.ts`
   - `assets/scripts/ui/views/enemy-view.ts`
-- `assets/scripts/ui/squad-battle-ui.ts` 已标记为 `@deprecated`，仅作为旧场景绑定兼容 shim，不再承载主实现。
+- 场景入口组件：`assets/scripts/ui/squad-battle-ui.ts`
+  - 仅负责场景挂载入口，实际编排逻辑由 `assets/scripts/ui/battle-scene-controller.ts` 承载
 
 ## 核心规则（保持）
 
@@ -38,9 +39,18 @@
 
 - `assets/scripts/ui/resources/sprite-resolvers.ts`
   - `UnitSpriteResolver.resolve(unitId, star, divineState)`
+  - `UnitSpriteResolver.resolvePortrait(unitId, star, divineState)`
   - `EnemySpriteResolver.resolve(enemyType)`
   - `UiIconResolver.resolve(iconId)`
   - `BackgroundResolver.resolve(sceneId)`
+
+## 美术接入规则
+
+- 当前正式职业资源开始转入 `assets/resources/textures/units/<unitId>/`
+- 同一职业的原画插画、战场静态图、连续动作帧必须放在同一个职业目录中
+- 角色选择页优先读取 `portrait`，战场内优先读取 `star1/2/3` 静态表现
+- 当前第一套已落地职业为 `paladin`
+- 详细目录规范见：`assets/art/README.md`
 
 ## 运行与验证
 
@@ -52,8 +62,4 @@ npm test
 - `npm test` 会执行：
   - `tsc --noEmit`
   - `tsx assets/scripts/core/verify-squad-rules.ts`
-
-## 历史记录
-
-- 历史阶段日志：`docs/migration-log.md`
 - 当前状态与下一步：`PLANS.md`

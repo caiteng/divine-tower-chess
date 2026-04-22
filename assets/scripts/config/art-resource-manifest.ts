@@ -7,6 +7,7 @@ export interface UnitArtEntry {
   directory: string;
   stars?: Partial<Record<StarLevel, string>>;
   divineOverride?: string;
+  portrait?: string;
 }
 
 export interface ArtResourceManifest {
@@ -39,7 +40,10 @@ export const ART_RESOURCE_MANIFEST: ArtResourceManifest = {
       divineOverride: 'light_mage_divine.png',
     },
     archer: unitDir('assets/art/units/archer', 'archer'),
-    paladin: unitDir('assets/art/units/paladin', 'paladin'),
+    paladin: {
+      ...unitDir('assets/resources/textures/units/paladin', 'paladin'),
+      portrait: 'paladin_portrait.png',
+    },
     shield_guard: unitDir('assets/art/units/shield_guard', 'shield_guard'),
     cavalry: unitDir('assets/art/units/cavalry', 'cavalry'),
     spearman: unitDir('assets/art/units/spearman', 'spearman'),
@@ -55,9 +59,9 @@ export const ART_RESOURCE_MANIFEST: ArtResourceManifest = {
     },
   },
   enemies: {
-    slime: 'assets/art/enemies/slime.png',
-    wolf: 'assets/art/enemies/wolf.png',
+    grunt: 'assets/art/enemies/grunt.png',
     brute: 'assets/art/enemies/brute.png',
+    boss: 'assets/art/enemies/boss.png',
   },
   optionalEnemies: [
     'assets/art/enemies/boss_1.png',

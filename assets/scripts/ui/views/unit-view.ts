@@ -77,7 +77,13 @@ export class UnitView extends Component {
     if (!this.sprite || !this.label || !this.hpBar || !this.commandLabel) return;
     this.node.setPosition(new Vec3(0, 0, 0));
     this.sprite.spriteFrame = spriteFrame;
-    this.sprite.color = selected ? new Color(249, 115, 22, 255) : state.role === 'priest' ? new Color(96, 165, 250, 255) : new Color(52, 211, 153, 255);
+    this.sprite.color = spriteFrame
+      ? new Color(255, 255, 255, 255)
+      : selected
+        ? new Color(249, 115, 22, 255)
+        : state.role === 'priest'
+          ? new Color(96, 165, 250, 255)
+          : new Color(52, 211, 153, 255);
     this.label.string = `${state.isCaptain ? '♛ ' : ''}${state.unitId}★${state.star}${state.assignedTaskId ? ' ✦' : ''}`;
     this.commandLabel.string = this.getCommandText(state);
     this.hpBar.progress = Math.max(0, Math.min(1, state.currentHp / Math.max(1, maxHp)));

@@ -80,7 +80,7 @@ export class CharacterSelectController extends Component {
       this.footerLabel.string = `当前选择：${cfg.name}。进入游戏后它会以标准棋子身份进入备战区。`;
     }
     if (this.previewSprite) {
-      const frame = await this.resolver.resolve(unitId, 1, false);
+      const frame = await this.resolver.resolvePortrait(unitId, 1, false);
       this.previewSprite.spriteFrame = frame;
       this.previewSprite.color = frame ? new Color(255, 255, 255, 255) : new Color(148, 163, 184, 255);
     }

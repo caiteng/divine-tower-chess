@@ -5,7 +5,7 @@
 - 正式入口已调整为：`主菜单 -> 战斗场景`。
 - 正式 Cocos UI 场景主链入口：`assets/scripts/ui/battle-scene-controller.ts`。
 - 逻辑主链保持不变：`assets/scripts/squad/squad-battle-session.ts` + `assets/scripts/squad/systems/*`。
-- `assets/scripts/ui/squad-battle-ui.ts` 已降级为兼容 shim，并标记 `@deprecated`，仅用于旧场景绑定过渡。
+- `assets/scripts/ui/squad-battle-ui.ts` 已收口为稳定场景入口组件；不再承担兼容 shim 语义。
 - 现有 Cocos 表现层拆分：
   - `MainMenuController`
   - `BattleHudController`
@@ -54,6 +54,38 @@
 3. 扩展 `assets/resources` 贴图接入，完善 resolver 回退策略。
 4. 增加战斗 UI 交互自动化回归样例（开波过渡、指令链、神品进度展示、存档恢复）。
 
-## 历史迁移记录
+## 当前状态补充（2026-04-22）
 
-- 历史阶段记录已迁移到：`docs/migration-log.md`。
+- 已将第一套正式职业图接入 `paladin`：
+  - 来源：`C:\Users\xx\Downloads\knight_2d_assets`
+  - 落地目录：`assets/resources/textures/units/paladin/`
+  - 当前运行时静态展示先使用 `move_01`，并重命名为：
+    - `paladin_star1.png`
+    - `paladin_star2.png`
+    - `paladin_star3.png`
+- 同批次动作帧已一并迁入项目并完成统一命名，供后续动画接线使用：
+  - `paladin_move_*`
+  - `paladin_slash_*`
+  - `paladin_block_*`
+  - `paladin_death_fall_*`
+  - `paladin_corpse_fade_*`
+- `paladin` 角色选择页已新增专用原画插画：
+  - 来源：`C:\Users\xx\Downloads\ChatGPT Image 2026年4月22日 11_46_26.png`
+  - 文件名：`assets/resources/textures/units/paladin/paladin_portrait.png`
+  - 当前仅用于初始职业选择预览，不影响战场小体型表现
+- 已固化后续美术接入约定：
+  - 同一职业的原画插画、战场静态图、连续动作帧必须归档在同一个职业目录下
+  - 你后续继续上传动画和插画时，默认按“同风格同职业打包放一起”的方式整理并接线
+- 资源解析已修正为：
+  - `paladin` 优先读取新的 `assets/resources/textures/units/paladin/*`
+  - 其他职业暂时继续走旧头像回退，避免“只补第一套图后其余职业全部空白”
+- `UnitView` 已取消对存在正式贴图单位的运行时染色，避免新导入立绘被选中/职业色覆盖。
+
+## 停机前状态固化（2026-04-22）
+
+- `npm test` 已执行，但当前环境仍缺少 `node_modules` 内的 `tsc`，所以无法在本机完成绿线确认。
+- 第一套职业美术已正式落地到主线，可在角色选择和战场中的 `paladin` 身上看到。
+- 下一步优先事项：
+  1. 在 Cocos 编辑器中触发新 PNG 的 `.meta` 生成并确认资源导入正常。
+  2. 继续补第二套职业图。
+  3. 再决定是否移除旧 `textures/avatars` 回退资源。

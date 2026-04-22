@@ -1,5 +1,6 @@
 import { ImageAsset, SpriteFrame, resources } from 'cc';
 import { ART_RESOURCE_MANIFEST, StarLevel } from '../../config/art-resource-manifest';
+import { UNIT_STAR_SPRITE_BASE_FALLBACK, UNIT_STAR_SPRITE_PATHS } from '../../config/unit-star-sprite-config';
 import { EnemyId, UnitId } from '../../models/types';
 
 const loadedFrames = new Map<string, Promise<SpriteFrame | null>>();
@@ -37,13 +38,50 @@ const loadFrame = (manifestPath: string | undefined): Promise<SpriteFrame | null
   return pending;
 };
 
+const loadFrameFromResourcePath = (resourcePath: string | undefined): Promise<SpriteFrame | null> => {
+  if (!resourcePath) return Promise.resolve(null);
+  const cacheKey = `resource:${resourcePath}`;
+  const cached = loadedFrames.get(cacheKey);
+  if (cached) return cached;
+
+  const pending = new Promise<SpriteFrame | null>((resolve) => {
+    resources.load(resourcePath, ImageAsset, (err, asset) => {
+      if (err || !asset) {
+        resolve(null);
+        return;
+      }
+      resolve(SpriteFrame.createWithImage(asset));
+    });
+  });
+  loadedFrames.set(cacheKey, pending);
+  return pending;
+};
+
 export class UnitSpriteResolver {
   public async resolve(unitId: UnitId, star: StarLevel, divineState: boolean): Promise<SpriteFrame | null> {
     const entry = ART_RESOURCE_MANIFEST.units[unitId];
     if (!entry) return null;
     const filename = divineState ? entry.divineOverride ?? entry.stars?.[star] : entry.stars?.[star] ?? entry.divineOverride;
     const path = filename ? `${entry.directory}/${filename}` : undefined;
-    return loadFrame(path);
+    const primary = await loadFrame(path);
+    if (primary) return primary;
+
+    const starFallback = UNIT_STAR_SPRITE_PATHS[unitId]?.[star];
+    const starFrame = await loadFrameFromResourcePath(starFallback);
+    if (starFrame) return starFrame;
+
+    return loadFrameFromResourcePath(UNIT_STAR_SPRITE_BASE_FALLBACK[unitId]);
+  }
+
+  public async resolvePortrait(unitId: UnitId, star: StarLevel, divineState: boolean): Promise<SpriteFrame | null> {
+    const entry = ART_RESOURCE_MANIFEST.units[unitId];
+    if (!entry) return this.resolve(unitId, star, divineState);
+
+    const portraitPath = entry.portrait ? `${entry.directory}/${entry.portrait}` : undefined;
+    const portraitFrame = await loadFrame(portraitPath);
+    if (portraitFrame) return portraitFrame;
+
+    return this.resolve(unitId, star, divineState);
   }
 }
 
