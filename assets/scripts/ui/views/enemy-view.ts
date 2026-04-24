@@ -51,10 +51,16 @@ export class EnemyView extends Component {
     this.node.on(Button.EventType.CLICK, () => this.onClick?.(), this);
   }
 
-  public render(state: EnemyUnitState, maxHp: number, spriteFrame: SpriteFrame | null): void {
+  public render(state: EnemyUnitState, maxHp: number, spriteFrame: SpriteFrame | null, animationFrames: SpriteFrame[] = []): void {
     if (!this.sprite || !this.label || !this.hpBar) return;
-    this.sprite.spriteFrame = spriteFrame;
+    this.sprite.spriteFrame = this.pickFrame(spriteFrame, animationFrames);
     this.label.string = `${state.enemyType} ${Math.floor(state.currentHp)}`;
     this.hpBar.progress = Math.max(0, Math.min(1, state.currentHp / Math.max(1, maxHp)));
+  }
+
+  private pickFrame(spriteFrame: SpriteFrame | null, animationFrames: SpriteFrame[]): SpriteFrame | null {
+    if (animationFrames.length === 0) return spriteFrame;
+    const index = Math.floor(Date.now() / 120) % animationFrames.length;
+    return animationFrames[index] ?? spriteFrame;
   }
 }

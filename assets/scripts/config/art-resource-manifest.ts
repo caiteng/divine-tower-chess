@@ -31,37 +31,54 @@ const unitDir = (directory: string, unitId: string): UnitArtEntry => ({
 export const ART_RESOURCE_MANIFEST: ArtResourceManifest = {
   units: {
     warrior: {
-      ...unitDir('assets/art/units/warrior', 'warrior'),
+      ...unitDir('assets/resources/textures/units/warrior', 'warrior'),
       divineOverride: 'berserker_divine.png',
+      portrait: 'warrior_portrait.png',
     },
-    mage: unitDir('assets/art/units/mage', 'mage'),
+    mage: {
+      ...unitDir('assets/resources/textures/units/mage', 'mage'),
+      portrait: 'mage_portrait.png',
+    },
     priest: {
-      ...unitDir('assets/art/units/priest', 'priest'),
+      ...unitDir('assets/resources/textures/units/priest', 'priest'),
       divineOverride: 'light_mage_divine.png',
+      portrait: 'priest_portrait.png',
     },
-    archer: unitDir('assets/art/units/archer', 'archer'),
+    archer: {
+      ...unitDir('assets/resources/textures/units/archer', 'archer'),
+      portrait: 'archer_portrait.png',
+    },
     paladin: {
       ...unitDir('assets/resources/textures/units/paladin', 'paladin'),
       portrait: 'paladin_portrait.png',
     },
-    shield_guard: unitDir('assets/art/units/shield_guard', 'shield_guard'),
-    cavalry: unitDir('assets/art/units/cavalry', 'cavalry'),
-    spearman: unitDir('assets/art/units/spearman', 'spearman'),
+    shield_guard: {
+      ...unitDir('assets/resources/textures/units/shield_guard', 'shield_guard'),
+      portrait: 'shield_guard_portrait.png',
+    },
+    cavalry: {
+      ...unitDir('assets/resources/textures/units/cavalry', 'cavalry'),
+      portrait: 'cavalry_portrait.png',
+    },
+    spearman: {
+      ...unitDir('assets/resources/textures/units/spearman', 'spearman'),
+      portrait: 'spearman_portrait.png',
+    },
     berserker: {
       unitId: 'berserker',
-      directory: 'assets/art/units/warrior',
+      directory: 'assets/resources/textures/units/warrior',
       divineOverride: 'berserker_divine.png',
     },
     light_mage: {
       unitId: 'light_mage',
-      directory: 'assets/art/units/priest',
+      directory: 'assets/resources/textures/units/priest',
       divineOverride: 'light_mage_divine.png',
     },
   },
   enemies: {
-    grunt: 'assets/art/enemies/grunt.png',
-    brute: 'assets/art/enemies/brute.png',
-    boss: 'assets/art/enemies/boss.png',
+    grunt: 'assets/resources/textures/enemies/grunt.png',
+    brute: 'assets/resources/textures/enemies/brute.png',
+    boss: 'assets/resources/textures/enemies/boss.png',
   },
   optionalEnemies: [
     'assets/art/enemies/boss_1.png',

@@ -73,10 +73,10 @@ export class UnitView extends Component {
     this.node.on(Button.EventType.CLICK, () => this.onClick?.(), this);
   }
 
-  public render(state: SquadUnitState, maxHp: number, selected: boolean, spriteFrame: SpriteFrame | null): void {
+  public render(state: SquadUnitState, maxHp: number, selected: boolean, spriteFrame: SpriteFrame | null, animationFrames: SpriteFrame[] = []): void {
     if (!this.sprite || !this.label || !this.hpBar || !this.commandLabel) return;
     this.node.setPosition(new Vec3(0, 0, 0));
-    this.sprite.spriteFrame = spriteFrame;
+    this.sprite.spriteFrame = this.pickFrame(spriteFrame, animationFrames);
     this.sprite.color = spriteFrame
       ? new Color(255, 255, 255, 255)
       : selected
@@ -96,5 +96,11 @@ export class UnitView extends Component {
     if (state.command.type === 'channel_heal') return 'HEAL';
     if (state.isCaptain) return 'CAPTAIN';
     return state.assignedTaskId ? 'DIVINE' : '';
+  }
+
+  private pickFrame(spriteFrame: SpriteFrame | null, animationFrames: SpriteFrame[]): SpriteFrame | null {
+    if (animationFrames.length === 0) return spriteFrame;
+    const index = Math.floor(Date.now() / 120) % animationFrames.length;
+    return animationFrames[index] ?? spriteFrame;
   }
 }

@@ -4,6 +4,10 @@ import { UNIT_STAR_SPRITE_BASE_FALLBACK, UNIT_STAR_SPRITE_PATHS } from '../../co
 import { EnemyId, UnitId } from '../../models/types';
 
 const loadedFrames = new Map<string, Promise<SpriteFrame | null>>();
+const loadedFrameSets = new Map<string, Promise<SpriteFrame[]>>();
+
+export type UnitAnimationClip = 'move' | 'attack' | 'death_fall' | 'corpse_fade';
+export type EnemyAnimationClip = UnitAnimationClip;
 
 const asResourcePath = (rawPath: string): string | null => {
   if (rawPath.startsWith('assets/resources/')) {
@@ -57,6 +61,24 @@ const loadFrameFromResourcePath = (resourcePath: string | undefined): Promise<Sp
   return pending;
 };
 
+const loadFrameSet = (manifestPaths: string[]): Promise<SpriteFrame[]> => {
+  const cacheKey = `set:${manifestPaths.join('|')}`;
+  const cached = loadedFrameSets.get(cacheKey);
+  if (cached) return cached;
+
+  const pending = Promise.all(manifestPaths.map((path) => loadFrame(path))).then((frames) => frames.filter((frame): frame is SpriteFrame => Boolean(frame)));
+  loadedFrameSets.set(cacheKey, pending);
+  return pending;
+};
+
+const loadFirstFrameSet = async (candidateSets: string[][]): Promise<SpriteFrame[]> => {
+  for (const paths of candidateSets) {
+    const frames = await loadFrameSet(paths);
+    if (frames.length > 0) return frames;
+  }
+  return [];
+};
+
 export class UnitSpriteResolver {
   public async resolve(unitId: UnitId, star: StarLevel, divineState: boolean): Promise<SpriteFrame | null> {
     const entry = ART_RESOURCE_MANIFEST.units[unitId];
@@ -83,11 +105,31 @@ export class UnitSpriteResolver {
 
     return this.resolve(unitId, star, divineState);
   }
+
+  public async resolveAnimation(unitId: UnitId, clip: UnitAnimationClip, divineState: boolean): Promise<SpriteFrame[]> {
+    const entry = ART_RESOURCE_MANIFEST.units[unitId];
+    if (!entry) return [];
+
+    const baseId = divineState ? unitId : unitId;
+    const clipNames = unitId === 'paladin' && clip === 'attack' ? ['slash', 'attack'] : [clip];
+    const candidates = clipNames.map((clipName) => (
+      Array.from({ length: 5 }, (_, index) => `${entry.directory}/${baseId}_${clipName}_${String(index + 1).padStart(2, '0')}.png`)
+    ));
+
+    return loadFirstFrameSet(candidates);
+  }
 }
 
 export class EnemySpriteResolver {
   public async resolve(enemyType: EnemyId): Promise<SpriteFrame | null> {
     return loadFrame(ART_RESOURCE_MANIFEST.enemies[enemyType]);
+  }
+
+  public async resolveAnimation(enemyType: EnemyId, clip: EnemyAnimationClip): Promise<SpriteFrame[]> {
+    const staticPath = ART_RESOURCE_MANIFEST.enemies[enemyType];
+    const directory = staticPath.split('/').slice(0, -1).join('/');
+    const frames = Array.from({ length: 5 }, (_, index) => `${directory}/${enemyType}_${clip}_${String(index + 1).padStart(2, '0')}.png`);
+    return loadFrameSet(frames);
   }
 }
 

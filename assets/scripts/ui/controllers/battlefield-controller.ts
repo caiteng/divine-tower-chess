@@ -1,7 +1,8 @@
 import { _decorator, Color, Component, Graphics, Label, Layers, Node, Sprite, UIOpacity, UITransform, Vec3 } from 'cc';
+import { UNIT_CONFIG } from '../../config/unit-config';
 import { ENEMY_STATS, SQUAD_UNIT_STATS } from '../../squad/config/squad-battle-config';
 import { EnemyUnitState, SquadBattleSnapshot, SquadUnitState } from '../../squad/types';
-import { EnemySpriteResolver, UnitSpriteResolver } from '../resources/sprite-resolvers';
+import { EnemyAnimationClip, EnemySpriteResolver, UnitAnimationClip, UnitSpriteResolver } from '../resources/sprite-resolvers';
 import { EnemyView } from '../views/enemy-view';
 import { UnitView } from '../views/unit-view';
 
@@ -146,9 +147,12 @@ export class BattlefieldController extends Component {
     view.onClick = () => this.onAllyClick?.(ally.instanceId, allies);
     const pos = this.worldToUi(ally.position.x, ally.position.y);
     node.setPosition(new Vec3(pos.x, pos.y, 0));
-    const frame = await this.unitResolver.resolve(ally.unitId, ally.star, Boolean(ally.assignedTaskId));
+    const isDivineUnit = Boolean(UNIT_CONFIG[ally.unitId]?.isDivine);
+    const clip = this.getUnitAnimationClip(ally);
+    const frame = await this.unitResolver.resolve(ally.unitId, ally.star, isDivineUnit);
+    const animationFrames = await this.unitResolver.resolveAnimation(ally.unitId, clip, isDivineUnit);
     const maxHp = this.getAllyMaxHp(ally);
-    view.render(ally, maxHp, selectedUnitId === ally.instanceId, frame);
+    view.render(ally, maxHp, selectedUnitId === ally.instanceId, frame, animationFrames);
   }
 
   private async createEnemy(enemy: EnemyUnitState): Promise<void> {
@@ -160,9 +164,25 @@ export class BattlefieldController extends Component {
     view.onClick = () => this.onEnemyClick?.(enemy.instanceId);
     const pos = this.worldToUi(enemy.position.x, enemy.position.y);
     node.setPosition(new Vec3(pos.x, pos.y, 0));
+    const clip = this.getEnemyAnimationClip(enemy);
     const frame = await this.enemyResolver.resolve(enemy.enemyType);
+    const animationFrames = await this.enemyResolver.resolveAnimation(enemy.enemyType, clip);
     const maxHp = ENEMY_STATS[enemy.enemyType].maxHp;
-    view.render(enemy, maxHp, frame);
+    view.render(enemy, maxHp, frame, animationFrames);
+  }
+
+  private getUnitAnimationClip(unit: SquadUnitState): UnitAnimationClip {
+    if (!unit.alive) return 'death_fall';
+    if (unit.attackCooldownLeft > 0 || unit.command.type === 'channel_heal') return 'attack';
+    if (Math.hypot(unit.velocity.x, unit.velocity.y) > 1 || unit.command.type === 'move') return 'move';
+    return 'move';
+  }
+
+  private getEnemyAnimationClip(enemy: EnemyUnitState): EnemyAnimationClip {
+    if (!enemy.alive) return 'death_fall';
+    if (enemy.attackCooldownLeft > 0) return 'attack';
+    if (Math.hypot(enemy.velocity.x, enemy.velocity.y) > 1) return 'move';
+    return 'move';
   }
 
   private createCommandVisual(from: { x: number; y: number }, to: { x: number; y: number }, text: string, color: Color): void {

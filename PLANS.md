@@ -89,3 +89,95 @@
   1. 在 Cocos 编辑器中触发新 PNG 的 `.meta` 生成并确认资源导入正常。
   2. 继续补第二套职业图。
   3. 再决定是否移除旧 `textures/avatars` 回退资源。
+
+## 当前状态补充（2026-04-24）
+
+- 已新增一批“低美术依赖”的 2D 火柴人单位资源，作为主线可落地占位美术方案：
+  - 目录：`assets/art/units/warrior/`
+  - 目录：`assets/art/units/mage/`
+  - 目录：`assets/art/units/priest/`
+  - 目录：`assets/art/units/archer/`
+  - 目录：`assets/art/units/shield_guard/`
+  - 目录：`assets/art/units/cavalry/`
+  - 目录：`assets/art/units/spearman/`
+- 当前每个基础职业已具备：
+  - `*_star1.png`
+  - `*_star2.png`
+  - `*_star3.png`
+- 当前 7 个非 `paladin` 基础职业已补齐选择页 portrait：
+  - `warrior_portrait.png`
+  - `mage_portrait.png`
+  - `priest_portrait.png`
+  - `archer_portrait.png`
+  - `shield_guard_portrait.png`
+  - `cavalry_portrait.png`
+  - `spearman_portrait.png`
+- 当前 3 个敌人已补齐统一火柴人风格主图：
+  - `assets/art/enemies/grunt.png`
+  - `assets/art/enemies/brute.png`
+  - `assets/art/enemies/boss.png`
+- 已为火柴人资源补齐一套程序化动作帧，占位但可批量复用：
+  - 覆盖单位：`warrior` `mage` `priest` `archer` `shield_guard` `cavalry` `spearman`
+  - 覆盖神品：`berserker` `light_mage`
+  - 当前帧组：
+    - `*_move_01..05`
+    - `*_attack_01..05`
+    - `*_death_fall_01..05`
+    - `*_corpse_fade_01..05`
+  - 生成脚本：`tools/generate_stickman_action_frames.ps1`
+- 当前动作帧方案不是手绘逐帧，而是基于主战场图做统一程序化派生：
+  - 优点是风格稳定、批量快、后续可重跑调参
+  - 缺点是动作表演强度弱于正式逐帧动画，更适合原型阶段
+- 神品演化资源已补入：
+  - `assets/art/units/warrior/berserker_divine.png`
+  - `assets/art/units/priest/light_mage_divine.png`
+- 本次资源策略是“先统一风格并保证接线”，不是一次性追求高资产量：
+  - `star1` 保持基础版
+  - `star2` 使用冷色强化描边/能量
+  - `star3` 使用金色高阶光效/徽记
+- 现阶段项目对“大量正式美术”的依赖已下降：
+  - 除 `paladin` 外，其余主线职业现在至少都有一套统一风格的战场透明 PNG 可接入
+  - 角色选择、战场单位、敌人基础表现现在都已有统一风格落点
+  - 可以继续围绕玩法验证推进，而不是被“职业资源全空”卡死
+- 当前本地验证仍受环境限制：
+  - 本次未恢复 `npm test` 绿线
+  - 原因仍是工作区缺少 `node_modules`，`tsc` 不可用
+  - 本次也尚未把动作帧真正接入运行时播放，当前仍是资源先落地
+
+## 下一步（更新）
+
+1. 在 Cocos 编辑器中为本次新增 PNG 生成 `.meta` 并确认 runtime resolver 命中这些新资源。
+2. 决定是否把 `UnitView` / `EnemyView` 升级为按状态轮播动作帧，而不是继续只显示静态 `star` 图。
+3. 修复商店失败购买不应吞槽位、神品任务单位不得参与普通合成这两个硬规则问题。
+4. 为上述硬规则补 `verify-squad-rules` 回归，恢复可执行基线。
+
+## 当前状态补充（2026-04-24 晚）
+
+- 已优先完成硬规则修复：
+  - 商店购买流程改为“确认扣款 + 确认进背包成功后再移除商店槽位”，背包满等失败购买不会吞槽位。
+  - 普通升星合成候选会排除带 `assignedTaskId` 的实例，带神品任务的 1 星 / 2 星单位不会被普通合成消耗。
+- `verify-squad-rules` 已补回归：
+  - 背包满导致购买失败时，金币回滚且商店槽位保持不变。
+  - 带神品任务的 1 星单位不参与 1->2 合成。
+  - 带神品任务的 2 星单位不参与 2->3 合成。
+- 已恢复本地依赖并完成验证：
+  - `npm test` 通过。
+  - 覆盖 `tsc --noEmit` 与 `verify-squad-rules`。
+- 已处理 runtime resolver 命中新资源的问题：
+  - 新增职业和敌人 PNG 已镜像到 `assets/resources/textures/...`，避免 `resources.load` 无法读取 `assets/art/...`。
+  - `ART_RESOURCE_MANIFEST` 已切到运行时可加载路径。
+  - `assets/art/...` 继续保留为源资产归档区。
+- 已接入战场动作帧播放：
+  - `UnitView` / `EnemyView` 支持传入帧组并按时间轮播。
+  - `BattlefieldController` 会按移动、攻击/治疗、死亡状态选择动作帧。
+  - `paladin` 的攻击帧自动使用已有 `slash` 帧作为回退。
+  - 缺少帧组时仍回退到静态主图。
+- 已扩展 `tools/generate_stickman_action_frames.ps1`：
+  - 增加 `-OnlyEnemies` 参数。
+  - 敌人现在也能生成 `move / attack / death_fall / corpse_fade` 四组动作帧。
+
+## 下一步（更新 2）
+
+1. 打开 Cocos 编辑器，让 `assets/resources/textures/units/*` 与 `assets/resources/textures/enemies/*` 生成 `.meta`。
+2. 在编辑器里实际跑一局，确认职业、敌人静态图和动作帧均能显示。
+3. 观察战场性能；当前 `BattlefieldController` 每帧重建节点，动作帧已可用，但后续应改为复用节点以减少 UI 创建成本。

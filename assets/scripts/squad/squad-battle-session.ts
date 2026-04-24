@@ -95,12 +95,12 @@ export class SquadBattleSession {
     const cost = UNIT_CONFIG[unitId].cost;
     if (!this.economy.spend(cost)) return false;
 
-    this.shop.take(slotIndex);
     const bought = this.roster.addToBench(unitId);
     if (!bought) {
       this.economy.earn(cost);
       return false;
     }
+    this.shop.take(slotIndex);
     return true;
   }
 

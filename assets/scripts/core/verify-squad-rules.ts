@@ -3,6 +3,7 @@ import { HealingSystem } from '../squad/systems/healing-system';
 import { RosterSystem } from '../squad/systems/roster-system';
 import { SquadBattleSession } from '../squad/squad-battle-session';
 import { SquadUnitState } from '../squad/types';
+import { SQUAD_BENCH_SLOTS } from '../squad/config/squad-ui-layout-config';
 
 function assertRule(cond: boolean, msg: string): void {
   if (!cond) throw new Error(`[verify-squad-rules] ${msg}`);
@@ -39,6 +40,72 @@ function verifyMergeCapsAt3Star(): void {
 
   const stars = roster.getAllUnits().map((u) => u.star).sort();
   assertRule(stars.includes(3), 'existing 3-star must remain and not be consumed by normal merge');
+}
+
+function verifyActiveDivineTasksAreMergeProtected(): void {
+  const roster = new RosterSystem();
+
+  roster.addToBenchWithState({ instanceId: 'task-star1', unitId: 'warrior', star: 1, assignedTaskId: 'warrior_to_berserker' });
+  roster.addToBench('warrior');
+  roster.addToBench('warrior');
+  assertRule(roster.getAllUnits().length === 3, 'active task unit must not be counted as third 1-star merge candidate');
+
+  roster.addToBench('warrior');
+  const afterStar1Merge = roster.getAllUnits();
+  const protectedStar1 = afterStar1Merge.find((u) => u.instanceId === 'task-star1');
+  assertRule(protectedStar1?.star === 1, 'active task 1-star unit must survive ordinary merge');
+  assertRule(afterStar1Merge.filter((u) => u.unitId === 'warrior' && u.star === 2).length === 1, 'three normal 1-star units should still merge');
+
+  const rosterWithStar2Task = new RosterSystem();
+  rosterWithStar2Task.addToBenchWithState({ instanceId: 'task-star2', unitId: 'warrior', star: 2, assignedTaskId: 'warrior_to_berserker' });
+  rosterWithStar2Task.addToBenchWithState({ instanceId: 'normal-star2-a', unitId: 'warrior', star: 2 });
+  rosterWithStar2Task.addToBenchWithState({ instanceId: 'normal-star2-b', unitId: 'warrior', star: 2 });
+  rosterWithStar2Task.addToBench('warrior');
+  rosterWithStar2Task.addToBench('warrior');
+  rosterWithStar2Task.addToBench('warrior');
+
+  const afterStar2Merge = rosterWithStar2Task.getAllUnits();
+  const protectedStar2 = afterStar2Merge.find((u) => u.instanceId === 'task-star2');
+  assertRule(protectedStar2?.star === 2, 'active task 2-star unit must survive ordinary merge');
+  assertRule(afterStar2Merge.some((u) => u.unitId === 'warrior' && u.star === 3), 'three normal 2-star units should still merge');
+}
+
+function verifyFailedPurchaseKeepsShopEntry(): void {
+  const session = new SquadBattleSession();
+  session.startNewRun('beginner');
+
+  session.loadFromSaveData({
+    difficulty: 'beginner',
+    phase: 'prep',
+    waveNumber: 1,
+    gold: 99,
+    shop: ['warrior', 'mage', 'priest'],
+    bench: Array.from({ length: SQUAD_BENCH_SLOTS }, (_, index) => ({
+      instanceId: `bench-full-${index}`,
+      unitId: 'warrior',
+      star: 3,
+    })),
+    deployed: [],
+    divineTasks: [],
+    pendingBattleStart: false,
+    uiState: {
+      prepPanel: 'visible',
+      battlefieldLighting: 'dim',
+      transitionProgress: 1,
+      nextWaveReady: true,
+    },
+    allies: [],
+    enemies: [],
+  });
+
+  const before = session.getSnapshot();
+  const bought = session.buyShopUnit(0);
+  const after = session.getSnapshot();
+
+  assertRule(!bought, 'purchase should fail when bench is full');
+  assertRule(after.gold === before.gold, 'failed purchase should refund spent gold');
+  assertRule(after.shop.length === before.shop.length, 'failed purchase must not remove shop entry');
+  assertRule(after.shop[0] === before.shop[0], 'failed purchase must keep original shop slot');
 }
 
 function verifyActualHealingOnly(): void {
@@ -90,6 +157,8 @@ function verifySnapshotContract(): void {
 
 verifyTaskEligibility();
 verifyMergeCapsAt3Star();
+verifyActiveDivineTasksAreMergeProtected();
+verifyFailedPurchaseKeepsShopEntry();
 verifyActualHealingOnly();
 verifySnapshotContract();
 

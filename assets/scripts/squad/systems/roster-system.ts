@@ -1,4 +1,4 @@
-import { UnitId } from '../../models/types';
+import { DivineTaskId, UnitId } from '../../models/types';
 import { SQUAD_BENCH_SLOTS, SQUAD_DEPLOY_SLOTS } from '../config/squad-ui-layout-config';
 import { nextId } from '../../utils/id';
 import { RosterUnitState } from '../types';
@@ -73,7 +73,7 @@ export class RosterSystem {
     return false;
   }
 
-  public assignTask(instanceId: string, taskId: string): void {
+  public assignTask(instanceId: string, taskId: DivineTaskId): void {
     const unit = this.findByInstanceId(instanceId);
     if (unit) {
       unit.assignedTaskId = taskId;
@@ -131,10 +131,10 @@ export class RosterSystem {
 
   private getMergeCandidates(unitId: UnitId, star: 1 | 2): MergeCandidate[] {
     const fromBench = this.bench
-      .filter((u) => u.unitId === unitId && u.star === star)
+      .filter((u) => u.unitId === unitId && u.star === star && !u.assignedTaskId)
       .map((unit) => ({ source: 'bench' as const, unit }));
     const fromDeployed = this.deployed
-      .filter((u) => u.unitId === unitId && u.star === star)
+      .filter((u) => u.unitId === unitId && u.star === star && !u.assignedTaskId)
       .map((unit) => ({ source: 'deployed' as const, unit }));
     return [...fromDeployed, ...fromBench];
   }
