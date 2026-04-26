@@ -1,4 +1,4 @@
-import { EnemyUnitState, SquadUnitState } from '../types';
+import type { EnemyUnitState, SquadUnitState } from '../types';
 import { distance } from './math';
 
 export class TargetingSystem {

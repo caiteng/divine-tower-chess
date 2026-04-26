@@ -1,0 +1,479 @@
+{
+  "ok": true,
+  "finalState": {
+    "hasCc": true,
+    "hasScene": true,
+    "mode": "battle",
+    "selectedUnitId": "roster_unit_1",
+    "phase": "battle",
+    "gold": 16,
+    "bench": 0,
+    "deployed": 1,
+    "benchUnits": [],
+    "deployedUnits": [
+      {
+        "id": "roster_unit_1",
+        "unitId": "shield_guard",
+        "star": 1
+      }
+    ],
+    "allies": [
+      {
+        "id": "roster_unit_1",
+        "unitId": "shield_guard",
+        "role": "melee",
+        "x": 426.3074179412904,
+        "y": 285.62542403199933,
+        "command": "focus_enemy"
+      }
+    ],
+    "enemies": [
+      {
+        "id": "enemy_squad_2",
+        "type": "grunt",
+        "x": 767.5155014306838,
+        "y": 230.36374711356643
+      },
+      {
+        "id": "enemy_squad_3",
+        "type": "grunt",
+        "x": 756.946594475273,
+        "y": 268.49226886095335
+      },
+      {
+        "id": "enemy_squad_4",
+        "type": "grunt",
+        "x": 749.5305809025302,
+        "y": 307.1943513475562
+      },
+      {
+        "id": "enemy_squad_5",
+        "type": "grunt",
+        "x": 750.6347053109315,
+        "y": 346.5762356633006
+      },
+      {
+        "id": "enemy_squad_6",
+        "type": "grunt",
+        "x": 759.3466401611225,
+        "y": 385.14027501458224
+      },
+      {
+        "id": "enemy_squad_7",
+        "type": "grunt",
+        "x": 770.5003484011479,
+        "y": 423.3421482325649
+      }
+    ],
+    "nodes": [
+      {
+        "name": "Main",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Canvas",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Camera",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "BattleSceneRoot",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "MainMenu",
+        "active": false,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "TopGlow",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "BottomGlow",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "Title",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "Subtitle",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "Tagline",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "StartButton",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "StartButtonLabel",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "LoadButton",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "LoadButtonLabel",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "SettingsButton",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "SettingsButtonLabel",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "CreditsButton",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "CreditsButtonLabel",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "AchievementsButton",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "AchievementsButtonLabel",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "Footer",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "MenuPanel",
+        "active": false,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "PanelTitle",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "PanelBody",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "PanelContent",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "ClosePanel",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "ClosePanelLabel",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "CharacterSelect",
+        "active": false,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "Backdrop",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "PageTitle",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "PageHint",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "Preview",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "SelectedTitle",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "SelectedDetail",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "Footer",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "Prev",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "PrevLabel",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "Next",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "NextLabel",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "Back",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "BackLabel",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "Confirm",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "ConfirmLabel",
+        "active": true,
+        "activeInHierarchy": false
+      },
+      {
+        "name": "Battlefield",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "BattleBg",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Dimmer",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "GroundClick",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "CommandLayer",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "CmdLine-集火",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "CmdMarker-集火",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "CmdLabel-集火",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Allies",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Ally-roster_unit_1",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Sprite",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Label",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Command",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Hp",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Fill",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Selected",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Enemies",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Enemy-enemy_squad_2",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Sprite",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Label",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Hp",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Fill",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Enemy-enemy_squad_3",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Sprite",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Label",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Hp",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Fill",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Enemy-enemy_squad_4",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Sprite",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Label",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Hp",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Fill",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Enemy-enemy_squad_5",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Sprite",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Label",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Hp",
+        "active": true,
+        "activeInHierarchy": true
+      },
+      {
+        "name": "Fill",
+        "active": true,
+        "activeInHierarchy": true
+      }
+    ],
+    "canvas": {
+      "left": 0,
+      "top": 0,
+      "width": 960,
+      "height": 553
+    }
+  },
+  "seriousMessages": [],
+  "screenshotsDir": "/Users/caiteng/project/divine-tower-chess/tmp/web-e2e"
+}

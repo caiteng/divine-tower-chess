@@ -1,4 +1,4 @@
-import { DifficultyId, DivineTaskId, UnitId } from '../models/types';
+import type { DifficultyId, DivineTaskId, UnitId } from '../models/types';
 
 export type SquadBattlePhase = 'prep' | 'battle' | 'victory' | 'defeat';
 

@@ -1,9 +1,9 @@
 import { _decorator, Canvas, Component, director, Layers, Node, UITransform, Vec3 } from 'cc';
 import { SHOP_UNIT_POOL, UNIT_CONFIG } from '../config/unit-config';
 import { LocalProfileStorage } from '../core/local-profile-storage';
-import { UnitId } from '../models/types';
+import type { UnitId } from '../models/types';
 import { SquadBattleSession } from '../squad/squad-battle-session';
-import { SavedAchievements, SavedAudioSettings, SquadBattleSnapshot, SquadUnitState } from '../squad/types';
+import type { SavedAchievements, SavedAudioSettings, SquadBattleSnapshot, SquadUnitState } from '../squad/types';
 import { BattlefieldController } from './controllers/battlefield-controller';
 import { BattleHudController } from './controllers/battle-hud-controller';
 import { CharacterSelectController } from './controllers/character-select-controller';
@@ -39,6 +39,7 @@ export class BattleSceneController extends Component {
   private commandOverlayController: CommandOverlayController | null = null;
 
   public onLoad(): void {
+    this.hideRuntimeProfiler();
     this.settings = this.storage.loadSettings();
     this.achievements = this.storage.loadAchievements();
     this.session.onVictory = () => this.unlockFirstClearAchievement();
@@ -120,7 +121,7 @@ export class BattleSceneController extends Component {
     const prepNode = new Node('PrepPanel');
     prepNode.layer = Layers.Enum.UI_2D;
     prepNode.addComponent(UITransform).setContentSize(920, 240);
-    prepNode.setPosition(new Vec3(0, -186, 0));
+    prepNode.setPosition(new Vec3(0, -120, 0));
     root.addChild(prepNode);
 
     const cmdNode = new Node('CommandOverlay');
@@ -350,6 +351,17 @@ export class BattleSceneController extends Component {
       if (found) return found;
     }
     return null;
+  }
+
+  private hideRuntimeProfiler(): void {
+    const runtimeGlobal = globalThis as typeof globalThis & {
+      cc?: {
+        profiler?: {
+          hideStats?: () => void;
+        };
+      };
+    };
+    runtimeGlobal.cc?.profiler?.hideStats?.();
   }
 
   private pushNotice(message: string, durationMs = 1600): void {

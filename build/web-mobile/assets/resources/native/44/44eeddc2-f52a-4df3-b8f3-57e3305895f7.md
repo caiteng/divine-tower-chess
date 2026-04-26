@@ -3,7 +3,6 @@
 The profession avatar icons in this directory are from [Game-icons.net](https://game-icons.net/) and are used under the [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) license.
 
 - `archer.png`: Archer by Delapouite, https://game-icons.net/1x1/delapouite/archer.html
-- `paladin.png`: Templar Shield by Delapouite, https://game-icons.net/1x1/delapouite/templar-shield.html
 - `shield_guard.png`: Viking Shield by Delapouite, https://game-icons.net/1x1/delapouite/viking-shield.html
 - `warrior.png`: Sword Brandish by Delapouite, https://game-icons.net/1x1/delapouite/sword-brandish.html
 - `mage.png`: Wizard Face by Delapouite, https://game-icons.net/1x1/delapouite/wizard-face.html

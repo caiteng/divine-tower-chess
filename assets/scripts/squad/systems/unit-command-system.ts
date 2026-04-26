@@ -1,4 +1,4 @@
-import { SquadUnitState, Vec2 } from '../types';
+import type { SquadUnitState, Vec2 } from '../types';
 
 export class UnitCommandSystem {
   private selectedUnitId: string | undefined;

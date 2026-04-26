@@ -1,4 +1,4 @@
-import { Vec2 } from '../types';
+import type { Vec2 } from '../types';
 
 export function distance(a: Vec2, b: Vec2): number {
   const dx = a.x - b.x;

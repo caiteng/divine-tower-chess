@@ -1,9 +1,15 @@
 import { _decorator, Button, Color, Component, Label, Layers, Node, Sprite, UITransform, Vec3 } from 'cc';
 import { UNIT_CONFIG } from '../../config/unit-config';
-import { UnitId } from '../../models/types';
+import type { UnitId } from '../../models/types';
 import { UnitSpriteResolver } from '../resources/sprite-resolvers';
 
 const { ccclass } = _decorator;
+
+const PREVIEW_MAX_WIDTH = 220;
+const PREVIEW_MAX_HEIGHT = 240;
+const PORTRAIT_ASPECT: Partial<Record<UnitId, number>> = {
+  warrior: 2 / 3,
+};
 
 @ccclass('CharacterSelectController')
 export class CharacterSelectController extends Component {
@@ -14,13 +20,15 @@ export class CharacterSelectController extends Component {
   private options: UnitId[] = [];
   private selectedIndex = 0;
   private previewSprite: Sprite | null = null;
+  private previewTransform: UITransform | null = null;
   private titleLabel: Label | null = null;
   private detailLabel: Label | null = null;
   private footerLabel: Label | null = null;
 
   public initialize(): void {
     this.node.layer = Layers.Enum.UI_2D;
-    this.node.addComponent(UITransform).setContentSize(960, 640);
+    const transform = this.node.getComponent(UITransform) ?? this.node.addComponent(UITransform);
+    transform.setContentSize(960, 640);
     const bg = this.node.addComponent(Sprite);
     bg.color = new Color(9, 18, 32, 255);
 
@@ -32,8 +40,10 @@ export class CharacterSelectController extends Component {
     preview.layer = Layers.Enum.UI_2D;
     this.node.addChild(preview);
     preview.setPosition(new Vec3(0, 34, 0));
-    preview.addComponent(UITransform).setContentSize(220, 220);
+    this.previewTransform = preview.addComponent(UITransform);
+    this.previewTransform.setContentSize(PREVIEW_MAX_WIDTH, PREVIEW_MAX_HEIGHT);
     this.previewSprite = preview.addComponent(Sprite);
+    this.previewSprite.sizeMode = Sprite.SizeMode.CUSTOM;
     this.previewSprite.color = new Color(148, 163, 184, 255);
 
     this.titleLabel = this.makeLabel('SelectedTitle', '', 0, -126, 520, 24, new Color(251, 191, 36, 255));
@@ -81,9 +91,21 @@ export class CharacterSelectController extends Component {
     }
     if (this.previewSprite) {
       const frame = await this.resolver.resolvePortrait(unitId, 1, false);
+      this.resizePreview(unitId);
       this.previewSprite.spriteFrame = frame;
       this.previewSprite.color = frame ? new Color(255, 255, 255, 255) : new Color(148, 163, 184, 255);
     }
+  }
+
+  private resizePreview(unitId: UnitId): void {
+    if (!this.previewTransform) return;
+    const aspect = PORTRAIT_ASPECT[unitId] ?? 1;
+    const widthByHeight = PREVIEW_MAX_HEIGHT * aspect;
+    if (widthByHeight <= PREVIEW_MAX_WIDTH) {
+      this.previewTransform.setContentSize(widthByHeight, PREVIEW_MAX_HEIGHT);
+      return;
+    }
+    this.previewTransform.setContentSize(PREVIEW_MAX_WIDTH, PREVIEW_MAX_WIDTH / aspect);
   }
 
   private makePanel(name: string, x: number, y: number, width: number, height: number, color: Color): void {

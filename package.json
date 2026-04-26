@@ -5,8 +5,10 @@
   "type": "commonjs",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "verify:rules": "tsx assets/scripts/core/verify-squad-rules.ts",
-    "test": "npm run typecheck && npm run verify:rules"
+    "verify:rules": "tsx tools/verify-squad-rules.ts",
+    "verify:art": "tsx tools/verify-art-resources.ts",
+    "verify:web": "node tools/run-web-e2e.js",
+    "test": "npm run typecheck && npm run verify:rules && npm run verify:art"
   },
   "devDependencies": {
     "tsx": "^4.20.0",

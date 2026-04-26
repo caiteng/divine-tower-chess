@@ -1,7 +1,7 @@
-import { DivineTaskId, UnitId } from '../../models/types';
+import type { DivineTaskId, UnitId } from '../../models/types';
 import { SQUAD_BENCH_SLOTS, SQUAD_DEPLOY_SLOTS } from '../config/squad-ui-layout-config';
 import { nextId } from '../../utils/id';
-import { RosterUnitState } from '../types';
+import type { RosterUnitState } from '../types';
 
 interface MergeCandidate {
   source: 'bench' | 'deployed';

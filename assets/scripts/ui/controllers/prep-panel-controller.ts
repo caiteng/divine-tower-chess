@@ -1,10 +1,22 @@
-import { _decorator, Button, Color, Component, Label, Layers, Node, Sprite, UITransform, Vec3 } from 'cc';
-import { SquadBattleSnapshot } from '../../squad/types';
+import { _decorator, Button, Color, Component, Graphics, Label, Layers, Node, Sprite, SpriteFrame, UITransform, Vec3 } from 'cc';
+import { SHOP_UNIT_POOL, UNIT_CONFIG } from '../../config/unit-config';
+import type { UnitId } from '../../models/types';
+import type { RosterUnitState, SquadBattleSnapshot } from '../../squad/types';
+import { UiIconResolver, UnitSpriteResolver } from '../resources/sprite-resolvers';
 
 const { ccclass } = _decorator;
+const SHOP_CARD_WIDTH = 132;
+const SHOP_CARD_HEIGHT = 76;
+const ROSTER_CARD_WIDTH = 92;
+const ROSTER_CARD_HEIGHT = 66;
 
 @ccclass('PrepPanelController')
 export class PrepPanelController extends Component {
+  private readonly unitResolver = new UnitSpriteResolver();
+  private readonly iconResolver = new UiIconResolver();
+  private readonly avatarFrames = new Map<UnitId, SpriteFrame>();
+  private goldFrame: SpriteFrame | null = null;
+
   public onBuy?: (index: number) => void;
   public onDeploy?: (id: string) => void;
   public onRecall?: (id: string) => void;
@@ -16,101 +28,166 @@ export class PrepPanelController extends Component {
 
   public initialize(): void {
     this.node.layer = Layers.Enum.UI_2D;
-    this.node.addComponent(UITransform).setContentSize(920, 240);
+    const transform = this.node.getComponent(UITransform) ?? this.node.addComponent(UITransform);
+    transform.setContentSize(920, 240);
+    this.paintRect(this.node, 920, 240, new Color(15, 23, 42, 235));
 
-    const bg = this.node.addComponent(Sprite);
-    bg.color = new Color(15, 23, 42, 235);
-
-    this.infoLabel = this.makeLabel('Info', -430, 96, 840, 14, new Color(251, 191, 36, 255));
+    this.infoLabel = this.makeLabel('Info', -430, 100, 840, 14, new Color(251, 191, 36, 255));
+    for (const unitId of SHOP_UNIT_POOL) {
+      void this.unitResolver.resolveAvatar(unitId).then((frame) => {
+        if (frame) this.avatarFrames.set(unitId, frame);
+      });
+    }
+    void this.iconResolver.resolve('gold').then((frame) => {
+      this.goldFrame = frame;
+    });
   }
 
   public render(snapshot: SquadBattleSnapshot, selectedLabel: string, selectedUnitId?: string): void {
     this.node.removeAllChildren();
-    this.infoLabel = this.makeLabel('Info', -430, 96, 840, 14, new Color(251, 191, 36, 255));
-    this.infoLabel.string = `Preparation · selected: ${selectedLabel} · gold: ${snapshot.gold}`;
+    this.infoLabel = this.makeLabel('Info', -430, 100, 680, 14, new Color(251, 191, 36, 255));
+    this.infoLabel.string = `准备阶段 · 当前选择：${selectedLabel}`;
+    this.makeGoldReadout(snapshot.gold);
 
-    this.makeLabel('ShopTitle', -430, 62, 140, 13, new Color(226, 232, 240, 255)).string = 'Shop (3)';
+    this.makeLabel('ShopTitle', -430, 72, 140, 13, new Color(226, 232, 240, 255)).string = '商店（3）';
     snapshot.shop.forEach((unitId, index) => {
-      this.makeButton(`Buy-${index}`, `${unitId}\nBuy`, -300 + index * 156, 36, 132, 44, new Color(30, 41, 59, 255), () => this.onBuy?.(index));
+      this.makeUnitCard({
+        name: `Buy-${index}`,
+        unitId,
+        star: 1,
+        text: `${this.getUnitName(unitId)}\n购买`,
+        x: -300 + index * 156,
+        y: 42,
+        width: SHOP_CARD_WIDTH,
+        height: SHOP_CARD_HEIGHT,
+        selected: false,
+        color: new Color(30, 41, 59, 255),
+        onClick: () => this.onBuy?.(index),
+      });
     });
 
-    this.makeLabel('DeployTitle', -430, -8, 140, 13, new Color(226, 232, 240, 255)).string = 'Deployed (5)';
+    this.makeLabel('DeployTitle', -430, 20, 140, 13, new Color(226, 232, 240, 255)).string = '上阵区（5）';
     for (let i = 0; i < snapshot.slotConfig.deployed; i += 1) {
       const unit = snapshot.deployed[i];
       if (unit) {
-        this.makeButton(
-          `Recall-${unit.instanceId}`,
-          `${unit.isCaptain ? '♛ ' : ''}${unit.unitId}★${unit.star}${unit.assignedTaskId ? ' ✦' : ''}\nRecall`,
-          -320 + i * 130,
-          -34,
-          122,
-          44,
-          unit.instanceId === selectedUnitId ? new Color(180, 83, 9, 255) : new Color(30, 41, 59, 255),
-          () => this.onRecall?.(unit.instanceId),
-        );
+        this.makeUnitCard({
+          name: `Recall-${unit.instanceId}`,
+          unitId: unit.unitId,
+          star: unit.star,
+          text: `${unit.isCaptain ? '♛ ' : ''}${this.getUnitName(unit.unitId)}★${unit.star}${unit.assignedTaskId ? ' ✦' : ''}\n撤回`,
+          x: -320 + i * 130,
+          y: -8,
+          width: 122,
+          height: 68,
+          selected: unit.instanceId === selectedUnitId,
+          color: new Color(30, 41, 59, 255),
+          onClick: () => this.onRecall?.(unit.instanceId),
+        });
       } else {
-        this.makeButton(`DeployEmpty-${i}`, 'Empty', -320 + i * 130, -34, 122, 44, new Color(51, 65, 85, 160));
+        this.makeButton(`DeployEmpty-${i}`, '空位', -320 + i * 130, -8, 122, 68, new Color(51, 65, 85, 160));
       }
     }
 
-    this.makeLabel('BenchTitle', -430, -74, 140, 13, new Color(226, 232, 240, 255)).string = 'Bench (8)';
+    this.makeLabel('BenchTitle', -430, -52, 140, 13, new Color(226, 232, 240, 255)).string = '备战区（8）';
     for (let i = 0; i < snapshot.slotConfig.bench; i += 1) {
       const unit = snapshot.bench[i];
-      const x = -330 + (i % 4) * 195;
-      const y = i < 4 ? -102 : -150;
+      const x = -382 + i * 96;
+      const y = -82;
       if (unit) {
-        this.makeButton(
-          `Deploy-${unit.instanceId}`,
-          `${unit.isCaptain ? '♛ ' : ''}${unit.unitId}★${unit.star}${unit.assignedTaskId ? ' ✦' : ''}\nDeploy`,
-          x,
-          y,
-          182,
-          42,
-          unit.instanceId === selectedUnitId ? new Color(180, 83, 9, 255) : new Color(30, 41, 59, 255),
-          () => this.onDeploy?.(unit.instanceId),
-        );
+        this.makeRosterCard(unit, x, y, unit.instanceId === selectedUnitId, () => this.onDeploy?.(unit.instanceId));
       } else {
-        this.makeButton(`BenchEmpty-${i}`, 'Empty', x, y, 182, 42, new Color(51, 65, 85, 160));
+        this.makeButton(`BenchEmpty-${i}`, '空位', x, y, ROSTER_CARD_WIDTH, ROSTER_CARD_HEIGHT, new Color(51, 65, 85, 160));
       }
     }
 
-    this.makeButton('Sell', 'Sell Selected', 330, 48, 160, 40, new Color(127, 29, 29, 255), () => this.onSell?.());
-    this.makeButton('Refresh', 'Refresh Shop', 330, -4, 160, 40, new Color(37, 99, 235, 255), () => this.onRefresh?.());
-    this.makeButton('Start', 'Start Next Wave', 330, -56, 160, 40, new Color(21, 128, 61, 255), () => this.onStartWave?.());
-    this.makeLabel('Hint', -430, -198, 860, 12, new Color(191, 219, 254, 255)).string = this.buildHint(snapshot, selectedUnitId);
+    this.makeButton('Sell', '卖出选中', 330, 52, 160, 34, new Color(127, 29, 29, 255), () => this.onSell?.());
+    this.makeButton('Refresh', '刷新商店', 330, 8, 160, 34, new Color(37, 99, 235, 255), () => this.onRefresh?.());
+    this.makeButton('Start', '开始下一波', 330, -36, 160, 34, new Color(21, 128, 61, 255), () => this.onStartWave?.());
+    this.makeLabel('Hint', -430, -116, 860, 12, new Color(191, 219, 254, 255)).string = this.buildHint(snapshot, selectedUnitId);
   }
 
   private buildHint(snapshot: SquadBattleSnapshot, selectedUnitId?: string): string {
     if (!selectedUnitId) {
-      return 'Hint: 先买人再上阵。橙色高亮表示当前选中实例，带 ✦ 的单位持有神品任务。';
+      return '提示：先购买或直接上阵起始队长。橙色高亮表示当前选中实例，带 ✦ 的单位持有神品任务。';
     }
 
     const rosterUnit = [...snapshot.deployed, ...snapshot.bench].find((unit) => unit.instanceId === selectedUnitId);
     if (!rosterUnit) {
-      return 'Hint: 当前选中单位已离开备战链路。';
+      return '提示：当前选中单位已离开备战链路。';
     }
 
     const inDeployed = snapshot.deployed.some((unit) => unit.instanceId === selectedUnitId);
     const task = snapshot.divineTasks.find((entry) => entry.unitInstanceId === selectedUnitId);
     if (task) {
-      return `Hint: ${rosterUnit.unitId}★${rosterUnit.star} 持有 ${task.divineTaskId}，实例进度 ${Math.floor(task.divineProgress ?? 0)}，普通升星不会消耗它。`;
+      return `提示：${this.getUnitName(rosterUnit.unitId)}★${rosterUnit.star} 持有 ${task.divineTaskId}，实例进度 ${Math.floor(task.divineProgress ?? 0)}，普通升星不会消耗它。`;
     }
 
     if (rosterUnit.isCaptain) {
       return inDeployed
-        ? `Hint: ${rosterUnit.unitId}★${rosterUnit.star} 是当前队长实例，已在上阵区。`
-        : `Hint: ${rosterUnit.unitId}★${rosterUnit.star} 是你选择的起始队长实例，当前位于备战区。`;
+        ? `提示：${this.getUnitName(rosterUnit.unitId)}★${rosterUnit.star} 是当前队长实例，已在上阵区。`
+        : `提示：${this.getUnitName(rosterUnit.unitId)}★${rosterUnit.star} 是你选择的起始队长实例，当前位于备战区。`;
     }
 
     return inDeployed
-      ? `Hint: ${rosterUnit.unitId}★${rosterUnit.star} 当前在上阵区，可撤回或直接开波。`
-      : `Hint: ${rosterUnit.unitId}★${rosterUnit.star} 当前在备战区，可上阵；3 个同名同星实例会自动合成。`;
+      ? `提示：${this.getUnitName(rosterUnit.unitId)}★${rosterUnit.star} 当前在上阵区，可撤回或直接开波。`
+      : `提示：${this.getUnitName(rosterUnit.unitId)}★${rosterUnit.star} 当前在备战区，可上阵；3 个同名同星实例会自动合成。`;
   }
 
-  private makeLabel(name: string, x: number, y: number, width: number, fontSize: number, color: Color): Label {
-    const node = new Node(name);
+  private getUnitName(unitId: UnitId): string {
+    return UNIT_CONFIG[unitId]?.name ?? unitId;
+  }
+
+  private makeGoldReadout(gold: number): void {
+    const node = new Node('GoldReadout');
     node.layer = Layers.Enum.UI_2D;
     this.node.addChild(node);
+    node.setPosition(new Vec3(302, 100, 0));
+    node.addComponent(UITransform).setContentSize(150, 28);
+
+    const iconNode = new Node('GoldIcon');
+    iconNode.layer = Layers.Enum.UI_2D;
+    node.addChild(iconNode);
+    iconNode.setPosition(new Vec3(-48, 0, 0));
+    iconNode.addComponent(UITransform).setContentSize(24, 24);
+    const icon = iconNode.addComponent(Sprite);
+    icon.sizeMode = Sprite.SizeMode.CUSTOM;
+    icon.color = new Color(245, 158, 11, 255);
+    if (this.goldFrame) {
+      icon.spriteFrame = this.goldFrame;
+      icon.color = new Color(255, 255, 255, 255);
+    } else {
+      void this.iconResolver.resolve('gold').then((frame) => {
+        if (!frame || !icon.node.parent) return;
+        this.goldFrame = frame;
+        icon.spriteFrame = frame;
+        icon.color = new Color(255, 255, 255, 255);
+      });
+    }
+
+    const label = this.makeLabel('GoldValue', 18, 0, 90, 15, new Color(254, 240, 138, 255), node);
+    label.string = `${gold}`;
+  }
+
+  private makeRosterCard(unit: RosterUnitState, x: number, y: number, selected: boolean, onClick: () => void): void {
+    this.makeUnitCard({
+      name: `Deploy-${unit.instanceId}`,
+      unitId: unit.unitId,
+      star: unit.star,
+      text: `${unit.isCaptain ? '♛ ' : ''}${this.getUnitName(unit.unitId)}★${unit.star}${unit.assignedTaskId ? ' ✦' : ''}\n上阵`,
+      x,
+      y,
+      width: ROSTER_CARD_WIDTH,
+      height: ROSTER_CARD_HEIGHT,
+      selected,
+      color: selected ? new Color(180, 83, 9, 255) : new Color(30, 41, 59, 255),
+      onClick,
+    });
+  }
+
+  private makeLabel(name: string, x: number, y: number, width: number, fontSize: number, color: Color, parent: Node = this.node): Label {
+    const node = new Node(name);
+    node.layer = Layers.Enum.UI_2D;
+    parent.addChild(node);
     node.setPosition(new Vec3(x, y, 0));
     node.addComponent(UITransform).setContentSize(width, 24);
     const label = node.addComponent(Label);
@@ -126,11 +203,11 @@ export class PrepPanelController extends Component {
     this.node.addChild(node);
     node.setPosition(new Vec3(x, y, 0));
     node.addComponent(UITransform).setContentSize(width, height);
-    const sprite = node.addComponent(Sprite);
-    sprite.color = color;
-    if (onClick) {
+    this.paintRect(node, width, height, color, new Color(148, 163, 184, 70));
+    const guardedClick = onClick ? this.makeGuardedClick(onClick) : undefined;
+    if (guardedClick) {
       node.addComponent(Button);
-      node.on(Button.EventType.CLICK, onClick, this);
+      node.on(Button.EventType.CLICK, guardedClick, this);
     }
 
     const labelNode = new Node(`${name}-label`);
@@ -142,5 +219,118 @@ export class PrepPanelController extends Component {
     label.fontSize = 12;
     label.lineHeight = 14;
     label.color = new Color(248, 250, 252, 255);
+    if (guardedClick) {
+      labelNode.addComponent(Button);
+      labelNode.on(Button.EventType.CLICK, guardedClick, this);
+    }
+  }
+
+  private makeUnitCard(options: {
+    name: string;
+    unitId: UnitId;
+    star: 1 | 2 | 3;
+    text: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    selected: boolean;
+    color: Color;
+    onClick?: () => void;
+  }): void {
+    const node = new Node(options.name);
+    node.layer = Layers.Enum.UI_2D;
+    this.node.addChild(node);
+    node.setPosition(new Vec3(options.x, options.y, 0));
+    node.addComponent(UITransform).setContentSize(options.width, options.height);
+    this.paintRect(
+      node,
+      options.width,
+      options.height,
+      options.selected ? new Color(180, 83, 9, 255) : options.color,
+      options.selected ? new Color(254, 240, 138, 210) : new Color(148, 163, 184, 80),
+    );
+
+    if (options.selected) {
+      const glow = new Node(`${options.name}-selected`);
+      glow.layer = Layers.Enum.UI_2D;
+      node.addChild(glow);
+      glow.setPosition(new Vec3(0, -6, 0));
+      glow.addComponent(UITransform).setContentSize(options.width - 12, 12);
+      this.paintRect(glow, options.width - 12, 12, new Color(254, 240, 138, 180));
+    }
+
+    const imageBack = new Node(`${options.name}-image-back`);
+    imageBack.layer = Layers.Enum.UI_2D;
+    node.addChild(imageBack);
+    imageBack.setPosition(new Vec3(0, options.height * 0.13, 0));
+    const imageBackWidth = Math.min(options.width - 18, options.height > 70 ? 74 : 58);
+    const imageBackHeight = Math.min(options.height - 22, options.height > 70 ? 56 : 46);
+    imageBack.addComponent(UITransform).setContentSize(imageBackWidth, imageBackHeight);
+
+    const imageNode = new Node(`${options.name}-image`);
+    imageNode.layer = Layers.Enum.UI_2D;
+    imageBack.addChild(imageNode);
+    imageNode.setPosition(new Vec3(0, 0, 0));
+    imageNode.addComponent(UITransform).setContentSize(Math.min(72, options.width - 18), Math.min(58, options.height - 18));
+    const unitSprite = imageNode.addComponent(Sprite);
+    unitSprite.sizeMode = Sprite.SizeMode.CUSTOM;
+    unitSprite.color = new Color(148, 163, 184, 255);
+    const cachedFrame = this.avatarFrames.get(options.unitId);
+    if (cachedFrame) {
+      unitSprite.spriteFrame = cachedFrame;
+      unitSprite.color = new Color(255, 255, 255, 255);
+    } else {
+      void this.unitResolver.resolveAvatar(options.unitId).then((frame) => {
+        if (!frame || !unitSprite.node.parent) return;
+        this.avatarFrames.set(options.unitId, frame);
+        unitSprite.spriteFrame = frame;
+        unitSprite.color = new Color(255, 255, 255, 255);
+      });
+    }
+
+    const labelNode = new Node(`${options.name}-label`);
+    labelNode.layer = Layers.Enum.UI_2D;
+    node.addChild(labelNode);
+    labelNode.setPosition(new Vec3(0, -options.height * 0.32, 0));
+    labelNode.addComponent(UITransform).setContentSize(options.width - 8, 26);
+    const label = labelNode.addComponent(Label);
+    label.string = options.text;
+    label.fontSize = 11;
+    label.lineHeight = 13;
+    label.color = new Color(248, 250, 252, 255);
+
+    const guardedClick = options.onClick ? this.makeGuardedClick(options.onClick) : undefined;
+    if (guardedClick) {
+      node.addComponent(Button);
+      node.on(Button.EventType.CLICK, guardedClick, this);
+      labelNode.addComponent(Button);
+      labelNode.on(Button.EventType.CLICK, guardedClick, this);
+      imageNode.addComponent(Button);
+      imageNode.on(Button.EventType.CLICK, guardedClick, this);
+    }
+  }
+
+  private paintRect(node: Node, width: number, height: number, fill: Color, stroke?: Color): void {
+    const graphics = node.addComponent(Graphics);
+    graphics.fillColor = fill;
+    graphics.rect(-width / 2, -height / 2, width, height);
+    graphics.fill();
+    if (stroke) {
+      graphics.strokeColor = stroke;
+      graphics.lineWidth = 2;
+      graphics.rect(-width / 2 + 1, -height / 2 + 1, width - 2, height - 2);
+      graphics.stroke();
+    }
+  }
+
+  private makeGuardedClick(onClick: () => void): () => void {
+    let lastClickAt = 0;
+    return () => {
+      const now = Date.now();
+      if (now - lastClickAt < 80) return;
+      lastClickAt = now;
+      onClick();
+    };
   }
 }

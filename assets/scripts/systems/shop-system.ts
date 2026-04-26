@@ -1,5 +1,5 @@
 import { SHOP_UNIT_POOL } from '../config/unit-config';
-import { UnitId } from '../models/types';
+import type { UnitId } from '../models/types';
 import { SQUAD_SHOP_SLOTS } from '../squad/config/squad-ui-layout-config';
 import { pickN } from '../utils/random';
 

@@ -1,13 +1,9 @@
-import { UnitConfig, UnitId } from '../models/types';
+import type { UnitConfig, UnitId } from '../models/types';
 
 export const UNIT_CONFIG: Record<UnitId, UnitConfig> = {
   archer: {
     id: 'archer', name: '弓箭手', cost: 3, baseDamage: 18, attackInterval: 1, maxHp: 140,
     detectionRange: 340, attackRange: 250, moveSpeed: 120, projectileSpeed: 560, skillType: 'single', behaviorRole: 'ranged',
-  },
-  paladin: {
-    id: 'paladin', name: '圣骑士', cost: 4, baseDamage: 16, attackInterval: 1.2, maxHp: 260,
-    detectionRange: 220, attackRange: 70, moveSpeed: 110, skillType: 'none', behaviorRole: 'melee',
   },
   shield_guard: {
     id: 'shield_guard', name: '盾卫', cost: 3, baseDamage: 12, attackInterval: 1.1, maxHp: 300,
@@ -44,5 +40,5 @@ export const UNIT_CONFIG: Record<UnitId, UnitConfig> = {
 };
 
 export const SHOP_UNIT_POOL: UnitId[] = [
-  'archer', 'paladin', 'shield_guard', 'warrior', 'mage', 'priest', 'cavalry', 'spearman',
+  'archer', 'shield_guard', 'warrior', 'mage', 'priest', 'cavalry', 'spearman',
 ];

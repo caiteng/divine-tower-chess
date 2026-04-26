@@ -1,4 +1,4 @@
-import { UnitId } from '../models/types';
+import type { UnitId } from '../models/types';
 
 export type StarLevel = 1 | 2 | 3;
 
@@ -12,7 +12,6 @@ const makeDefaultStarPaths = (unitId: UnitId): Record<StarLevel, string> => ({
 
 export const UNIT_STAR_SPRITE_PATHS: UnitStarSpritePathConfig = {
   archer: makeDefaultStarPaths('archer'),
-  paladin: makeDefaultStarPaths('paladin'),
   shield_guard: makeDefaultStarPaths('shield_guard'),
   warrior: makeDefaultStarPaths('warrior'),
   mage: makeDefaultStarPaths('mage'),
@@ -25,7 +24,6 @@ export const UNIT_STAR_SPRITE_PATHS: UnitStarSpritePathConfig = {
 
 export const UNIT_STAR_SPRITE_BASE_FALLBACK: Record<UnitId, string> = {
   archer: 'textures/avatars/archer',
-  paladin: 'textures/avatars/paladin',
   shield_guard: 'textures/avatars/shield_guard',
   warrior: 'textures/avatars/warrior',
   mage: 'textures/avatars/mage',

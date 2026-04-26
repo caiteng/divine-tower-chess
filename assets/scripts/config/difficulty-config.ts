@@ -1,4 +1,4 @@
-import { DifficultyConfig, DifficultyId } from '../models/types';
+import type { DifficultyConfig, DifficultyId } from '../models/types';
 
 export const DIFFICULTY_CONFIG: Record<DifficultyId, DifficultyConfig> = {
   beginner: {

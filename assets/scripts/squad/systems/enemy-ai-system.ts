@@ -1,5 +1,5 @@
 import { ENEMY_STATS } from '../config/squad-battle-config';
-import { EnemyUnitState, SquadUnitState } from '../types';
+import type { EnemyUnitState, SquadUnitState } from '../types';
 import { distance, normalize } from './math';
 
 export class EnemyAiSystem {

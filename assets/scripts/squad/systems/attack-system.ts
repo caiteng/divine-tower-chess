@@ -1,5 +1,5 @@
 import { SQUAD_UNIT_STATS } from '../config/squad-battle-config';
-import { EnemyUnitState, SquadUnitState } from '../types';
+import type { EnemyUnitState, SquadUnitState } from '../types';
 import { distance } from './math';
 
 export class AttackSystem {

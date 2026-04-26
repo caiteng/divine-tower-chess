@@ -1,5 +1,5 @@
 import { _decorator, Button, Color, Component, Label, Layers, Node, Sprite, UITransform, Vec3 } from 'cc';
-import { SavedAchievements, SavedAudioSettings } from '../../squad/types';
+import type { SavedAchievements, SavedAudioSettings } from '../../squad/types';
 
 const { ccclass } = _decorator;
 
@@ -23,7 +23,8 @@ export class MainMenuController extends Component {
 
   public initialize(): void {
     this.node.layer = Layers.Enum.UI_2D;
-    this.node.addComponent(UITransform).setContentSize(960, 640);
+    const transform = this.node.getComponent(UITransform) ?? this.node.addComponent(UITransform);
+    transform.setContentSize(960, 640);
 
     const bg = this.node.addComponent(Sprite);
     bg.color = new Color(8, 15, 28, 255);
@@ -31,8 +32,8 @@ export class MainMenuController extends Component {
     this.makeStripe('TopGlow', 0, 210, 760, 140, new Color(20, 184, 166, 72));
     this.makeStripe('BottomGlow', 0, -180, 900, 180, new Color(245, 158, 11, 48));
 
-    this.makeLabel('Title', 'DIVINE TOWER CHESS', 0, 168, 760, 36, new Color(248, 250, 252, 255));
-    this.makeLabel('Subtitle', 'Battleheart-style 2D squad combat prototype', 0, 124, 640, 16, new Color(148, 163, 184, 255));
+    this.makeLabel('Title', '神塔战棋', 0, 168, 760, 36, new Color(248, 250, 252, 255));
+    this.makeLabel('Subtitle', '2D 小队实时指挥战斗原型', 0, 124, 640, 16, new Color(148, 163, 184, 255));
     this.makeLabel('Tagline', '先从主菜单进入，再进入准备阶段和实时指挥战斗。', 0, 88, 640, 14, new Color(191, 219, 254, 255));
 
     this.makeMenuButton('StartButton', '开始', 0, 12, new Color(21, 128, 61, 255), () => this.onStart?.());
@@ -129,7 +130,7 @@ export class MainMenuController extends Component {
     const desc = this.makeInlineLabel(row, 'AchDesc', -190, -12, 360, 12, new Color(226, 232, 240, 255));
     desc.string = unlocked ? '已解锁：完成当前唯一关卡并进入 victory。' : '未解锁：完成当前唯一关卡并进入 victory。';
     const badge = this.makeInlineLabel(row, 'AchBadge', 132, 0, 120, 14, new Color(253, 224, 71, 255));
-    badge.string = unlocked ? 'UNLOCKED' : 'LOCKED';
+    badge.string = unlocked ? '已解锁' : '未解锁';
   }
 
   private makeSettingRow(name: string, labelText: string, key: keyof SavedAudioSettings, value: number, y: number): void {

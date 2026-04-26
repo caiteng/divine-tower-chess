@@ -1,5 +1,5 @@
 import { SQUAD_BATTLEFIELD } from '../config/squad-battle-config';
-import { SquadUnitState, Vec2 } from '../types';
+import type { SquadUnitState, Vec2 } from '../types';
 import { clamp, distance, normalize } from './math';
 
 export class MovementSystem {

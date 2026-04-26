@@ -1,5 +1,5 @@
 import { sys } from 'cc';
-import { SavedAchievements, SavedAudioSettings, SquadBattleSaveData } from '../squad/types';
+import type { SavedAchievements, SavedAudioSettings, SquadBattleSaveData } from '../squad/types';
 
 const RUN_SAVE_KEY = 'divine_tower_chess.run_save.v1';
 const SETTINGS_KEY = 'divine_tower_chess.settings.v1';

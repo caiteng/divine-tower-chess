@@ -1,4 +1,4 @@
-import { EnemyId, UnitId } from '../models/types';
+import type { EnemyId, UnitId } from '../models/types';
 
 export type StarLevel = 1 | 2 | 3;
 
@@ -48,10 +48,6 @@ export const ART_RESOURCE_MANIFEST: ArtResourceManifest = {
       ...unitDir('assets/resources/textures/units/archer', 'archer'),
       portrait: 'archer_portrait.png',
     },
-    paladin: {
-      ...unitDir('assets/resources/textures/units/paladin', 'paladin'),
-      portrait: 'paladin_portrait.png',
-    },
     shield_guard: {
       ...unitDir('assets/resources/textures/units/shield_guard', 'shield_guard'),
       portrait: 'shield_guard_portrait.png',
@@ -84,7 +80,7 @@ export const ART_RESOURCE_MANIFEST: ArtResourceManifest = {
     'assets/art/enemies/boss_1.png',
   ],
   uiIcons: [
-    'assets/art/ui/icons/gold.png',
+    'assets/resources/textures/ui/gold.png',
     'assets/art/ui/icons/refresh.png',
     'assets/art/ui/icons/sell.png',
     'assets/art/ui/icons/start_wave.png',

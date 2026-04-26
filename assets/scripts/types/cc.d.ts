@@ -17,6 +17,7 @@ declare module 'cc' {
     public layer: number;
     public parent: Node | null;
     public active: boolean;
+    public angle: number;
 
     public constructor(name?: string);
     public addChild(child: Node): void;
@@ -24,6 +25,7 @@ declare module 'cc' {
     public getComponent<T>(component: new () => T): T | null;
     public removeAllChildren(): void;
     public setPosition(position: Vec3): void;
+    public setScale(scale: Vec3): void;
     public on(eventType: string, callback: (...args: unknown[]) => void, target?: unknown): void;
   }
 

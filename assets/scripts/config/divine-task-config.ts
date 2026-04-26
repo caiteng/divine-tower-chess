@@ -1,4 +1,4 @@
-import { DivineTaskConfig, DivineTaskId } from '../models/types';
+import type { DivineTaskConfig, DivineTaskId } from '../models/types';
 
 export const DIVINE_TASK_CONFIG: Record<DivineTaskId, DivineTaskConfig> = {
   warrior_to_berserker: {

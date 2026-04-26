@@ -1,8 +1,9 @@
 import { _decorator, Color, Component, Graphics, Label, Layers, Node, Sprite, UIOpacity, UITransform, Vec3 } from 'cc';
 import { UNIT_CONFIG } from '../../config/unit-config';
 import { ENEMY_STATS, SQUAD_UNIT_STATS } from '../../squad/config/squad-battle-config';
-import { EnemyUnitState, SquadBattleSnapshot, SquadUnitState } from '../../squad/types';
-import { EnemyAnimationClip, EnemySpriteResolver, UnitAnimationClip, UnitSpriteResolver } from '../resources/sprite-resolvers';
+import type { EnemyUnitState, SquadBattleSnapshot, SquadUnitState } from '../../squad/types';
+import { BackgroundResolver, EnemySpriteResolver, UnitSpriteResolver } from '../resources/sprite-resolvers';
+import type { EnemyAnimationClip, UnitAnimationClip } from '../resources/sprite-resolvers';
 import { EnemyView } from '../views/enemy-view';
 import { UnitView } from '../views/unit-view';
 
@@ -12,12 +13,16 @@ const { ccclass } = _decorator;
 export class BattlefieldController extends Component {
   private readonly unitResolver = new UnitSpriteResolver();
   private readonly enemyResolver = new EnemySpriteResolver();
+  private readonly backgroundResolver = new BackgroundResolver();
+  private readonly allyViews = new Map<string, { node: Node; view: UnitView }>();
+  private readonly enemyViews = new Map<string, { node: Node; view: EnemyView }>();
 
   private allyLayer: Node | null = null;
   private enemyLayer: Node | null = null;
   private commandLayer: Node | null = null;
   private moveHint: Node | null = null;
   private dimmer: UIOpacity | null = null;
+  private renderSerial = 0;
 
   public onGroundClick?: (x: number, y: number) => void;
   public onAllyClick?: (allyId: string, allies: SquadUnitState[]) => void;
@@ -25,7 +30,8 @@ export class BattlefieldController extends Component {
 
   public initialize(): void {
     this.node.layer = Layers.Enum.UI_2D;
-    this.node.addComponent(UITransform).setContentSize(920, 390);
+    const transform = this.node.getComponent(UITransform) ?? this.node.addComponent(UITransform);
+    transform.setContentSize(920, 390);
 
     const bg = new Node('BattleBg');
     bg.layer = Layers.Enum.UI_2D;
@@ -33,7 +39,19 @@ export class BattlefieldController extends Component {
     bg.addComponent(UITransform).setContentSize(888, 348);
     bg.setPosition(new Vec3(0, 20, 0));
     const bgSprite = bg.addComponent(Sprite);
-    bgSprite.color = new Color(15, 23, 42, 255);
+    bgSprite.sizeMode = Sprite.SizeMode.CUSTOM;
+    bgSprite.color = new Color(31, 79, 91, 255);
+    void this.loadBackground(bgSprite);
+
+    const dimNode = new Node('Dimmer');
+    dimNode.layer = Layers.Enum.UI_2D;
+    this.node.addChild(dimNode);
+    dimNode.addComponent(UITransform).setContentSize(888, 348);
+    dimNode.setPosition(new Vec3(0, 20, 0));
+    const dimSprite = dimNode.addComponent(Sprite);
+    dimSprite.color = new Color(2, 6, 23, 255);
+    this.dimmer = dimNode.addComponent(UIOpacity);
+    this.dimmer.opacity = 42;
 
     const ground = new Node('GroundClick');
     ground.layer = Layers.Enum.UI_2D;
@@ -46,7 +64,7 @@ export class BattlefieldController extends Component {
       const uiPoint = event.getUILocation();
       const local = groundTransform.convertToNodeSpaceAR(new Vec3(uiPoint.x, uiPoint.y, 0));
       const worldX = ((local.x / 888) + 0.5) * 1200;
-      const worldY = (0.5 - ((local.y - 20) / 348)) * 700;
+      const worldY = (0.5 - (local.y / 348)) * 700;
       this.onGroundClick?.(Math.max(0, Math.min(1200, worldX)), Math.max(0, Math.min(700, worldY)));
     }, this);
 
@@ -54,7 +72,6 @@ export class BattlefieldController extends Component {
     this.commandLayer.layer = Layers.Enum.UI_2D;
     this.node.addChild(this.commandLayer);
     this.commandLayer.addComponent(UITransform).setContentSize(888, 348);
-    this.commandLayer.setPosition(new Vec3(0, 20, 0));
 
     this.allyLayer = new Node('Allies');
     this.allyLayer.layer = Layers.Enum.UI_2D;
@@ -72,16 +89,6 @@ export class BattlefieldController extends Component {
     hintSprite.color = new Color(251, 191, 36, 220);
     this.moveHint.active = false;
 
-    const dimNode = new Node('Dimmer');
-    dimNode.layer = Layers.Enum.UI_2D;
-    this.node.addChild(dimNode);
-    dimNode.addComponent(UITransform).setContentSize(888, 348);
-    dimNode.setPosition(new Vec3(0, 20, 0));
-    const dimSprite = dimNode.addComponent(Sprite);
-    dimSprite.color = new Color(2, 6, 23, 255);
-    this.dimmer = dimNode.addComponent(UIOpacity);
-    this.dimmer.opacity = 160;
-
     const title = new Node('Title');
     title.layer = Layers.Enum.UI_2D;
     this.node.addChild(title);
@@ -89,19 +96,22 @@ export class BattlefieldController extends Component {
     title.setPosition(new Vec3(-180, 198, 0));
     const label = title.addComponent(Label);
     label.fontSize = 14;
-    label.string = 'Battlefield: select ally -> ground move / enemy focus / ally heal by priest';
+    label.string = '战场：点己方单位后，可点地面移动、点敌人集火、牧师点友军持续治疗';
     label.color = new Color(191, 219, 254, 255);
   }
 
   public async render(snapshot: SquadBattleSnapshot, selectedUnitId: string | undefined, moveMarker: { x: number; y: number; until: number } | null): Promise<void> {
     if (!this.allyLayer || !this.enemyLayer || !this.commandLayer) return;
+    const serial = ++this.renderSerial;
+    const visibleAllies = new Set<string>();
+    const visibleEnemies = new Set<string>();
 
-    this.allyLayer.removeAllChildren();
-    this.enemyLayer.removeAllChildren();
     this.commandLayer.removeAllChildren();
 
     for (const ally of snapshot.allies) {
-      await this.createAlly(ally, selectedUnitId, snapshot.allies);
+      visibleAllies.add(ally.instanceId);
+      await this.createAlly(ally, selectedUnitId, snapshot.allies, serial);
+      if (serial !== this.renderSerial) return;
       if (ally.command.type === 'focus_enemy' && ally.command.targetEnemyId) {
         const target = snapshot.enemies.find((enemy) => enemy.instanceId === ally.command.targetEnemyId);
         if (target) this.createCommandVisual(ally.position, target.position, '集火', new Color(245, 158, 11, 255));
@@ -116,8 +126,13 @@ export class BattlefieldController extends Component {
     }
 
     for (const enemy of snapshot.enemies) {
-      await this.createEnemy(enemy);
+      visibleEnemies.add(enemy.instanceId);
+      await this.createEnemy(enemy, serial);
+      if (serial !== this.renderSerial) return;
     }
+
+    this.hideMissingViews(this.allyViews, visibleAllies);
+    this.hideMissingViews(this.enemyViews, visibleEnemies);
 
     if (moveMarker && Date.now() <= moveMarker.until && this.moveHint) {
       const pos = this.worldToUi(moveMarker.x, moveMarker.y);
@@ -129,21 +144,25 @@ export class BattlefieldController extends Component {
 
     if (this.dimmer) {
       if (snapshot.uiState.battlefieldLighting === 'dim') {
-        this.dimmer.opacity = 150;
+        this.dimmer.opacity = 42;
       } else if (snapshot.uiState.battlefieldLighting === 'brightening') {
-        this.dimmer.opacity = Math.round((1 - snapshot.uiState.transitionProgress) * 150);
+        this.dimmer.opacity = Math.round((1 - snapshot.uiState.transitionProgress) * 42);
       } else {
         this.dimmer.opacity = 0;
       }
     }
   }
 
-  private async createAlly(ally: SquadUnitState, selectedUnitId: string | undefined, allies: SquadUnitState[]): Promise<void> {
+  private async loadBackground(bgSprite: Sprite): Promise<void> {
+    const frame = await this.backgroundResolver.resolve('battlefield_01');
+    if (!frame) return;
+    bgSprite.spriteFrame = frame;
+    bgSprite.color = new Color(255, 255, 255, 255);
+  }
+
+  private async createAlly(ally: SquadUnitState, selectedUnitId: string | undefined, allies: SquadUnitState[], serial: number): Promise<void> {
     if (!this.allyLayer) return;
-    const node = new Node(`Ally-${ally.instanceId}`);
-    this.allyLayer.addChild(node);
-    const view = node.addComponent(UnitView);
-    view.setup();
+    const { node, view } = this.getOrCreateAllyView(ally.instanceId);
     view.onClick = () => this.onAllyClick?.(ally.instanceId, allies);
     const pos = this.worldToUi(ally.position.x, ally.position.y);
     node.setPosition(new Vec3(pos.x, pos.y, 0));
@@ -151,24 +170,65 @@ export class BattlefieldController extends Component {
     const clip = this.getUnitAnimationClip(ally);
     const frame = await this.unitResolver.resolve(ally.unitId, ally.star, isDivineUnit);
     const animationFrames = await this.unitResolver.resolveAnimation(ally.unitId, clip, isDivineUnit);
+    if (serial !== this.renderSerial || !node.parent) return;
     const maxHp = this.getAllyMaxHp(ally);
     view.render(ally, maxHp, selectedUnitId === ally.instanceId, frame, animationFrames);
   }
 
-  private async createEnemy(enemy: EnemyUnitState): Promise<void> {
+  private async createEnemy(enemy: EnemyUnitState, serial: number): Promise<void> {
     if (!this.enemyLayer) return;
-    const node = new Node(`Enemy-${enemy.instanceId}`);
-    this.enemyLayer.addChild(node);
-    const view = node.addComponent(EnemyView);
-    view.setup();
+    const { node, view } = this.getOrCreateEnemyView(enemy.instanceId);
     view.onClick = () => this.onEnemyClick?.(enemy.instanceId);
     const pos = this.worldToUi(enemy.position.x, enemy.position.y);
     node.setPosition(new Vec3(pos.x, pos.y, 0));
     const clip = this.getEnemyAnimationClip(enemy);
     const frame = await this.enemyResolver.resolve(enemy.enemyType);
     const animationFrames = await this.enemyResolver.resolveAnimation(enemy.enemyType, clip);
+    if (serial !== this.renderSerial || !node.parent) return;
     const maxHp = ENEMY_STATS[enemy.enemyType].maxHp;
     view.render(enemy, maxHp, frame, animationFrames);
+  }
+
+  private getOrCreateAllyView(instanceId: string): { node: Node; view: UnitView } {
+    const cached = this.allyViews.get(instanceId);
+    if (cached) {
+      cached.node.active = true;
+      if (!cached.node.parent && this.allyLayer) this.allyLayer.addChild(cached.node);
+      return cached;
+    }
+
+    const node = new Node(`Ally-${instanceId}`);
+    if (this.allyLayer) this.allyLayer.addChild(node);
+    const view = node.addComponent(UnitView);
+    view.setup();
+    const entry = { node, view };
+    this.allyViews.set(instanceId, entry);
+    return entry;
+  }
+
+  private getOrCreateEnemyView(instanceId: string): { node: Node; view: EnemyView } {
+    const cached = this.enemyViews.get(instanceId);
+    if (cached) {
+      cached.node.active = true;
+      if (!cached.node.parent && this.enemyLayer) this.enemyLayer.addChild(cached.node);
+      return cached;
+    }
+
+    const node = new Node(`Enemy-${instanceId}`);
+    if (this.enemyLayer) this.enemyLayer.addChild(node);
+    const view = node.addComponent(EnemyView);
+    view.setup();
+    const entry = { node, view };
+    this.enemyViews.set(instanceId, entry);
+    return entry;
+  }
+
+  private hideMissingViews<T extends { node: Node }>(views: Map<string, T>, visibleIds: Set<string>): void {
+    for (const [instanceId, entry] of views) {
+      if (!visibleIds.has(instanceId)) {
+        entry.node.active = false;
+      }
+    }
   }
 
   private getUnitAnimationClip(unit: SquadUnitState): UnitAnimationClip {

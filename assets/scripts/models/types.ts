@@ -2,7 +2,6 @@ export type DifficultyId = 'beginner' | 'normal' | 'hard';
 
 export type UnitId =
   | 'archer'
-  | 'paladin'
   | 'shield_guard'
   | 'warrior'
   | 'mage'

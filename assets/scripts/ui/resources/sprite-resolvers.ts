@@ -1,7 +1,8 @@
 import { ImageAsset, SpriteFrame, resources } from 'cc';
-import { ART_RESOURCE_MANIFEST, StarLevel } from '../../config/art-resource-manifest';
+import { ART_RESOURCE_MANIFEST } from '../../config/art-resource-manifest';
+import type { StarLevel } from '../../config/art-resource-manifest';
 import { UNIT_STAR_SPRITE_BASE_FALLBACK, UNIT_STAR_SPRITE_PATHS } from '../../config/unit-star-sprite-config';
-import { EnemyId, UnitId } from '../../models/types';
+import type { EnemyId, UnitId } from '../../models/types';
 
 const loadedFrames = new Map<string, Promise<SpriteFrame | null>>();
 const loadedFrameSets = new Map<string, Promise<SpriteFrame[]>>();
@@ -106,12 +107,16 @@ export class UnitSpriteResolver {
     return this.resolve(unitId, star, divineState);
   }
 
+  public async resolveAvatar(unitId: UnitId): Promise<SpriteFrame | null> {
+    return loadFrameFromResourcePath(UNIT_STAR_SPRITE_BASE_FALLBACK[unitId]);
+  }
+
   public async resolveAnimation(unitId: UnitId, clip: UnitAnimationClip, divineState: boolean): Promise<SpriteFrame[]> {
     const entry = ART_RESOURCE_MANIFEST.units[unitId];
     if (!entry) return [];
 
     const baseId = divineState ? unitId : unitId;
-    const clipNames = unitId === 'paladin' && clip === 'attack' ? ['slash', 'attack'] : [clip];
+    const clipNames = [clip];
     const candidates = clipNames.map((clipName) => (
       Array.from({ length: 5 }, (_, index) => `${entry.directory}/${baseId}_${clipName}_${String(index + 1).padStart(2, '0')}.png`)
     ));

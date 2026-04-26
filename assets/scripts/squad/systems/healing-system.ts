@@ -1,5 +1,5 @@
 import { SQUAD_UNIT_STATS } from '../config/squad-battle-config';
-import { SquadUnitState } from '../types';
+import type { SquadUnitState } from '../types';
 import { distance } from './math';
 
 export class HealingSystem {

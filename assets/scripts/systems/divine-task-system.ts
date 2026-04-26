@@ -1,6 +1,6 @@
 import { DIVINE_TASK_CONFIG } from '../config/divine-task-config';
 import { UNIT_CONFIG } from '../config/unit-config';
-import { DivineTaskConfig, DivineTaskId, DivineTaskProgress, UnitId } from '../models/types';
+import type { DivineTaskConfig, DivineTaskId, DivineTaskProgress, UnitId } from '../models/types';
 import { chance } from '../utils/random';
 
 interface TaskAssignableUnit {

@@ -1,12 +1,13 @@
 import { DIFFICULTY_CONFIG } from '../config/difficulty-config';
 import { UNIT_CONFIG } from '../config/unit-config';
-import { DifficultyId, DivineTaskId, UnitId } from '../models/types';
+import type { DifficultyId, DivineTaskId, UnitId } from '../models/types';
 import { DivineTaskSystem } from '../systems/divine-task-system';
 import { EconomySystem } from '../systems/economy-system';
 import { ShopSystem } from '../systems/shop-system';
 import { nextId, syncIdSeedFromIds } from '../utils/id';
 import { DEFAULT_WAVES, ENEMY_STATS, SQUAD_BATTLEFIELD, SQUAD_ROLE_MAP, SQUAD_UNIT_STATS } from './config/squad-battle-config';
-import { SQUAD_BENCH_SLOTS, SQUAD_DEPLOY_SLOTS, SQUAD_SHOP_SLOTS, WaveTransitionUiState } from './config/squad-ui-layout-config';
+import { SQUAD_BENCH_SLOTS, SQUAD_DEPLOY_SLOTS, SQUAD_SHOP_SLOTS } from './config/squad-ui-layout-config';
+import type { WaveTransitionUiState } from './config/squad-ui-layout-config';
 import { AttackSystem } from './systems/attack-system';
 import { EnemyAiSystem } from './systems/enemy-ai-system';
 import { HealingSystem } from './systems/healing-system';
@@ -15,7 +16,7 @@ import { MovementSystem } from './systems/movement-system';
 import { RosterSystem } from './systems/roster-system';
 import { TargetingSystem } from './systems/targeting-system';
 import { UnitCommandSystem } from './systems/unit-command-system';
-import { BattleOutcome, EnemyUnitState, SquadBattlePhase, SquadBattleSaveData, SquadBattleSnapshot, SquadUnitState, Vec2, WaveSpawnPlan } from './types';
+import type { BattleOutcome, EnemyUnitState, SquadBattlePhase, SquadBattleSaveData, SquadBattleSnapshot, SquadUnitState, Vec2, WaveSpawnPlan } from './types';
 
 export class SquadBattleSession {
   public onVictory?: () => void;

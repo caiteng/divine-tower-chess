@@ -1,5 +1,5 @@
 import { SQUAD_BATTLEFIELD } from '../config/squad-battle-config';
-import { EnemyUnitState, SquadUnitState, Vec2 } from '../types';
+import type { EnemyUnitState, SquadUnitState, Vec2 } from '../types';
 import { clamp, distance } from './math';
 
 interface Collider {

@@ -1,236 +1,178 @@
-System.register("chunks:///_virtual/unit-system.ts", ['./_rollupPluginModLoBabelHelpers.js', 'cc', './unit-config.ts', './id.ts'], function (exports) {
+System.register("chunks:///_virtual/math.ts", ['cc'], function (exports) {
   'use strict';
 
-  var _createForOfIteratorHelperLoose, _defineProperty, cclegacy, UNIT_CONFIG, nextId;
+  var cclegacy;
+  return {
+    setters: [function (module) {
+      cclegacy = module.cclegacy;
+    }],
+    execute: function () {
+      exports({
+        clamp: clamp,
+        distance: distance,
+        normalize: normalize
+      });
+
+      cclegacy._RF.push({}, "01db0Jj+PpLKru1EiCtOU40", "math", undefined);
+
+      function distance(a, b) {
+        var dx = a.x - b.x;
+        var dy = a.y - b.y;
+        return Math.hypot(dx, dy);
+      }
+
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function normalize(from, to) {
+        var dx = to.x - from.x;
+        var dy = to.y - from.y;
+        var len = Math.hypot(dx, dy) || 1;
+        return {
+          x: dx / len,
+          y: dy / len
+        };
+      }
+
+      cclegacy._RF.pop();
+    }
+  };
+});
+
+System.register("chunks:///_virtual/collision-system.ts", ['cc', './math.ts', './_rollupPluginModLoBabelHelpers.js', './squad-battle-config.ts'], function (exports) {
+  'use strict';
+
+  var cclegacy, distance, clamp, _createForOfIteratorHelperLoose, SQUAD_BATTLEFIELD;
 
   return {
     setters: [function (module) {
-      _createForOfIteratorHelperLoose = module.createForOfIteratorHelperLoose;
-      _defineProperty = module.defineProperty;
-    }, function (module) {
       cclegacy = module.cclegacy;
     }, function (module) {
-      UNIT_CONFIG = module.UNIT_CONFIG;
+      distance = module.distance;
+      clamp = module.clamp;
     }, function (module) {
-      nextId = module.nextId;
+      _createForOfIteratorHelperLoose = module.createForOfIteratorHelperLoose;
+    }, function (module) {
+      SQUAD_BATTLEFIELD = module.SQUAD_BATTLEFIELD;
     }],
     execute: function () {
-      cclegacy._RF.push({}, "085affZmYVE9Y5cvh4G49FY", "unit-system", undefined);
+      cclegacy._RF.push({}, "0a24aYmIfpH4ppirvig/EF1", "collision-system", undefined);
 
-      var UnitSystem = exports('UnitSystem', /*#__PURE__*/function () {
-        function UnitSystem() {
-          _defineProperty(this, "bench", []);
+      var CollisionSystem = exports('CollisionSystem', /*#__PURE__*/function () {
+        function CollisionSystem() {}
 
-          _defineProperty(this, "placed", []);
+        var _proto = CollisionSystem.prototype;
 
-          _defineProperty(this, "lanes", [[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]]);
-        }
+        _proto.resolve = function resolve(allies, enemies, iterations) {
+          var _this = this;
 
-        var _proto = UnitSystem.prototype;
-
-        _proto.addToBench = function addToBench(unitId) {
-          var instance = {
-            instanceId: nextId('unit'),
-            unitId: unitId,
-            star: 1
-          };
-          this.bench.push(instance);
-          this.tryMerge(unitId, 1);
-          return instance;
-        };
-
-        _proto.tryMerge = function tryMerge(unitId, star) {
-          var candidates = this.getMergeCandidates(unitId, star);
-
-          if (candidates.length < 3) {
-            return;
+          if (iterations === void 0) {
+            iterations = 2;
           }
 
-          var selected = candidates.slice(0, 3);
-          var keep = selected[0];
-          var consumedIds = selected.slice(1).map(function (candidate) {
-            return candidate.unit.instanceId;
+          var aliveAllies = allies.filter(function (ally) {
+            return ally.alive;
           });
-          var nextStar = star + 1;
-          this.bench = this.bench.filter(function (u) {
-            return !consumedIds.includes(u.instanceId);
+          var aliveEnemies = enemies.filter(function (enemy) {
+            return enemy.alive;
           });
-          this.placed = this.placed.filter(function (u) {
-            return !consumedIds.includes(u.instanceId);
-          });
-          keep.unit.star = nextStar;
 
-          if (keep.source === 'placed') {
-            keep.unit.currentHp = UNIT_CONFIG[keep.unit.unitId].maxHp;
-            keep.unit.cooldownLeft = 0;
-          }
-
-          if (star === 1) {
-            this.tryMerge(unitId, 2);
+          for (var i = 0; i < iterations; i += 1) {
+            this.resolveGroupCollisions(aliveAllies.map(function (ally) {
+              return {
+                position: ally.position,
+                radius: _this.getAllyRadius(ally),
+                weight: ally.role === 'melee' ? 0.85 : 1
+              };
+            }));
+            this.resolveGroupCollisions(aliveEnemies.map(function (enemy) {
+              return {
+                position: enemy.position,
+                radius: _this.getEnemyRadius(enemy),
+                weight: enemy.enemyType === 'boss' ? 0.55 : enemy.enemyType === 'brute' ? 0.72 : 1
+              };
+            }));
+            this.resolveSideVsSide(aliveAllies, aliveEnemies);
+            this.clampAll(aliveAllies, aliveEnemies);
           }
         };
 
-        _proto.getMergeCandidates = function getMergeCandidates(unitId, star) {
-          var placed = this.placed.filter(function (u) {
-            return u.unitId === unitId && u.star === star && !u.assignedTaskId;
-          }).map(function (unit) {
-            return {
-              source: 'placed',
-              unit: unit
-            };
-          });
-          var bench = this.bench.filter(function (u) {
-            return u.unitId === unitId && u.star === star && !u.assignedTaskId;
-          }).map(function (unit) {
-            return {
-              source: 'bench',
-              unit: unit
-            };
-          });
-          return [].concat(placed, bench);
-        };
-
-        _proto.placeFromBench = function placeFromBench(instanceId, lane, tileIndex) {
-          var laneTiles = this.lanes[lane];
-
-          if (!laneTiles || !laneTiles.includes(tileIndex)) {
-            return false;
-          }
-
-          var occupied = this.placed.some(function (u) {
-            return u.lane === lane && u.tileIndex === tileIndex;
-          });
-
-          if (occupied) {
-            return false;
-          }
-
-          var benchUnit = this.bench.find(function (u) {
-            return u.instanceId === instanceId;
-          });
-
-          if (!benchUnit) {
-            return false;
-          }
-
-          this.bench = this.bench.filter(function (u) {
-            return u.instanceId !== instanceId;
-          });
-          var config = UNIT_CONFIG[benchUnit.unitId];
-          this.placed.push({
-            instanceId: benchUnit.instanceId,
-            unitId: benchUnit.unitId,
-            star: benchUnit.star,
-            lane: lane,
-            tileIndex: tileIndex,
-            cooldownLeft: 0,
-            currentHp: config.maxHp,
-            assignedTaskId: benchUnit.assignedTaskId
-          });
-          return true;
-        };
-
-        _proto.movePlacedUnit = function movePlacedUnit(instanceId, lane, tileIndex) {
-          var laneTiles = this.lanes[lane];
-
-          if (!laneTiles || !laneTiles.includes(tileIndex)) {
-            return false;
-          }
-
-          var unit = this.placed.find(function (u) {
-            return u.instanceId === instanceId;
-          });
-
-          if (!unit) {
-            return false;
-          }
-
-          var occupied = this.placed.some(function (u) {
-            return u.instanceId !== instanceId && u.lane === lane && u.tileIndex === tileIndex;
-          });
-
-          if (occupied) {
-            return false;
-          }
-
-          unit.lane = lane;
-          unit.tileIndex = tileIndex;
-          return true;
-        };
-
-        _proto.resetDefeatedPlacedUnits = function resetDefeatedPlacedUnits() {
-          var resetCount = 0;
-
-          for (var _iterator = _createForOfIteratorHelperLoose(this.placed), _step; !(_step = _iterator()).done;) {
-            var unit = _step.value;
-
-            if (unit.currentHp > 0) {
-              continue;
+        _proto.resolveGroupCollisions = function resolveGroupCollisions(colliders) {
+          for (var i = 0; i < colliders.length; i += 1) {
+            for (var j = i + 1; j < colliders.length; j += 1) {
+              this.separate(colliders[i], colliders[j]);
             }
-
-            unit.currentHp = UNIT_CONFIG[unit.unitId].maxHp;
-            unit.cooldownLeft = 0;
-            resetCount += 1;
-          }
-
-          return resetCount;
-        };
-
-        _proto.getBenchUnits = function getBenchUnits() {
-          return [].concat(this.bench);
-        };
-
-        _proto.getPlacedUnits = function getPlacedUnits() {
-          return [].concat(this.placed);
-        };
-
-        _proto.getUnitsForTaskRoll = function getUnitsForTaskRoll() {
-          return [].concat(this.bench, this.placed).map(function (u) {
-            return {
-              instanceId: u.instanceId,
-              unitId: u.unitId,
-              star: u.star,
-              assignedTaskId: u.assignedTaskId
-            };
-          });
-        };
-
-        _proto.setAssignedTask = function setAssignedTask(unitInstanceId, taskId) {
-          var benchUnit = this.bench.find(function (u) {
-            return u.instanceId === unitInstanceId;
-          });
-
-          if (benchUnit) {
-            benchUnit.assignedTaskId = taskId;
-          }
-
-          var placedUnit = this.placed.find(function (u) {
-            return u.instanceId === unitInstanceId;
-          });
-
-          if (placedUnit) {
-            placedUnit.assignedTaskId = taskId;
           }
         };
 
-        _proto.evolveUnit = function evolveUnit(unitInstanceId, targetUnitId) {
-          var apply = function apply(u) {
-            u.unitId = targetUnitId;
-            u.star = 3;
-            u.assignedTaskId = undefined;
-          };
+        _proto.resolveSideVsSide = function resolveSideVsSide(allies, enemies) {
+          for (var _iterator = _createForOfIteratorHelperLoose(allies), _step; !(_step = _iterator()).done;) {
+            var ally = _step.value;
 
-          var benchUnit = this.bench.find(function (u) {
-            return u.instanceId === unitInstanceId;
-          });
-          if (benchUnit) apply(benchUnit);
-          var placedUnit = this.placed.find(function (u) {
-            return u.instanceId === unitInstanceId;
-          });
-          if (placedUnit) apply(placedUnit);
+            for (var _iterator2 = _createForOfIteratorHelperLoose(enemies), _step2; !(_step2 = _iterator2()).done;) {
+              var enemy = _step2.value;
+              this.separate({
+                position: ally.position,
+                radius: this.getAllyRadius(ally),
+                weight: ally.role === 'melee' ? 0.82 : 1
+              }, {
+                position: enemy.position,
+                radius: this.getEnemyRadius(enemy),
+                weight: enemy.enemyType === 'boss' ? 0.5 : enemy.enemyType === 'brute' ? 0.68 : 0.92
+              });
+            }
+          }
         };
 
-        return UnitSystem;
+        _proto.separate = function separate(a, b) {
+          var minDist = a.radius + b.radius;
+          var dist = distance(a.position, b.position);
+          if (dist >= minDist) return;
+          var overlap = minDist - Math.max(0.001, dist);
+          var nx = dist > 0.001 ? (b.position.x - a.position.x) / dist : 1;
+          var ny = dist > 0.001 ? (b.position.y - a.position.y) / dist : 0;
+          var totalWeight = a.weight + b.weight;
+          var aShare = totalWeight > 0 ? b.weight / totalWeight : 0.5;
+          var bShare = totalWeight > 0 ? a.weight / totalWeight : 0.5;
+          var push = overlap * 0.52;
+          a.position.x -= nx * push * aShare;
+          a.position.y -= ny * push * aShare;
+          b.position.x += nx * push * bShare;
+          b.position.y += ny * push * bShare;
+        };
+
+        _proto.clampAll = function clampAll(allies, enemies) {
+          for (var _iterator3 = _createForOfIteratorHelperLoose(allies), _step3; !(_step3 = _iterator3()).done;) {
+            var ally = _step3.value;
+            var radius = this.getAllyRadius(ally);
+            ally.position.x = clamp(ally.position.x, radius, SQUAD_BATTLEFIELD.width - radius);
+            ally.position.y = clamp(ally.position.y, radius, SQUAD_BATTLEFIELD.height - radius);
+          }
+
+          for (var _iterator4 = _createForOfIteratorHelperLoose(enemies), _step4; !(_step4 = _iterator4()).done;) {
+            var enemy = _step4.value;
+
+            var _radius = this.getEnemyRadius(enemy);
+
+            enemy.position.x = clamp(enemy.position.x, _radius, SQUAD_BATTLEFIELD.width - _radius);
+            enemy.position.y = clamp(enemy.position.y, _radius, SQUAD_BATTLEFIELD.height - _radius);
+          }
+        };
+
+        _proto.getAllyRadius = function getAllyRadius(ally) {
+          if (ally.role === 'melee') return 26;
+          if (ally.role === 'priest') return 22;
+          return 20;
+        };
+
+        _proto.getEnemyRadius = function getEnemyRadius(enemy) {
+          if (enemy.enemyType === 'boss') return 34;
+          if (enemy.enemyType === 'brute') return 28;
+          return 20;
+        };
+
+        return CollisionSystem;
       }());
 
       cclegacy._RF.pop();
@@ -238,1436 +180,260 @@ System.register("chunks:///_virtual/unit-system.ts", ['./_rollupPluginModLoBabel
   };
 });
 
-System.register("chunks:///_virtual/cocos-game-controller.ts", ['./_rollupPluginModLoBabelHelpers.js', 'cc', './unit-config.ts', './difficulty-config.ts', './divine-task-config.ts', './game-controller.ts'], function (exports) {
+System.register("chunks:///_virtual/art-resource-manifest.ts", ['cc', './_rollupPluginModLoBabelHelpers.js'], function (exports) {
   'use strict';
 
-  var _applyDecoratedDescriptor, _inheritsLoose, _createForOfIteratorHelperLoose, _initializerDefineProperty, _assertThisInitialized, _defineProperty, cclegacy, _decorator, SpriteFrame, resources, ImageAsset, Node, Layers, Vec3, UITransform, Color, Label, director, Canvas, Camera, Graphics, Button, Sprite, Component, UNIT_CONFIG, DIFFICULTY_CONFIG, DIVINE_TASK_CONFIG, GameController;
+  var cclegacy, _extends;
 
   return {
     setters: [function (module) {
-      _applyDecoratedDescriptor = module.applyDecoratedDescriptor;
-      _inheritsLoose = module.inheritsLoose;
-      _createForOfIteratorHelperLoose = module.createForOfIteratorHelperLoose;
-      _initializerDefineProperty = module.initializerDefineProperty;
-      _assertThisInitialized = module.assertThisInitialized;
-      _defineProperty = module.defineProperty;
-    }, function (module) {
       cclegacy = module.cclegacy;
-      _decorator = module._decorator;
-      SpriteFrame = module.SpriteFrame;
-      resources = module.resources;
-      ImageAsset = module.ImageAsset;
-      Node = module.Node;
-      Layers = module.Layers;
-      Vec3 = module.Vec3;
-      UITransform = module.UITransform;
-      Color = module.Color;
-      Label = module.Label;
-      director = module.director;
-      Canvas = module.Canvas;
-      Camera = module.Camera;
-      Graphics = module.Graphics;
-      Button = module.Button;
-      Sprite = module.Sprite;
-      Component = module.Component;
     }, function (module) {
-      UNIT_CONFIG = module.UNIT_CONFIG;
-    }, function (module) {
-      DIFFICULTY_CONFIG = module.DIFFICULTY_CONFIG;
-    }, function (module) {
-      DIVINE_TASK_CONFIG = module.DIVINE_TASK_CONFIG;
-    }, function (module) {
-      GameController = module.GameController;
+      _extends = module.extends;
     }],
     execute: function () {
-      var _dec, _dec2, _dec3, _dec4, _dec5, _dec6, _class, _class2, _descriptor, _descriptor2, _descriptor3, _descriptor4, _descriptor5, _temp;
-
-      cclegacy._RF.push({}, "18f3e3RQAZKFr67vr8QGQD/", "cocos-game-controller", undefined);
-
-      var ccclass = _decorator.ccclass,
-          property = _decorator.property;
-      var CocosGameController = exports('CocosGameController', (_dec = ccclass('CocosGameController'), _dec2 = property(SpriteFrame), _dec3 = property(SpriteFrame), _dec4 = property(SpriteFrame), _dec5 = property(SpriteFrame), _dec6 = property(SpriteFrame), _dec(_class = (_class2 = (_temp = /*#__PURE__*/function (_Component) {
-        _inheritsLoose(CocosGameController, _Component);
-
-        function CocosGameController() {
-          var _this;
-
-          for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
-            args[_key] = arguments[_key];
-          }
-
-          _this = _Component.call.apply(_Component, [this].concat(args)) || this;
-
-          _initializerDefineProperty(_assertThisInitialized(_this), "boardSprite", _descriptor, _assertThisInitialized(_this));
-
-          _initializerDefineProperty(_assertThisInitialized(_this), "tileSprite", _descriptor2, _assertThisInitialized(_this));
-
-          _initializerDefineProperty(_assertThisInitialized(_this), "unitSprite", _descriptor3, _assertThisInitialized(_this));
-
-          _initializerDefineProperty(_assertThisInitialized(_this), "enemySprite", _descriptor4, _assertThisInitialized(_this));
-
-          _initializerDefineProperty(_assertThisInitialized(_this), "crystalSprite", _descriptor5, _assertThisInitialized(_this));
-
-          _defineProperty(_assertThisInitialized(_this), "controller", new GameController());
-
-          _defineProperty(_assertThisInitialized(_this), "uiRoot", null);
-
-          _defineProperty(_assertThisInitialized(_this), "statusLabel", null);
-
-          _defineProperty(_assertThisInitialized(_this), "cocosBoardRoot", null);
-
-          _defineProperty(_assertThisInitialized(_this), "cocosBenchRoot", null);
-
-          _defineProperty(_assertThisInitialized(_this), "domRoot", null);
-
-          _defineProperty(_assertThisInitialized(_this), "domBoard", null);
-
-          _defineProperty(_assertThisInitialized(_this), "domStatus", null);
-
-          _defineProperty(_assertThisInitialized(_this), "htmlDebugVisible", false);
-
-          _defineProperty(_assertThisInitialized(_this), "selectedUnitInstanceId", null);
-
-          _defineProperty(_assertThisInitialized(_this), "selectedUnitSource", null);
-
-          _defineProperty(_assertThisInitialized(_this), "currentScreen", 'home');
-
-          _defineProperty(_assertThisInitialized(_this), "pendingDifficulty", 'beginner');
-
-          _defineProperty(_assertThisInitialized(_this), "volume", 80);
-
-          _defineProperty(_assertThisInitialized(_this), "avatarPulseTime", 0);
-
-          _defineProperty(_assertThisInitialized(_this), "unitAvatarSprites", {});
-
-          _defineProperty(_assertThisInitialized(_this), "speed", 1);
-
-          return _this;
-        }
-
-        var _proto = CocosGameController.prototype;
-
-        _proto.onLoad = function onLoad() {
-          console.log('[CocosGameController] onLoad');
-          this.ensureRuntimeCanvas();
-          this.showHomeScreen();
-          this.loadDefaultSprites();
-        };
-
-        _proto.onDestroy = function onDestroy() {
-          this.removeBrowserOverlay();
-        };
-
-        _proto.startBeginner = function startBeginner() {
-          this.startGame('beginner');
-        };
-
-        _proto.startNormal = function startNormal() {
-          this.startGame('normal');
-        };
-
-        _proto.startHard = function startHard() {
-          this.startGame('hard');
-        };
-
-        _proto.startGame = function startGame(difficulty) {
-          this.selectedUnitInstanceId = null;
-          this.selectedUnitSource = null;
-          this.currentScreen = 'game';
-          this.buildRuntimeUi();
-          this.controller.startGame(difficulty);
-          this.refreshStatus("\u5F00\u59CB" + DIFFICULTY_CONFIG[difficulty].name + "\u96BE\u5EA6");
-        };
-
-        _proto.refreshShop = function refreshShop() {
-          this.logAndRefresh('刷新商店', this.controller.refreshShop());
-        };
-
-        _proto.buySlot0 = function buySlot0() {
-          this.buy(0);
-        };
-
-        _proto.buySlot1 = function buySlot1() {
-          this.buy(1);
-        };
-
-        _proto.buySlot2 = function buySlot2() {
-          this.buy(2);
-        };
-
-        _proto.buy = function buy(slotIndex) {
-          this.logAndRefresh("\u8D2D\u4E70\u5546\u5E97" + (slotIndex + 1), this.controller.buy(slotIndex));
-        };
-
-        _proto.buyAll = function buyAll() {
-          var bought = 0;
-
-          for (var i = 0; i < 3; i += 1) {
-            if (this.controller.buy(0)) {
-              bought += 1;
-            }
-          }
-
-          this.refreshStatus("\u81EA\u52A8\u8D2D\u4E70" + bought + "\u4E2A\u68CB\u5B50");
-        };
-
-        _proto.place = function place(instanceId, lane, tileIndex) {
-          this.logAndRefresh("\u4E0A\u9635" + instanceId, this.controller.place(instanceId, lane, tileIndex));
-        };
-
-        _proto.movePlaced = function movePlaced(instanceId, lane, tileIndex) {
-          this.logAndRefresh("\u79FB\u52A8" + instanceId, this.controller.movePlaced(instanceId, lane, tileIndex));
-        };
-
-        _proto.autoPlaceBench = function autoPlaceBench() {
-          var snapshot = this.controller.snapshot();
-          var placedCount = 0;
-
-          for (var _iterator = _createForOfIteratorHelperLoose(snapshot.bench), _step; !(_step = _iterator()).done;) {
-            var unit = _step.value;
-            var position = this.findFirstOpenTile();
-
-            if (!position) {
-              break;
-            }
-
-            if (this.controller.place(unit.instanceId, position.lane, position.tileIndex)) {
-              placedCount += 1;
-            }
-          }
-
-          this.refreshStatus("\u81EA\u52A8\u4E0A\u9635" + placedCount + "\u4E2A\u68CB\u5B50");
-        };
-
-        _proto.moveFirstPlaced = function moveFirstPlaced() {
-          var snapshot = this.controller.snapshot();
-          var first = snapshot.placed[0];
-
-          if (!first) {
-            this.refreshStatus('没有可移动的上阵棋子');
-            return;
-          }
-
-          var position = this.findFirstOpenTile(first.instanceId);
-
-          if (!position) {
-            this.refreshStatus('没有空位可移动');
-            return;
-          }
-
-          this.logAndRefresh("\u79FB\u52A8" + first.instanceId, this.controller.movePlaced(first.instanceId, position.lane, position.tileIndex));
-        };
-
-        _proto.beginBattle = function beginBattle() {
-          this.selectedUnitInstanceId = null;
-          this.selectedUnitSource = null;
-          this.logAndRefresh('开始战斗', this.controller.beginBattle());
-        };
-
-        _proto.toggleSpeed = function toggleSpeed() {
-          this.speed = this.speed === 1 ? 3 : 1;
-          this.refreshStatus("\u901F\u5EA6 x" + this.speed);
-        };
-
-        _proto.toggleHtmlDebug = function toggleHtmlDebug() {
-          this.htmlDebugVisible = !this.htmlDebugVisible;
-
-          if (this.htmlDebugVisible) {
-            this.buildBrowserOverlay();
-          } else {
-            this.removeBrowserOverlay();
-          }
-
-          this.refreshStatus("HTML\u8C03\u8BD5\u9762\u677F" + (this.htmlDebugVisible ? '开启' : '关闭'));
-        };
-
-        _proto.update = function update(dt) {
-          if (this.currentScreen !== 'game') {
-            return;
-          }
-
-          this.avatarPulseTime += dt;
-          this.controller.tick(dt * this.speed);
-          this.refreshStatus();
-        };
-
-        _proto.snapshot = function snapshot() {
-          return this.controller.snapshot();
-        };
-
-        _proto.loadDefaultSprites = function loadDefaultSprites() {
-          var _this2 = this;
-
-          if (!this.boardSprite) {
-            this.loadSpriteIfEmpty('textures/board', function (spriteFrame) {
-              _this2.boardSprite = spriteFrame;
-            });
-          }
-
-          if (!this.tileSprite) {
-            this.loadSpriteIfEmpty('textures/tile', function (spriteFrame) {
-              _this2.tileSprite = spriteFrame;
-            });
-          }
-
-          if (!this.unitSprite) {
-            this.loadSpriteIfEmpty('textures/unit', function (spriteFrame) {
-              _this2.unitSprite = spriteFrame;
-            });
-          }
-
-          if (!this.enemySprite) {
-            this.loadSpriteIfEmpty('textures/enemy', function (spriteFrame) {
-              _this2.enemySprite = spriteFrame;
-            });
-          }
-
-          if (!this.crystalSprite) {
-            this.loadSpriteIfEmpty('textures/crystal', function (spriteFrame) {
-              _this2.crystalSprite = spriteFrame;
-            });
-          }
-
-          this.loadDefaultUnitAvatars();
-        };
-
-        _proto.loadDefaultUnitAvatars = function loadDefaultUnitAvatars() {
-          var _this3 = this;
-
-          var avatarPaths = {
-            archer: 'textures/avatars/archer',
-            paladin: 'textures/avatars/paladin',
-            shield_guard: 'textures/avatars/shield_guard',
-            warrior: 'textures/avatars/warrior',
-            mage: 'textures/avatars/mage',
-            priest: 'textures/avatars/priest',
-            cavalry: 'textures/avatars/cavalry',
-            spearman: 'textures/avatars/spearman',
-            berserker: 'textures/avatars/berserker',
-            light_mage: 'textures/avatars/light_mage'
-          };
-          Object.keys(avatarPaths).forEach(function (unitId) {
-            _this3.loadSpriteIfEmpty(avatarPaths[unitId], function (spriteFrame) {
-              _this3.unitAvatarSprites[unitId] = spriteFrame;
-            });
-          });
-        };
-
-        _proto.loadSpriteIfEmpty = function loadSpriteIfEmpty(path, apply) {
-          var _this4 = this;
-
-          resources.load(path, ImageAsset, function (imageErr, imageAsset) {
-            if (!imageErr && imageAsset) {
-              apply(SpriteFrame.createWithImage(imageAsset));
-
-              _this4.refreshStatus("\u9ED8\u8BA4\u8D34\u56FE\u5DF2\u52A0\u8F7D: " + path);
-
-              return;
-            }
-
-            resources.load(path, SpriteFrame, function (spriteErr, spriteFrame) {
-              if (!spriteErr && spriteFrame) {
-                apply(spriteFrame);
-
-                _this4.refreshStatus("\u9ED8\u8BA4\u8D34\u56FE\u5DF2\u52A0\u8F7D: " + path);
-
-                return;
-              }
-
-              resources.load(path + "/spriteFrame", SpriteFrame, function (fallbackErr, fallbackSpriteFrame) {
-                if (fallbackErr || !fallbackSpriteFrame) {
-                  var _ref;
-
-                  console.warn("[CocosGameController] \u8D34\u56FE\u52A0\u8F7D\u5931\u8D25: " + path, (_ref = imageErr !== null && imageErr !== void 0 ? imageErr : spriteErr) !== null && _ref !== void 0 ? _ref : fallbackErr);
-
-                  _this4.refreshStatus("\u9ED8\u8BA4\u8D34\u56FE\u52A0\u8F7D\u5931\u8D25: " + path);
-
-                  return;
-                }
-
-                apply(fallbackSpriteFrame);
-
-                _this4.refreshStatus("\u9ED8\u8BA4\u8D34\u56FE\u5DF2\u52A0\u8F7D: " + path + "/spriteFrame");
-              });
-            });
-          });
-        };
-
-        _proto.resetRuntimeRoot = function resetRuntimeRoot() {
-          var _this$uiRoot;
-
-          if (this.uiRoot && this.uiRoot.name === 'RuntimeUiRoot') {
-            this.uiRoot.removeAllChildren();
-            this.statusLabel = null;
-            this.cocosBoardRoot = null;
-            this.cocosBenchRoot = null;
-            return this.uiRoot;
-          }
-
-          var parent = (_this$uiRoot = this.uiRoot) !== null && _this$uiRoot !== void 0 ? _this$uiRoot : this.node;
-          var root = new Node('RuntimeUiRoot');
-          root.layer = Layers.Enum.UI_2D;
-          parent.addChild(root);
-          root.setPosition(new Vec3(0, 0, 0));
-          var rootTransform = root.addComponent(UITransform);
-          rootTransform.setContentSize(960, 540);
-          this.uiRoot = root;
-          return root;
-        };
-
-        _proto.showHomeScreen = function showHomeScreen() {
-          var _this5 = this;
-
-          this.currentScreen = 'home';
-          var root = this.resetRuntimeRoot();
-          this.createBackground();
-          this.createCocosTextInRoot(root, 'Title', '神塔棋兵', 0, 120, 520, 42, new Color(24, 47, 79, 255));
-          this.createCocosTextInRoot(root, 'Subtitle', '守住水晶，合成棋子，完成神品进阶', 0, 76, 520, 16, new Color(71, 85, 105, 255));
-          this.createButton('开始', 0, 18, 150, function () {
-            return _this5.showMapSelectScreen();
-          });
-          this.createButton('设置', 0, -30, 150, function () {
-            return _this5.showSettingsScreen();
-          });
-          this.createButton('鸣谢', 0, -78, 150, function () {
-            return _this5.showCreditsScreen();
-          });
-        };
-
-        _proto.showMapSelectScreen = function showMapSelectScreen() {
-          var _this6 = this;
-
-          this.currentScreen = 'map';
-          var root = this.resetRuntimeRoot();
-          this.createBackground();
-          this.createButton('返回', -420, 245, 70, function () {
-            return _this6.showHomeScreen();
-          });
-          this.createCocosTextInRoot(root, 'MapTitle', '选择地图', 0, 210, 360, 26, new Color(24, 47, 79, 255));
-          this.createCocosRectInRoot(root, 'MapCard', 0, 50, 520, 230, new Color(215, 226, 236, 255));
-          this.createCocosTextInRoot(root, 'MapCardTitle', '当前地图', 0, 115, 240, 24, new Color(17, 24, 39, 255));
-          this.createCocosTextInRoot(root, 'MapCardInfo', '双路线水晶防守', 0, 72, 260, 16, new Color(71, 85, 105, 255));
-          this.createCocosTextInRoot(root, 'DifficultyTitle', '难度', -220, -98, 100, 16, new Color(30, 41, 59, 255));
-          this.createDifficultyButton('新手', 'beginner', -90);
-          this.createDifficultyButton('普通', 'normal', 0);
-          this.createDifficultyButton('困难', 'hard', 90);
-          this.createCocosTextInRoot(root, 'SelectedDifficulty', "\u5F53\u524D\uFF1A" + DIFFICULTY_CONFIG[this.pendingDifficulty].name, 0, -142, 220, 14, new Color(71, 85, 105, 255));
-          this.createButton('✔', 0, -190, 86, function () {
-            return _this6.startGame(_this6.pendingDifficulty);
-          });
-        };
-
-        _proto.showSettingsScreen = function showSettingsScreen() {
-          var _this7 = this;
-
-          this.currentScreen = 'settings';
-          var root = this.resetRuntimeRoot();
-          this.createBackground();
-          this.createButton('返回', -420, 245, 70, function () {
-            return _this7.showHomeScreen();
-          });
-          this.createCocosTextInRoot(root, 'SettingsTitle', '设置', 0, 150, 260, 30, new Color(24, 47, 79, 255));
-          this.createCocosTextInRoot(root, 'VolumeLabel', "\u97F3\u91CF\uFF1A" + this.volume, 0, 70, 220, 20, new Color(30, 41, 59, 255));
-          this.createButton('-', -70, 10, 60, function () {
-            return _this7.adjustVolume(-10);
-          });
-          this.createButton('+', 70, 10, 60, function () {
-            return _this7.adjustVolume(10);
-          });
-        };
-
-        _proto.showCreditsScreen = function showCreditsScreen() {
-          var _this8 = this;
-
-          this.currentScreen = 'credits';
-          var root = this.resetRuntimeRoot();
-          this.createBackground();
-          this.createButton('返回', -420, 245, 70, function () {
-            return _this8.showHomeScreen();
-          });
-          this.createCocosTextInRoot(root, 'CreditsTitle', '鸣谢', 0, 145, 260, 30, new Color(24, 47, 79, 255));
-          this.createCocosTextInRoot(root, 'CreditsBody', '原型设计与实现：Divine Tower Chess\n素材：占位贴图\n引擎：Cocos Creator 3.4.0', 0, 55, 420, 18, new Color(30, 41, 59, 255));
-        };
-
-        _proto.createDifficultyButton = function createDifficultyButton(text, difficulty, x) {
-          var _this9 = this;
-
-          var previousDifficulty = this.pendingDifficulty;
-          var selected = previousDifficulty === difficulty;
-          this.createButton(selected ? text + "*" : text, x, -100, 72, function () {
-            _this9.pendingDifficulty = difficulty;
-
-            _this9.showMapSelectScreen();
-          });
-        };
-
-        _proto.adjustVolume = function adjustVolume(delta) {
-          this.volume = Math.max(0, Math.min(100, this.volume + delta));
-          this.showSettingsScreen();
-        };
-
-        _proto.buildRuntimeUi = function buildRuntimeUi() {
-          var _this10 = this;
-
-          var root = this.resetRuntimeRoot();
-          this.createBackground();
-          this.createButton('首页', -430, 250, 62, function () {
-            return _this10.showHomeScreen();
-          });
-          this.createButton('刷新', -360, 250, 66, function () {
-            return _this10.refreshShop();
-          });
-          this.createButton('买1', -290, 250, 56, function () {
-            return _this10.buySlot0();
-          });
-          this.createButton('买2', -230, 250, 56, function () {
-            return _this10.buySlot1();
-          });
-          this.createButton('买3', -170, 250, 56, function () {
-            return _this10.buySlot2();
-          });
-          this.createButton('全买', -105, 250, 62, function () {
-            return _this10.buyAll();
-          });
-          this.createButton('自动上阵', -20, 250, 86, function () {
-            return _this10.autoPlaceBench();
-          });
-          this.createButton('开战', 64, 250, 62, function () {
-            return _this10.beginBattle();
-          });
-          this.createButton('移动首个', -430, 214, 82, function () {
-            return _this10.moveFirstPlaced();
-          });
-          this.createButton('速度', -340, 214, 62, function () {
-            return _this10.toggleSpeed();
-          });
-          this.createButton('HTML调试', -260, 214, 82, function () {
-            return _this10.toggleHtmlDebug();
-          });
-          this.createCocosBoardRoot();
-          this.createCocosBenchRoot();
-          var statusNode = new Node('Status');
-          statusNode.layer = Layers.Enum.UI_2D;
-          root.addChild(statusNode);
-          statusNode.setPosition(new Vec3(0, -229, 0));
-          var transform = statusNode.addComponent(UITransform);
-          transform.setContentSize(900, 66);
-          var label = statusNode.addComponent(Label);
-          label.color = new Color(30, 30, 30, 255);
-          label.fontSize = 12;
-          label.lineHeight = 14;
-          label.string = '';
-          this.statusLabel = label;
-        };
-
-        _proto.ensureRuntimeCanvas = function ensureRuntimeCanvas() {
-          var scene = director.getScene();
-          var canvasNode = this.node.getComponent(Canvas) ? this.node : null;
-
-          if (!canvasNode && scene) {
-            var existingCanvas = this.findComponentInChildren(scene, Canvas);
-
-            if (existingCanvas) {
-              canvasNode = existingCanvas.node;
-            }
-          }
-
-          if (!canvasNode) {
-            canvasNode = new Node('RuntimeCanvas');
-            canvasNode.layer = Layers.Enum.UI_2D;
-            scene === null || scene === void 0 ? void 0 : scene.addChild(canvasNode);
-            canvasNode.addComponent(Canvas);
-          }
-
-          var transform = canvasNode.getComponent(UITransform);
-
-          if (!transform) {
-            transform = canvasNode.addComponent(UITransform);
-          }
-
-          transform.setContentSize(960, 540);
-          canvasNode.layer = Layers.Enum.UI_2D;
-          var canvas = canvasNode.getComponent(Canvas);
-          var camera = this.ensureUiCamera(canvasNode);
-
-          if (canvas && camera) {
-            canvas.cameraComponent = camera;
-          }
-
-          this.uiRoot = canvasNode;
-        };
-
-        _proto.ensureUiCamera = function ensureUiCamera(canvasNode) {
-          var scene = director.getScene();
-
-          if (!scene) {
-            return null;
-          }
-
-          var canvasCamera = this.findComponentInChildren(canvasNode, Camera);
-
-          if (canvasCamera) {
-            canvasCamera.visibility |= Layers.Enum.UI_2D;
-            return canvasCamera;
-          }
-
-          var cameras = this.findComponentsInChildren(scene, Camera);
-          var existingCamera = cameras.find(function (camera) {
-            return (camera.visibility & Layers.Enum.UI_2D) !== 0;
-          });
-
-          if (existingCamera) {
-            existingCamera.visibility |= Layers.Enum.UI_2D;
-            return existingCamera;
-          }
-
-          var cameraNode = new Node('RuntimeUICamera');
-          canvasNode.addChild(cameraNode);
-          cameraNode.setPosition(new Vec3(0, 0, 1000));
-          var camera = cameraNode.addComponent(Camera);
-          camera.visibility = Layers.Enum.UI_2D;
-          camera.orthoHeight = 270;
-          return camera;
-        };
-
-        _proto.findComponentInChildren = function findComponentInChildren(root, component) {
-          var _this$findComponentsI;
-
-          return (_this$findComponentsI = this.findComponentsInChildren(root, component)[0]) !== null && _this$findComponentsI !== void 0 ? _this$findComponentsI : null;
-        };
-
-        _proto.findComponentsInChildren = function findComponentsInChildren(root, component) {
-          var found = [];
-
-          var visit = function visit(node) {
-            var item = node.getComponent(component);
-
-            if (item) {
-              found.push(item);
-            }
-
-            for (var _iterator2 = _createForOfIteratorHelperLoose(node.children), _step2; !(_step2 = _iterator2()).done;) {
-              var child = _step2.value;
-              visit(child);
-            }
-          };
-
-          visit(root);
-          return found;
-        };
-
-        _proto.createCocosBoardRoot = function createCocosBoardRoot() {
-          var _this$uiRoot2;
-
-          var board = new Node('CocosBoard');
-          board.layer = Layers.Enum.UI_2D;
-          ((_this$uiRoot2 = this.uiRoot) !== null && _this$uiRoot2 !== void 0 ? _this$uiRoot2 : this.node).addChild(board);
-          board.setPosition(new Vec3(0, 45, 0));
-          var transform = board.addComponent(UITransform);
-          transform.setContentSize(760, 230);
-          this.cocosBoardRoot = board;
-        };
-
-        _proto.createCocosBenchRoot = function createCocosBenchRoot() {
-          var _this$uiRoot3;
-
-          var bench = new Node('CocosBench');
-          bench.layer = Layers.Enum.UI_2D;
-          ((_this$uiRoot3 = this.uiRoot) !== null && _this$uiRoot3 !== void 0 ? _this$uiRoot3 : this.node).addChild(bench);
-          bench.setPosition(new Vec3(0, -128, 0));
-          var transform = bench.addComponent(UITransform);
-          transform.setContentSize(760, 58);
-          this.cocosBenchRoot = bench;
-        };
-
-        _proto.buildBrowserOverlay = function buildBrowserOverlay() {
-          var _this$domRoot,
-              _this11 = this;
-
-          var doc = globalThis.document;
-
-          if (!(doc === null || doc === void 0 ? void 0 : doc.body)) {
-            return;
-          }
-
-          (_this$domRoot = this.domRoot) === null || _this$domRoot === void 0 ? void 0 : _this$domRoot.remove();
-          var root = doc.createElement('div');
-          root.id = 'divine-tower-chess-debug-ui';
-          root.style.position = 'fixed';
-          root.style.left = '12px';
-          root.style.top = '12px';
-          root.style.zIndex = '999999';
-          root.style.width = '760px';
-          root.style.maxWidth = 'calc(100vw - 24px)';
-          root.style.maxHeight = 'calc(100vh - 24px)';
-          root.style.overflow = 'auto';
-          root.style.padding = '12px';
-          root.style.background = 'rgba(245, 248, 252, 0.96)';
-          root.style.border = '1px solid #8ca0b3';
-          root.style.borderRadius = '6px';
-          root.style.color = '#1f2933';
-          root.style.fontFamily = 'Menlo, Consolas, monospace';
-          root.style.fontSize = '13px';
-          root.style.lineHeight = '18px';
-          var title = doc.createElement('div');
-          title.textContent = 'Divine Tower Chess 试玩面板';
-          title.style.fontWeight = '700';
-          title.style.marginBottom = '8px';
-          root.appendChild(title);
-          var actions = doc.createElement('div');
-          actions.style.display = 'flex';
-          actions.style.flexWrap = 'wrap';
-          actions.style.gap = '6px';
-          actions.style.marginBottom = '10px';
-          root.appendChild(actions);
-          this.addDomButton(actions, '新手', function () {
-            return _this11.startBeginner();
-          });
-          this.addDomButton(actions, '普通', function () {
-            return _this11.startNormal();
-          });
-          this.addDomButton(actions, '困难', function () {
-            return _this11.startHard();
-          });
-          this.addDomButton(actions, '刷新', function () {
-            return _this11.refreshShop();
-          });
-          this.addDomButton(actions, '买1', function () {
-            return _this11.buySlot0();
-          });
-          this.addDomButton(actions, '买2', function () {
-            return _this11.buySlot1();
-          });
-          this.addDomButton(actions, '买3', function () {
-            return _this11.buySlot2();
-          });
-          this.addDomButton(actions, '全买', function () {
-            return _this11.buyAll();
-          });
-          this.addDomButton(actions, '自动上阵', function () {
-            return _this11.autoPlaceBench();
-          });
-          this.addDomButton(actions, '移动首个', function () {
-            return _this11.moveFirstPlaced();
-          });
-          this.addDomButton(actions, '开战', function () {
-            return _this11.beginBattle();
-          });
-          this.addDomButton(actions, '速度', function () {
-            return _this11.toggleSpeed();
-          });
-          var board = doc.createElement('div');
-          board.style.position = 'relative';
-          board.style.width = '720px';
-          board.style.height = '260px';
-          board.style.marginBottom = '10px';
-          board.style.background = '#d7e2ec';
-          board.style.border = '1px solid #8ca0b3';
-          board.style.borderRadius = '4px';
-          root.appendChild(board);
-          var status = doc.createElement('pre');
-          status.style.margin = '0';
-          status.style.whiteSpace = 'pre-wrap';
-          root.appendChild(status);
-          doc.body.appendChild(root);
-          this.domRoot = root;
-          this.domBoard = board;
-          this.domStatus = status;
-        };
-
-        _proto.removeBrowserOverlay = function removeBrowserOverlay() {
-          var _this$domRoot2;
-
-          if ((_this$domRoot2 = this.domRoot) === null || _this$domRoot2 === void 0 ? void 0 : _this$domRoot2.parentElement) {
-            this.domRoot.parentElement.removeChild(this.domRoot);
-          }
-
-          this.domRoot = null;
-          this.domBoard = null;
-          this.domStatus = null;
-        };
-
-        _proto.addDomButton = function addDomButton(parent, text, onClick) {
-          var button = globalThis.document.createElement('button');
-          button.textContent = text;
-          button.style.padding = '6px 10px';
-          button.style.border = '1px solid #3a63a8';
-          button.style.borderRadius = '4px';
-          button.style.background = '#3a63a8';
-          button.style.color = '#fff';
-          button.style.cursor = 'pointer';
-          button.onclick = onClick;
-          parent.appendChild(button);
-        };
-
-        _proto.createBackground = function createBackground() {
-          var _this$uiRoot4;
-
-          var background = new Node('RuntimeBackground');
-          background.layer = Layers.Enum.UI_2D;
-          ((_this$uiRoot4 = this.uiRoot) !== null && _this$uiRoot4 !== void 0 ? _this$uiRoot4 : this.node).addChild(background);
-          background.setPosition(new Vec3(0, 0, 0));
-          var transform = background.addComponent(UITransform);
-          transform.setContentSize(960, 540);
-          var graphics = background.addComponent(Graphics);
-          graphics.fillColor = new Color(235, 240, 245, 255);
-          graphics.rect(-480, -270, 960, 540);
-          graphics.fill();
-        };
-
-        _proto.createButton = function createButton(text, x, y, width, onClick) {
-          var _this$uiRoot5;
-
-          var height = 30;
-          var node = new Node(text);
-          node.layer = Layers.Enum.UI_2D;
-          ((_this$uiRoot5 = this.uiRoot) !== null && _this$uiRoot5 !== void 0 ? _this$uiRoot5 : this.node).addChild(node);
-          node.setPosition(new Vec3(x, y, 0));
-          var transform = node.addComponent(UITransform);
-          transform.setContentSize(width, height);
-          var graphics = node.addComponent(Graphics);
-          graphics.fillColor = new Color(58, 99, 168, 255);
-          graphics.rect(-width / 2, -height / 2, width, height);
-          graphics.fill();
-          node.addComponent(Button);
-          node.on(Button.EventType.CLICK, onClick, this);
-          var labelNode = new Node(text + "Label");
-          labelNode.layer = Layers.Enum.UI_2D;
-          node.addChild(labelNode);
-          labelNode.setPosition(new Vec3(0, 0, 0));
-          var labelTransform = labelNode.addComponent(UITransform);
-          labelTransform.setContentSize(width, height);
-          var label = labelNode.addComponent(Label);
-          label.string = text;
-          label.color = new Color(255, 255, 255, 255);
-          label.fontSize = 15;
-          label.lineHeight = 18;
-        };
-
-        _proto.findFirstOpenTile = function findFirstOpenTile(ignoreInstanceId) {
-          var placed = this.controller.snapshot().placed;
-
-          var _loop = function _loop(lane) {
-            var _loop2 = function _loop2(tileIndex) {
-              var occupied = placed.some(function (unit) {
-                return unit.instanceId !== ignoreInstanceId && unit.lane === lane && unit.tileIndex === tileIndex;
-              });
-
-              if (!occupied) {
-                return {
-                  v: {
-                    v: {
-                      lane: lane,
-                      tileIndex: tileIndex
-                    }
-                  }
-                };
-              }
-            };
-
-            for (var tileIndex = 0; tileIndex < 6; tileIndex += 1) {
-              var _ret2 = _loop2(tileIndex);
-
-              if (typeof _ret2 === "object") return _ret2.v;
-            }
-          };
-
-          for (var lane = 0; lane < 2; lane += 1) {
-            var _ret = _loop(lane);
-
-            if (typeof _ret === "object") return _ret.v;
-          }
-
-          return null;
-        };
-
-        _proto.logAndRefresh = function logAndRefresh(action, success) {
-          this.refreshStatus("" + action + (success ? '成功' : '失败'));
-        };
-
-        _proto.refreshStatus = function refreshStatus(message) {
-          if (message === void 0) {
-            message = '';
-          }
-
-          if (!this.statusLabel) {
-            return;
-          }
-
-          var snapshot = this.controller.snapshot();
-          var shop = snapshot.shop.map(function (unitId, index) {
-            return index + 1 + "." + UNIT_CONFIG[unitId].name + "(" + UNIT_CONFIG[unitId].cost + ")";
-          }).join('  ') || '空';
-          var bench = snapshot.bench.map(function (unit) {
-            return "" + UNIT_CONFIG[unit.unitId].name + unit.star + "\u661F" + (unit.assignedTaskId ? '[任务]' : '');
-          }).join('  ') || '空';
-          var placed = snapshot.placed.map(function (unit) {
-            var maxHp = UNIT_CONFIG[unit.unitId].maxHp;
-            return "" + UNIT_CONFIG[unit.unitId].name + unit.star + "\u661F " + Math.ceil(unit.currentHp) + "/" + maxHp + (unit.assignedTaskId ? ' [任务]' : '');
-          }).join('  ') || '空';
-          var tasks = snapshot.divineTasks.map(function (task) {
-            var config = DIVINE_TASK_CONFIG[task.taskId];
-            return config.sourceUnitId + "->" + config.targetUnitId + " " + Math.floor(task.progress) + "/" + config.requirement + (task.completed ? ' 完成' : '');
-          }).join('  ') || '空';
-          var enemiesByLane = [0, 1].map(function (lane) {
-            return "\u8DEF\u7EBF" + lane + ": " + snapshot.enemies.filter(function (enemy) {
-              return enemy.lane === lane;
-            }).length;
-          }).join('  ');
-          var spriteCount = [this.boardSprite, this.tileSprite, this.unitSprite, this.enemySprite, this.crystalSprite].filter(Boolean).length;
-          var benchSummary = snapshot.bench.length > 4 ? snapshot.bench.length + "\u4E2A\uFF1A" + snapshot.bench.slice(0, 4).map(function (unit) {
-            return "" + UNIT_CONFIG[unit.unitId].name + unit.star + "\u661F";
-          }).join('  ') + "..." : bench;
-          var placedSummary = snapshot.placed.length > 4 ? snapshot.placed.length + "\u4E2A\uFF1A" + snapshot.placed.slice(0, 4).map(function (unit) {
-            return "" + UNIT_CONFIG[unit.unitId].name + unit.star + "\u661F " + Math.ceil(unit.currentHp) + "/" + UNIT_CONFIG[unit.unitId].maxHp;
-          }).join('  ') + "..." : placed;
-          this.statusLabel.string = ["\u72B6\u6001: " + snapshot.phase + "  \u6CE2\u6B21: " + snapshot.waveNumber + "/" + snapshot.totalWaves + "  \u6C34\u6676: " + snapshot.crystalHp + "  \u91D1\u5E01: " + snapshot.gold + "  \u901F\u5EA6: x" + this.speed + "  \u8D34\u56FE: " + spriteCount + "/5", message ? "\u63D0\u793A: " + message : '提示: 购买棋子 -> 自动上阵 -> 开战', "\u5546\u5E97: " + shop, "\u5907\u6218\u533A: " + benchSummary + "  |  \u4E0A\u9635\u533A: " + placedSummary, "\u654C\u4EBA: " + enemiesByLane + "  |  \u795E\u54C1\u4EFB\u52A1: " + tasks].join('\n');
-
-          if (this.domStatus) {
-            this.domStatus.textContent = this.statusLabel.string;
-          }
-
-          this.renderCocosBoard();
-          this.renderCocosBench();
-          this.renderDomBoard();
-        };
-
-        _proto.selectUnit = function selectUnit(instanceId, source) {
-          var snapshot = this.controller.snapshot();
-
-          if (snapshot.phase !== 'prep') {
-            this.refreshStatus('只能在准备阶段选择和移动棋子');
-            return;
-          }
-
-          this.selectedUnitInstanceId = instanceId;
-          this.selectedUnitSource = source;
-          this.refreshStatus("\u5DF2\u9009\u62E9" + instanceId + "\uFF0C\u70B9\u51FB\u68CB\u76D8\u7A7A\u683C\u653E\u7F6E\u6216\u79FB\u52A8");
-        };
-
-        _proto.handleTileClick = function handleTileClick(lane, tileIndex) {
-          var snapshot = this.controller.snapshot();
-          var unitOnTile = snapshot.placed.find(function (unit) {
-            return unit.lane === lane && unit.tileIndex === tileIndex;
-          });
-
-          if (!this.selectedUnitInstanceId || !this.selectedUnitSource) {
-            if (unitOnTile) {
-              this.selectUnit(unitOnTile.instanceId, 'placed');
-              return;
-            }
-
-            this.refreshStatus('先点击备战区或棋盘上的棋子');
-            return;
-          }
-
-          if (unitOnTile && unitOnTile.instanceId !== this.selectedUnitInstanceId) {
-            this.refreshStatus('目标格已有棋子，请选择空格移动');
-            return;
-          }
-
-          var success = this.selectedUnitSource === 'bench' ? this.controller.place(this.selectedUnitInstanceId, lane, tileIndex) : this.controller.movePlaced(this.selectedUnitInstanceId, lane, tileIndex);
-          var action = this.selectedUnitSource === 'bench' ? '上阵' : '移动';
-
-          if (success) {
-            this.selectedUnitInstanceId = null;
-            this.selectedUnitSource = null;
-          }
-
-          this.refreshStatus("" + action + (success ? '成功' : '失败'));
-        };
-
-        _proto.renderCocosBoard = function renderCocosBoard() {
-          var _this12 = this;
-
-          if (!this.cocosBoardRoot) {
-            return;
-          }
-
-          var snapshot = this.controller.snapshot();
-          this.cocosBoardRoot.removeAllChildren();
-          this.createCocosImageOrRect('BoardBackground', 0, 0, 720, 220, new Color(215, 226, 236, 255), this.boardSprite);
-          this.createCocosImageOrRect('Crystal', 315, 0, 38, 90, new Color(56, 189, 248, 255), this.crystalSprite);
-          this.createCocosText('CrystalLabel', '水晶', 315, 0, 34, 17, new Color(8, 51, 68, 255));
-
-          var _loop3 = function _loop3(lane) {
-            var y = _this12.getCocosLaneY(lane);
-
-            _this12.createCocosRect("Lane" + lane, 0, y, 590, 14, new Color(148, 163, 184, 255));
-
-            var _loop4 = function _loop4(tileIndex) {
-              var pos = _this12.getCocosTilePosition(lane, tileIndex);
-
-              var isSelectedTarget = Boolean(_this12.selectedUnitInstanceId);
-
-              var tileClick = function tileClick() {
-                return _this12.handleTileClick(lane, tileIndex);
-              };
-
-              _this12.createCocosImageOrRect("Tile" + lane + "-" + tileIndex, pos.x, pos.y, 54, 54, isSelectedTarget ? new Color(222, 247, 236, 180) : new Color(248, 250, 252, 120), _this12.tileSprite, tileClick);
-
-              _this12.createCocosText("TileLabel" + lane + "-" + tileIndex, lane + "-" + tileIndex, pos.x, pos.y - 20, 40, 11, new Color(71, 85, 105, 255), tileClick);
-            };
-
-            for (var tileIndex = 0; tileIndex < 6; tileIndex += 1) {
-              _loop4(tileIndex);
-            }
-          };
-
-          for (var lane = 0; lane < 2; lane += 1) {
-            _loop3(lane);
-          }
-
-          var _loop5 = function _loop5() {
-            var unit = _step3.value;
-
-            var pos = _this12.getCocosTilePosition(unit.lane, unit.tileIndex);
-
-            var unitClick = function unitClick() {
-              return _this12.selectUnit(unit.instanceId, 'placed');
-            };
-
-            _this12.createCocosUnitAvatar(_this12.cocosBoardRoot, "Unit" + unit.instanceId, unit.unitId, unit.star, pos.x, pos.y + 4, 48, unit.currentHp <= 0, unitClick);
-
-            var selected = _this12.selectedUnitInstanceId === unit.instanceId;
-
-            _this12.createCocosText("UnitLabel" + unit.instanceId, "" + (selected ? '选中 ' : '') + unit.star + "\u661F " + Math.ceil(unit.currentHp), pos.x, pos.y - 26, 46, 10, new Color(17, 24, 39, 255), unitClick);
-          };
-
-          for (var _iterator3 = _createForOfIteratorHelperLoose(snapshot.placed), _step3; !(_step3 = _iterator3()).done;) {
-            _loop5();
-          }
-
-          for (var _iterator4 = _createForOfIteratorHelperLoose(snapshot.enemies), _step4; !(_step4 = _iterator4()).done;) {
-            var enemy = _step4.value;
-            this.createCocosImageOrCircle("Enemy" + enemy.instanceId, this.getCocosEnemyX(enemy.distanceOnPath), this.getCocosLaneY(enemy.lane), 18, new Color(194, 65, 12, 255), this.enemySprite);
+      cclegacy._RF.push({}, "1cebb5b1GRBzYWjqecMeqG1", "art-resource-manifest", undefined);
+
+      var unitDir = function unitDir(directory, unitId) {
+        return {
+          unitId: unitId,
+          directory: directory,
+          stars: {
+            1: unitId + "_star1.png",
+            2: unitId + "_star2.png",
+            3: unitId + "_star3.png"
           }
         };
+      };
 
-        _proto.renderCocosBench = function renderCocosBench() {
-          var _this13 = this;
-
-          if (!this.cocosBenchRoot) {
-            return;
+      var ART_RESOURCE_MANIFEST = exports('ART_RESOURCE_MANIFEST', {
+        units: {
+          warrior: _extends({}, unitDir('assets/resources/textures/units/warrior', 'warrior'), {
+            divineOverride: 'berserker_divine.png',
+            portrait: 'warrior_portrait.png'
+          }),
+          mage: _extends({}, unitDir('assets/resources/textures/units/mage', 'mage'), {
+            portrait: 'mage_portrait.png'
+          }),
+          priest: _extends({}, unitDir('assets/resources/textures/units/priest', 'priest'), {
+            divineOverride: 'light_mage_divine.png',
+            portrait: 'priest_portrait.png'
+          }),
+          archer: _extends({}, unitDir('assets/resources/textures/units/archer', 'archer'), {
+            portrait: 'archer_portrait.png'
+          }),
+          shield_guard: _extends({}, unitDir('assets/resources/textures/units/shield_guard', 'shield_guard'), {
+            portrait: 'shield_guard_portrait.png'
+          }),
+          cavalry: _extends({}, unitDir('assets/resources/textures/units/cavalry', 'cavalry'), {
+            portrait: 'cavalry_portrait.png'
+          }),
+          spearman: _extends({}, unitDir('assets/resources/textures/units/spearman', 'spearman'), {
+            portrait: 'spearman_portrait.png'
+          }),
+          berserker: {
+            unitId: 'berserker',
+            directory: 'assets/resources/textures/units/warrior',
+            divineOverride: 'berserker_divine.png'
+          },
+          light_mage: {
+            unitId: 'light_mage',
+            directory: 'assets/resources/textures/units/priest',
+            divineOverride: 'light_mage_divine.png'
           }
-
-          var snapshot = this.controller.snapshot();
-          this.cocosBenchRoot.removeAllChildren();
-          this.createCocosRectInRoot(this.cocosBenchRoot, 'BenchBackground', 0, 0, 760, 58, new Color(224, 231, 238, 255));
-          this.createCocosTextInRoot(this.cocosBenchRoot, 'BenchTitle', '备战区：点棋子再点格子', -285, 19, 180, 12, new Color(30, 41, 59, 255));
-          var shown = snapshot.bench.slice(0, 8);
-          shown.forEach(function (unit, index) {
-            var x = -325 + index * 80;
-            var selected = _this13.selectedUnitInstanceId === unit.instanceId;
-
-            var benchClick = function benchClick() {
-              return _this13.selectUnit(unit.instanceId, 'bench');
-            };
-
-            _this13.createCocosUnitAvatar(_this13.cocosBenchRoot, "BenchUnit" + unit.instanceId, unit.unitId, unit.star, x, -4, 34, false, benchClick);
-
-            _this13.createCocosTextInRoot(_this13.cocosBenchRoot, "BenchUnitLabel" + unit.instanceId, "" + (selected ? '选中 ' : '') + unit.star + "\u661F" + (unit.assignedTaskId ? ' 任务' : ''), x, -25, 62, 10, new Color(17, 24, 39, 255), benchClick);
-          });
-
-          if (snapshot.bench.length > shown.length) {
-            this.createCocosTextInRoot(this.cocosBenchRoot, 'BenchOverflow', "+" + (snapshot.bench.length - shown.length), 355, -8, 36, 12, new Color(100, 116, 139, 255));
-          }
-        };
-
-        _proto.createCocosUnitAvatar = function createCocosUnitAvatar(root, name, unitId, star, x, y, size, defeated, onClick) {
-          if (!root) return;
-          var style = this.getUnitAvatarStyle(unitId, star, defeated);
-          var node = new Node(name);
-          node.layer = Layers.Enum.UI_2D;
-          root.addChild(node);
-          node.setPosition(new Vec3(x, y, 0));
-          var transform = node.addComponent(UITransform);
-          transform.setContentSize(size, size);
-          var graphics = node.addComponent(Graphics);
-
-          if (style.divine) {
-            var glowPulse = 0.5 + Math.sin(this.avatarPulseTime * 6) * 0.5;
-            graphics.fillColor = new Color(255, 214, 90, Math.floor(70 + glowPulse * 95));
-            graphics.circle(0, 0, size * (0.58 + glowPulse * 0.06));
-            graphics.fill();
-          }
-
-          graphics.fillColor = style.border;
-          graphics.circle(0, 0, size * 0.5);
-          graphics.fill();
-          graphics.fillColor = style.fill;
-          graphics.circle(0, 0, size * 0.38);
-          graphics.fill();
-
-          if (onClick) {
-            node.addComponent(Button);
-            node.on(Button.EventType.CLICK, onClick, this);
-          }
-
-          var avatarSprite = this.unitAvatarSprites[unitId];
-
-          if (avatarSprite) {
-            this.createCocosSpriteInRoot(node, name + "IconSprite", 0, 1, size * 0.64, size * 0.64, avatarSprite, defeated ? new Color(210, 214, 220, 210) : style.text, onClick);
-          } else {
-            this.createCocosTextInRoot(node, name + "Icon", style.icon, 0, 1, size, Math.max(12, Math.floor(size * 0.34)), style.text, onClick);
-          }
-        };
-
-        _proto.getUnitAvatarStyle = function getUnitAvatarStyle(unitId, star, defeated) {
-          var isDivine = UNIT_CONFIG[unitId].isDivine === true;
-          var borderByStar = {
-            1: new Color(145, 154, 166, 255),
-            2: new Color(34, 197, 94, 255),
-            3: new Color(147, 51, 234, 255)
-          };
-          var fillByUnit = {
-            archer: new Color(76, 132, 92, 255),
-            paladin: new Color(226, 184, 73, 255),
-            shield_guard: new Color(75, 101, 132, 255),
-            warrior: new Color(171, 73, 62, 255),
-            mage: new Color(86, 112, 190, 255),
-            priest: new Color(226, 218, 158, 255),
-            cavalry: new Color(102, 99, 166, 255),
-            spearman: new Color(78, 154, 144, 255),
-            berserker: new Color(184, 42, 42, 255),
-            light_mage: new Color(247, 226, 132, 255)
-          };
-          var iconByUnit = {
-            archer: '弓',
-            paladin: '圣',
-            shield_guard: '盾',
-            warrior: '战',
-            mage: '法',
-            priest: '牧',
-            cavalry: '骑',
-            spearman: '枪',
-            berserker: '狂',
-            light_mage: '光'
-          };
-
-          if (defeated) {
-            return {
-              fill: new Color(120, 126, 136, 255),
-              border: new Color(78, 84, 94, 255),
-              text: new Color(238, 242, 247, 255),
-              icon: iconByUnit[unitId],
-              divine: false
-            };
-          }
-
-          return {
-            fill: fillByUnit[unitId],
-            border: isDivine ? new Color(245, 190, 60, 255) : borderByStar[star],
-            text: isDivine ? new Color(72, 48, 8, 255) : new Color(248, 250, 252, 255),
-            icon: iconByUnit[unitId],
-            divine: isDivine
-          };
-        };
-
-        _proto.createCocosRect = function createCocosRect(name, x, y, width, height, color, onClick) {
-          if (!this.cocosBoardRoot) return;
-          this.createCocosRectInRoot(this.cocosBoardRoot, name, x, y, width, height, color, onClick);
-        };
-
-        _proto.createCocosImageOrRect = function createCocosImageOrRect(name, x, y, width, height, color, spriteFrame, onClick) {
-          if (!this.cocosBoardRoot) return;
-          this.createCocosImageOrRectInRoot(this.cocosBoardRoot, name, x, y, width, height, color, spriteFrame, onClick);
-        };
-
-        _proto.createCocosRectInRoot = function createCocosRectInRoot(root, name, x, y, width, height, color, onClick) {
-          this.createCocosImageOrRectInRoot(root, name, x, y, width, height, color, null, onClick);
-        };
-
-        _proto.createCocosImageOrRectInRoot = function createCocosImageOrRectInRoot(root, name, x, y, width, height, color, spriteFrame, onClick) {
-          var node = new Node(name);
-          node.layer = Layers.Enum.UI_2D;
-          root.addChild(node);
-          node.setPosition(new Vec3(x, y, 0));
-          var transform = node.addComponent(UITransform);
-          transform.setContentSize(width, height);
-
-          if (spriteFrame) {
-            var sprite = node.addComponent(Sprite);
-            sprite.spriteFrame = spriteFrame;
-            sprite.color = new Color(255, 255, 255, 255);
-          } else {
-            var graphics = node.addComponent(Graphics);
-            graphics.fillColor = color;
-            graphics.rect(-width / 2, -height / 2, width, height);
-            graphics.fill();
-          }
-
-          if (onClick) {
-            node.addComponent(Button);
-            node.on(Button.EventType.CLICK, onClick, this);
-          }
-        };
-
-        _proto.createCocosSpriteInRoot = function createCocosSpriteInRoot(root, name, x, y, width, height, spriteFrame, color, onClick) {
-          var node = new Node(name);
-          node.layer = Layers.Enum.UI_2D;
-          root.addChild(node);
-          node.setPosition(new Vec3(x, y, 0));
-          var transform = node.addComponent(UITransform);
-          transform.setContentSize(width, height);
-          var sprite = node.addComponent(Sprite);
-          sprite.spriteFrame = spriteFrame;
-          sprite.color = color;
-
-          if (onClick) {
-            node.addComponent(Button);
-            node.on(Button.EventType.CLICK, onClick, this);
-          }
-        };
-
-        _proto.createCocosImageOrCircle = function createCocosImageOrCircle(name, x, y, size, color, spriteFrame) {
-          if (spriteFrame) {
-            this.createCocosImageOrRect(name, x, y, size, size, new Color(255, 255, 255, 255), spriteFrame);
-            return;
-          }
-
-          this.createCocosCircle(name, x, y, size / 2, color);
-        };
-
-        _proto.createCocosCircle = function createCocosCircle(name, x, y, radius, color) {
-          if (!this.cocosBoardRoot) return;
-          var node = new Node(name);
-          node.layer = Layers.Enum.UI_2D;
-          this.cocosBoardRoot.addChild(node);
-          node.setPosition(new Vec3(x, y, 0));
-          var transform = node.addComponent(UITransform);
-          transform.setContentSize(radius * 2, radius * 2);
-          var graphics = node.addComponent(Graphics);
-          graphics.fillColor = color;
-          graphics.circle(0, 0, radius);
-          graphics.fill();
-        };
-
-        _proto.createCocosText = function createCocosText(name, text, x, y, width, fontSize, color, onClick) {
-          if (!this.cocosBoardRoot) return;
-          this.createCocosTextInRoot(this.cocosBoardRoot, name, text, x, y, width, fontSize, color, onClick);
-        };
-
-        _proto.createCocosTextInRoot = function createCocosTextInRoot(root, name, text, x, y, width, fontSize, color, onClick) {
-          var node = new Node(name);
-          node.layer = Layers.Enum.UI_2D;
-          root.addChild(node);
-          node.setPosition(new Vec3(x, y, 0));
-          var transform = node.addComponent(UITransform);
-          transform.setContentSize(width, Math.max(40, fontSize * 3));
-          var label = node.addComponent(Label);
-          label.string = text;
-          label.color = color;
-          label.fontSize = fontSize;
-          label.lineHeight = fontSize + 2;
-
-          if (onClick) {
-            node.addComponent(Button);
-            node.on(Button.EventType.CLICK, onClick, this);
-          }
-        };
-
-        _proto.renderDomBoard = function renderDomBoard() {
-          if (!this.domBoard) {
-            return;
-          }
-
-          var snapshot = this.controller.snapshot();
-          this.domBoard.innerHTML = '';
-          this.createDomCrystal();
-
-          for (var lane = 0; lane < 2; lane += 1) {
-            this.createDomLane(lane);
-
-            for (var tileIndex = 0; tileIndex < 6; tileIndex += 1) {
-              this.createDomTile(lane, tileIndex);
-            }
-          }
-
-          for (var _iterator5 = _createForOfIteratorHelperLoose(snapshot.placed), _step5; !(_step5 = _iterator5()).done;) {
-            var unit = _step5.value;
-            var pos = this.getBoardTilePosition(unit.lane, unit.tileIndex);
-            var el = globalThis.document.createElement('div');
-            el.style.position = 'absolute';
-            el.style.left = pos.x - 28 + "px";
-            el.style.top = pos.y - 26 + "px";
-            el.style.width = '56px';
-            el.style.height = '52px';
-            el.style.border = unit.currentHp <= 0 ? '2px solid #8b1e1e' : '2px solid #1f4f8b';
-            el.style.borderRadius = '6px';
-            el.style.background = unit.currentHp <= 0 ? '#9ca3af' : '#f8fafc';
-            el.style.color = '#111827';
-            el.style.fontSize = '11px';
-            el.style.lineHeight = '15px';
-            el.style.textAlign = 'center';
-            el.style.boxSizing = 'border-box';
-            el.style.paddingTop = '3px';
-            el.textContent = UNIT_CONFIG[unit.unitId].name + "\n" + unit.star + "\u661F\n" + Math.ceil(unit.currentHp);
-            el.style.whiteSpace = 'pre-line';
-            this.domBoard.appendChild(el);
-          }
-
-          for (var _iterator6 = _createForOfIteratorHelperLoose(snapshot.enemies), _step6; !(_step6 = _iterator6()).done;) {
-            var enemy = _step6.value;
-            var x = this.getEnemyX(enemy.distanceOnPath);
-            var y = this.getLaneY(enemy.lane);
-
-            var _el = globalThis.document.createElement('div');
-
-            _el.style.position = 'absolute';
-            _el.style.left = x - 10 + "px";
-            _el.style.top = y - 10 + "px";
-            _el.style.width = '20px';
-            _el.style.height = '20px';
-            _el.style.borderRadius = '10px';
-            _el.style.background = '#c2410c';
-            _el.style.border = '2px solid #7c2d12';
-            _el.title = enemy.enemyId + " HP " + Math.ceil(enemy.currentHp);
-            this.domBoard.appendChild(_el);
-          }
-        };
-
-        _proto.createDomLane = function createDomLane(lane) {
-          if (!this.domBoard) return;
-          var y = this.getLaneY(lane);
-          var line = globalThis.document.createElement('div');
-          line.style.position = 'absolute';
-          line.style.left = '40px';
-          line.style.top = y - 8 + "px";
-          line.style.width = '610px';
-          line.style.height = '16px';
-          line.style.background = '#94a3b8';
-          line.style.borderRadius = '8px';
-          this.domBoard.appendChild(line);
-        };
-
-        _proto.createDomTile = function createDomTile(lane, tileIndex) {
-          if (!this.domBoard) return;
-          var pos = this.getBoardTilePosition(lane, tileIndex);
-          var tile = globalThis.document.createElement('div');
-          tile.style.position = 'absolute';
-          tile.style.left = pos.x - 32 + "px";
-          tile.style.top = pos.y - 32 + "px";
-          tile.style.width = '64px';
-          tile.style.height = '64px';
-          tile.style.border = '1px dashed #475569';
-          tile.style.borderRadius = '4px';
-          tile.style.boxSizing = 'border-box';
-          tile.style.background = 'rgba(255, 255, 255, 0.35)';
-          tile.style.color = '#334155';
-          tile.style.fontSize = '11px';
-          tile.style.textAlign = 'center';
-          tile.style.lineHeight = '64px';
-          tile.textContent = lane + "-" + tileIndex;
-          this.domBoard.appendChild(tile);
-        };
-
-        _proto.createDomCrystal = function createDomCrystal() {
-          if (!this.domBoard) return;
-          var crystal = globalThis.document.createElement('div');
-          crystal.style.position = 'absolute';
-          crystal.style.right = '18px';
-          crystal.style.top = '82px';
-          crystal.style.width = '42px';
-          crystal.style.height = '96px';
-          crystal.style.borderRadius = '6px';
-          crystal.style.background = '#38bdf8';
-          crystal.style.border = '2px solid #0369a1';
-          crystal.style.color = '#083344';
-          crystal.style.fontSize = '12px';
-          crystal.style.lineHeight = '96px';
-          crystal.style.textAlign = 'center';
-          crystal.textContent = '水晶';
-          this.domBoard.appendChild(crystal);
-        };
-
-        _proto.getBoardTilePosition = function getBoardTilePosition(lane, tileIndex) {
-          return {
-            x: 90 + tileIndex * 86,
-            y: this.getLaneY(lane)
-          };
-        };
-
-        _proto.getEnemyX = function getEnemyX(distanceOnPath) {
-          return Math.min(650, 45 + distanceOnPath * 39);
-        };
-
-        _proto.getLaneY = function getLaneY(lane) {
-          return lane === 0 ? 85 : 175;
-        };
-
-        _proto.getCocosTilePosition = function getCocosTilePosition(lane, tileIndex) {
-          return {
-            x: -270 + tileIndex * 82,
-            y: this.getCocosLaneY(lane)
-          };
-        };
-
-        _proto.getCocosEnemyX = function getCocosEnemyX(distanceOnPath) {
-          return Math.min(290, -315 + distanceOnPath * 39);
-        };
-
-        _proto.getCocosLaneY = function getCocosLaneY(lane) {
-          return lane === 0 ? 36 : -36;
-        };
-
-        return CocosGameController;
-      }(Component), _temp), (_descriptor = _applyDecoratedDescriptor(_class2.prototype, "boardSprite", [_dec2], {
-        configurable: true,
-        enumerable: true,
-        writable: true,
-        initializer: function initializer() {
-          return null;
-        }
-      }), _descriptor2 = _applyDecoratedDescriptor(_class2.prototype, "tileSprite", [_dec3], {
-        configurable: true,
-        enumerable: true,
-        writable: true,
-        initializer: function initializer() {
-          return null;
-        }
-      }), _descriptor3 = _applyDecoratedDescriptor(_class2.prototype, "unitSprite", [_dec4], {
-        configurable: true,
-        enumerable: true,
-        writable: true,
-        initializer: function initializer() {
-          return null;
-        }
-      }), _descriptor4 = _applyDecoratedDescriptor(_class2.prototype, "enemySprite", [_dec5], {
-        configurable: true,
-        enumerable: true,
-        writable: true,
-        initializer: function initializer() {
-          return null;
-        }
-      }), _descriptor5 = _applyDecoratedDescriptor(_class2.prototype, "crystalSprite", [_dec6], {
-        configurable: true,
-        enumerable: true,
-        writable: true,
-        initializer: function initializer() {
-          return null;
-        }
-      })), _class2)) || _class));
+        },
+        enemies: {
+          grunt: 'assets/resources/textures/enemies/grunt.png',
+          brute: 'assets/resources/textures/enemies/brute.png',
+          boss: 'assets/resources/textures/enemies/boss.png'
+        },
+        optionalEnemies: ['assets/art/enemies/boss_1.png'],
+        uiIcons: ['assets/resources/textures/ui/gold.png', 'assets/art/ui/icons/refresh.png', 'assets/art/ui/icons/sell.png', 'assets/art/ui/icons/start_wave.png', 'assets/art/ui/icons/star_1.png', 'assets/art/ui/icons/star_2.png', 'assets/art/ui/icons/star_3.png'],
+        backgrounds: ['assets/art/backgrounds/battlefield_01.png']
+      });
 
       cclegacy._RF.pop();
     }
   };
 });
 
-System.register("chunks:///_virtual/divine-task-system.ts", ['./_rollupPluginModLoBabelHelpers.js', 'cc', './unit-config.ts', './divine-task-config.ts', './random.ts'], function (exports) {
+System.register("chunks:///_virtual/squad-battle-config.ts", ['cc'], function (exports) {
   'use strict';
 
-  var _defineProperty, cclegacy, UNIT_CONFIG, DIVINE_TASK_CONFIG, chance;
+  var cclegacy;
+  return {
+    setters: [function (module) {
+      cclegacy = module.cclegacy;
+    }],
+    execute: function () {
+      cclegacy._RF.push({}, "1d1eaExWTJLK7glY2nh31hn", "squad-battle-config", undefined);
+
+      var SQUAD_BATTLEFIELD = exports('SQUAD_BATTLEFIELD', {
+        width: 1200,
+        height: 700,
+        centerLineX: 520,
+        centerLineY: 350,
+        allySpawnGapY: 92,
+        rightSpawnX: 1120,
+        leftSpawnX: 80,
+        spawnYMin: 120,
+        spawnYMax: 580
+      });
+      var SQUAD_UNIT_STATS = exports('SQUAD_UNIT_STATS', {
+        warrior: {
+          maxHp: 420,
+          attackDamage: 40,
+          attackInterval: 1.2,
+          moveSpeed: 120,
+          attackRange: 48,
+          reactionRange: 180
+        },
+        berserker: {
+          maxHp: 500,
+          attackDamage: 65,
+          attackInterval: 0.9,
+          moveSpeed: 140,
+          attackRange: 54,
+          reactionRange: 210
+        },
+        shield_guard: {
+          maxHp: 650,
+          attackDamage: 28,
+          attackInterval: 1.6,
+          moveSpeed: 95,
+          attackRange: 46,
+          reactionRange: 165
+        },
+        cavalry: {
+          maxHp: 440,
+          attackDamage: 48,
+          attackInterval: 1.25,
+          moveSpeed: 155,
+          attackRange: 52,
+          reactionRange: 220
+        },
+        spearman: {
+          maxHp: 390,
+          attackDamage: 45,
+          attackInterval: 1.35,
+          moveSpeed: 115,
+          attackRange: 165,
+          reactionRange: 180
+        },
+        archer: {
+          maxHp: 310,
+          attackDamage: 38,
+          attackInterval: 0.95,
+          moveSpeed: 90,
+          attackRange: 270,
+          reactionRange: 270
+        },
+        mage: {
+          maxHp: 300,
+          attackDamage: 46,
+          attackInterval: 1.45,
+          moveSpeed: 85,
+          attackRange: 255,
+          reactionRange: 255
+        },
+        light_mage: {
+          maxHp: 340,
+          attackDamage: 58,
+          attackInterval: 1.25,
+          moveSpeed: 95,
+          attackRange: 270,
+          reactionRange: 270
+        },
+        priest: {
+          maxHp: 290,
+          attackDamage: 0,
+          attackInterval: 0.7,
+          moveSpeed: 100,
+          attackRange: 190,
+          reactionRange: 0,
+          healPower: 30
+        }
+      });
+      var SQUAD_ROLE_MAP = exports('SQUAD_ROLE_MAP', {
+        warrior: 'melee',
+        berserker: 'melee',
+        shield_guard: 'melee',
+        cavalry: 'melee',
+        spearman: 'ranged',
+        archer: 'ranged',
+        mage: 'ranged',
+        light_mage: 'ranged',
+        priest: 'priest'
+      });
+      var ENEMY_STATS = exports('ENEMY_STATS', {
+        grunt: {
+          maxHp: 210,
+          attackDamage: 28,
+          attackInterval: 1.4,
+          moveSpeed: 105,
+          attackRange: 45
+        },
+        brute: {
+          maxHp: 420,
+          attackDamage: 42,
+          attackInterval: 1.65,
+          moveSpeed: 85,
+          attackRange: 52
+        },
+        boss: {
+          maxHp: 1800,
+          attackDamage: 90,
+          attackInterval: 2,
+          moveSpeed: 90,
+          attackRange: 62
+        }
+      });
+      var DEFAULT_WAVES = exports('DEFAULT_WAVES', [{
+        waveNumber: 1,
+        enemies: [{
+          enemyType: 'grunt',
+          count: 6
+        }]
+      }, {
+        waveNumber: 2,
+        enemies: [{
+          enemyType: 'grunt',
+          count: 4
+        }, {
+          enemyType: 'brute',
+          count: 2
+        }]
+      }, {
+        waveNumber: 3,
+        enemies: [{
+          enemyType: 'boss',
+          count: 1
+        }, {
+          enemyType: 'grunt',
+          count: 4
+        }]
+      }]);
+
+      cclegacy._RF.pop();
+    }
+  };
+});
+
+System.register("chunks:///_virtual/divine-task-system.ts", ['cc', './_rollupPluginModLoBabelHelpers.js', './divine-task-config.ts', './unit-config.ts', './random.ts'], function (exports) {
+  'use strict';
+
+  var cclegacy, _extends, _defineProperty, DIVINE_TASK_CONFIG, UNIT_CONFIG, chance;
 
   return {
     setters: [function (module) {
-      _defineProperty = module.defineProperty;
-    }, function (module) {
       cclegacy = module.cclegacy;
     }, function (module) {
-      UNIT_CONFIG = module.UNIT_CONFIG;
+      _extends = module.extends;
+      _defineProperty = module.defineProperty;
     }, function (module) {
       DIVINE_TASK_CONFIG = module.DIVINE_TASK_CONFIG;
+    }, function (module) {
+      UNIT_CONFIG = module.UNIT_CONFIG;
     }, function (module) {
       chance = module.chance;
     }],
@@ -1762,6 +528,12 @@ System.register("chunks:///_virtual/divine-task-system.ts", ['./_rollupPluginMod
           return [].concat(this.progresses);
         };
 
+        _proto.setAllProgress = function setAllProgress(progresses) {
+          this.progresses = progresses.map(function (progress) {
+            return _extends({}, progress);
+          });
+        };
+
         return DivineTaskSystem;
       }());
 
@@ -1770,7 +542,7 @@ System.register("chunks:///_virtual/divine-task-system.ts", ['./_rollupPluginMod
   };
 });
 
-System.register("chunks:///_virtual/enemy-config.ts", ['cc'], function (exports) {
+System.register("chunks:///_virtual/types.ts", ['cc'], function () {
   'use strict';
 
   var cclegacy;
@@ -1779,50 +551,1224 @@ System.register("chunks:///_virtual/enemy-config.ts", ['cc'], function (exports)
       cclegacy = module.cclegacy;
     }],
     execute: function () {
-      cclegacy._RF.push({}, "348eaNGbiJBt5qphO8TFsUN", "enemy-config", undefined);
-
-      var ENEMY_CONFIG = exports('ENEMY_CONFIG', {
-        slime: {
-          id: 'slime',
-          name: '史莱姆',
-          maxHp: 80,
-          speed: 1.2,
-          goldReward: 1,
-          crystalDamage: 1
-        },
-        wolf: {
-          id: 'wolf',
-          name: '恶狼',
-          maxHp: 140,
-          speed: 1.6,
-          goldReward: 2,
-          crystalDamage: 1
-        },
-        brute: {
-          id: 'brute',
-          name: '重甲怪',
-          maxHp: 320,
-          speed: 0.8,
-          goldReward: 4,
-          crystalDamage: 2
-        }
-      });
+      cclegacy._RF.push({}, "2fc558lublI5IrhWRtjKCD5", "types", undefined);
 
       cclegacy._RF.pop();
     }
   };
 });
 
-System.register("chunks:///_virtual/economy-system.ts", ['./_rollupPluginModLoBabelHelpers.js', 'cc'], function (exports) {
+System.register("chunks:///_virtual/battle-hud-controller.ts", ['cc', './_rollupPluginModLoBabelHelpers.js', './sprite-resolvers.ts'], function (exports) {
   'use strict';
 
-  var _defineProperty, cclegacy;
+  var cclegacy, _decorator, Layers, UITransform, Vec3, Color, Node, Label, Sprite, Component, _inheritsLoose, _defineProperty, _assertThisInitialized, UiIconResolver;
 
   return {
     setters: [function (module) {
+      cclegacy = module.cclegacy;
+      _decorator = module._decorator;
+      Layers = module.Layers;
+      UITransform = module.UITransform;
+      Vec3 = module.Vec3;
+      Color = module.Color;
+      Node = module.Node;
+      Label = module.Label;
+      Sprite = module.Sprite;
+      Component = module.Component;
+    }, function (module) {
+      _inheritsLoose = module.inheritsLoose;
+      _defineProperty = module.defineProperty;
+      _assertThisInitialized = module.assertThisInitialized;
+    }, function (module) {
+      UiIconResolver = module.UiIconResolver;
+    }],
+    execute: function () {
+      var _dec, _class, _temp;
+
+      cclegacy._RF.push({}, "3089aowgUdDfKlmBBsabJOk", "battle-hud-controller", undefined);
+
+      var ccclass = _decorator.ccclass;
+      var BattleHudController = exports('BattleHudController', (_dec = ccclass('BattleHudController'), _dec(_class = (_temp = /*#__PURE__*/function (_Component) {
+        _inheritsLoose(BattleHudController, _Component);
+
+        function BattleHudController() {
+          var _this;
+
+          for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+            args[_key] = arguments[_key];
+          }
+
+          _this = _Component.call.apply(_Component, [this].concat(args)) || this;
+
+          _defineProperty(_assertThisInitialized(_this), "iconResolver", new UiIconResolver());
+
+          _defineProperty(_assertThisInitialized(_this), "topLabel", null);
+
+          _defineProperty(_assertThisInitialized(_this), "goldLabel", null);
+
+          _defineProperty(_assertThisInitialized(_this), "statusLabel", null);
+
+          _defineProperty(_assertThisInitialized(_this), "taskLabel", null);
+
+          _defineProperty(_assertThisInitialized(_this), "noticeLabel", null);
+
+          return _this;
+        }
+
+        var _proto = BattleHudController.prototype;
+
+        _proto.initialize = function initialize() {
+          var _this$node$getCompone;
+
+          this.node.layer = Layers.Enum.UI_2D;
+          var transform = (_this$node$getCompone = this.node.getComponent(UITransform)) !== null && _this$node$getCompone !== void 0 ? _this$node$getCompone : this.node.addComponent(UITransform);
+          transform.setContentSize(920, 150);
+          this.topLabel = this.createLabel('Top', new Vec3(-420, 52, 0), 15, new Color(226, 232, 240, 255));
+          this.goldLabel = this.createGoldReadout();
+          this.statusLabel = this.createLabel('Status', new Vec3(-420, 18, 0), 13, new Color(251, 191, 36, 255));
+          this.taskLabel = this.createLabel('Task', new Vec3(-420, -16, 0), 12, new Color(191, 219, 254, 255));
+          this.noticeLabel = this.createLabel('Notice', new Vec3(-420, -50, 0), 12, new Color(134, 239, 172, 255));
+        };
+
+        _proto.render = function render(snapshot, selected, notice) {
+          if (!this.topLabel || !this.goldLabel || !this.statusLabel || !this.taskLabel || !this.noticeLabel) return;
+          this.topLabel.string = "\u9636\u6BB5 " + snapshot.phase + " \xB7 \u6CE2\u6B21 " + snapshot.currentWave + "/" + snapshot.totalWaves + " \xB7 \u4E0A\u9635 " + snapshot.deployed.length + "/" + snapshot.slotConfig.deployed + " \xB7 \u5907\u6218 " + snapshot.bench.length + "/" + snapshot.slotConfig.bench;
+          this.goldLabel.string = "" + snapshot.gold;
+          this.statusLabel.string = "\u5F53\u524D\u9009\u62E9\uFF1A" + (selected !== null && selected !== void 0 ? selected : '未选择') + " \xB7 " + (snapshot.phase === 'prep' ? '准备阶段可调整阵容' : '战斗阶段可持续下达命令');
+          this.taskLabel.string = snapshot.divineTasks.length > 0 ? "\u795E\u54C1\u8FDB\u5EA6\uFF1A" + snapshot.divineTasks.map(function (task) {
+            var _task$divineTaskId, _task$divineProgress;
+
+            return task.unitInstanceId.slice(-4) + ":" + ((_task$divineTaskId = task.divineTaskId) !== null && _task$divineTaskId !== void 0 ? _task$divineTaskId : '-') + "(" + Math.floor((_task$divineProgress = task.divineProgress) !== null && _task$divineProgress !== void 0 ? _task$divineProgress : 0) + ")";
+          }).join(' | ') : '神品进度：none';
+          this.noticeLabel.string = notice;
+        };
+
+        _proto.createLabel = function createLabel(name, position, fontSize, color) {
+          var node = new Node(name);
+          node.layer = Layers.Enum.UI_2D;
+          this.node.addChild(node);
+          node.setPosition(position);
+          node.addComponent(UITransform).setContentSize(860, 28);
+          var label = node.addComponent(Label);
+          label.fontSize = fontSize;
+          label.lineHeight = fontSize + 6;
+          label.color = color;
+          return label;
+        };
+
+        _proto.createGoldReadout = function createGoldReadout() {
+          var _label$node$getCompon;
+
+          var iconNode = new Node('GoldIcon');
+          iconNode.layer = Layers.Enum.UI_2D;
+          this.node.addChild(iconNode);
+          iconNode.setPosition(new Vec3(150, 52, 0));
+          iconNode.addComponent(UITransform).setContentSize(24, 24);
+          var sprite = iconNode.addComponent(Sprite);
+          sprite.sizeMode = Sprite.SizeMode.CUSTOM;
+          sprite.color = new Color(245, 158, 11, 255);
+          void this.iconResolver.resolve('gold').then(function (frame) {
+            if (!frame || !sprite.node.parent) return;
+            sprite.spriteFrame = frame;
+            sprite.color = new Color(255, 255, 255, 255);
+          });
+          var label = this.createLabel('GoldValue', new Vec3(172, 52, 0), 15, new Color(254, 240, 138, 255));
+          (_label$node$getCompon = label.node.getComponent(UITransform)) === null || _label$node$getCompon === void 0 ? void 0 : _label$node$getCompon.setContentSize(90, 28);
+          return label;
+        };
+
+        return BattleHudController;
+      }(Component), _temp)) || _class));
+
+      cclegacy._RF.pop();
+    }
+  };
+});
+
+System.register("chunks:///_virtual/squad-battle-session.ts", ['cc', './_rollupPluginModLoBabelHelpers.js', './squad-battle-config.ts', './collision-system.ts', './unit-config.ts', './divine-task-system.ts', './difficulty-config.ts', './economy-system.ts', './squad-ui-layout-config.ts', './shop-system.ts', './id.ts', './attack-system.ts', './enemy-ai-system.ts', './healing-system.ts', './movement-system.ts', './roster-system.ts', './targeting-system.ts', './unit-command-system.ts'], function (exports) {
+  'use strict';
+
+  var cclegacy, _extends, _createForOfIteratorHelperLoose, _defineProperty, SQUAD_ROLE_MAP, SQUAD_BATTLEFIELD, ENEMY_STATS, SQUAD_UNIT_STATS, DEFAULT_WAVES, CollisionSystem, UNIT_CONFIG, DivineTaskSystem, DIFFICULTY_CONFIG, EconomySystem, SQUAD_DEPLOY_SLOTS, SQUAD_BENCH_SLOTS, SQUAD_SHOP_SLOTS, ShopSystem, syncIdSeedFromIds, nextId, AttackSystem, EnemyAiSystem, HealingSystem, MovementSystem, RosterSystem, TargetingSystem, UnitCommandSystem;
+
+  return {
+    setters: [function (module) {
+      cclegacy = module.cclegacy;
+    }, function (module) {
+      _extends = module.extends;
+      _createForOfIteratorHelperLoose = module.createForOfIteratorHelperLoose;
       _defineProperty = module.defineProperty;
     }, function (module) {
+      SQUAD_ROLE_MAP = module.SQUAD_ROLE_MAP;
+      SQUAD_BATTLEFIELD = module.SQUAD_BATTLEFIELD;
+      ENEMY_STATS = module.ENEMY_STATS;
+      SQUAD_UNIT_STATS = module.SQUAD_UNIT_STATS;
+      DEFAULT_WAVES = module.DEFAULT_WAVES;
+    }, function (module) {
+      CollisionSystem = module.CollisionSystem;
+    }, function (module) {
+      UNIT_CONFIG = module.UNIT_CONFIG;
+    }, function (module) {
+      DivineTaskSystem = module.DivineTaskSystem;
+    }, function (module) {
+      DIFFICULTY_CONFIG = module.DIFFICULTY_CONFIG;
+    }, function (module) {
+      EconomySystem = module.EconomySystem;
+    }, function (module) {
+      SQUAD_DEPLOY_SLOTS = module.SQUAD_DEPLOY_SLOTS;
+      SQUAD_BENCH_SLOTS = module.SQUAD_BENCH_SLOTS;
+      SQUAD_SHOP_SLOTS = module.SQUAD_SHOP_SLOTS;
+    }, function (module) {
+      ShopSystem = module.ShopSystem;
+    }, function (module) {
+      syncIdSeedFromIds = module.syncIdSeedFromIds;
+      nextId = module.nextId;
+    }, function (module) {
+      AttackSystem = module.AttackSystem;
+    }, function (module) {
+      EnemyAiSystem = module.EnemyAiSystem;
+    }, function (module) {
+      HealingSystem = module.HealingSystem;
+    }, function (module) {
+      MovementSystem = module.MovementSystem;
+    }, function (module) {
+      RosterSystem = module.RosterSystem;
+    }, function (module) {
+      TargetingSystem = module.TargetingSystem;
+    }, function (module) {
+      UnitCommandSystem = module.UnitCommandSystem;
+    }],
+    execute: function () {
+      cclegacy._RF.push({}, "31730yWd8ZIJbC5e2HQtTEM", "squad-battle-session", undefined);
+
+      var SquadBattleSession = exports('SquadBattleSession', /*#__PURE__*/function () {
+        function SquadBattleSession(waves) {
+          if (waves === void 0) {
+            waves = DEFAULT_WAVES;
+          }
+
+          _defineProperty(this, "onVictory", void 0);
+
+          _defineProperty(this, "commandSystem", new UnitCommandSystem());
+
+          _defineProperty(this, "movementSystem", new MovementSystem());
+
+          _defineProperty(this, "targetingSystem", new TargetingSystem());
+
+          _defineProperty(this, "attackSystem", new AttackSystem());
+
+          _defineProperty(this, "healingSystem", new HealingSystem());
+
+          _defineProperty(this, "enemyAiSystem", new EnemyAiSystem());
+
+          _defineProperty(this, "collisionSystem", new CollisionSystem());
+
+          _defineProperty(this, "selectedStarterUnitId", void 0);
+
+          _defineProperty(this, "roster", new RosterSystem());
+
+          _defineProperty(this, "economy", new EconomySystem());
+
+          _defineProperty(this, "shop", new ShopSystem());
+
+          _defineProperty(this, "divine", new DivineTaskSystem());
+
+          _defineProperty(this, "phase", 'prep');
+
+          _defineProperty(this, "difficulty", 'beginner');
+
+          _defineProperty(this, "waveNumber", 1);
+
+          _defineProperty(this, "waves", void 0);
+
+          _defineProperty(this, "allies", []);
+
+          _defineProperty(this, "enemies", []);
+
+          _defineProperty(this, "pendingBattleStart", false);
+
+          _defineProperty(this, "uiState", {
+            prepPanel: 'visible',
+            battlefieldLighting: 'dim',
+            transitionProgress: 1,
+            nextWaveReady: true
+          });
+
+          this.waves = waves;
+        }
+
+        var _proto = SquadBattleSession.prototype;
+
+        _proto.startNewRun = function startNewRun(difficulty, starterUnitId) {
+          if (difficulty === void 0) {
+            difficulty = 'beginner';
+          }
+
+          this.phase = 'prep';
+          this.difficulty = difficulty;
+          this.selectedStarterUnitId = starterUnitId;
+          this.waveNumber = 1;
+          this.allies = [];
+          this.enemies = [];
+          this.roster.reset();
+          this.divine = new DivineTaskSystem();
+          this.economy.setStartingGold(DIFFICULTY_CONFIG[difficulty].startingGold);
+          this.shop.refresh();
+
+          if (starterUnitId) {
+            this.roster.addToBenchWithState({
+              unitId: starterUnitId,
+              star: 1,
+              isCaptain: true
+            });
+          }
+
+          this.pendingBattleStart = false;
+          this.uiState = {
+            prepPanel: 'visible',
+            battlefieldLighting: 'dim',
+            transitionProgress: 1,
+            nextWaveReady: true
+          };
+        };
+
+        _proto.refreshShopByCost = function refreshShopByCost() {
+          if (this.phase !== 'prep') return false;
+          var cost = DIFFICULTY_CONFIG[this.difficulty].refreshCost;
+          if (!this.economy.spend(cost)) return false;
+          this.shop.refresh();
+          return true;
+        };
+
+        _proto.buyShopUnit = function buyShopUnit(slotIndex) {
+          if (this.phase !== 'prep') return false;
+          var unitId = this.shop.peek(slotIndex);
+          if (!unitId) return false;
+          var cost = UNIT_CONFIG[unitId].cost;
+          if (!this.economy.spend(cost)) return false;
+          var bought = this.roster.addToBench(unitId);
+
+          if (!bought) {
+            this.economy.earn(cost);
+            return false;
+          }
+
+          this.shop.take(slotIndex);
+          return true;
+        };
+
+        _proto.deployFromBench = function deployFromBench(instanceId) {
+          if (this.phase !== 'prep') return false;
+          return this.roster.deploy(instanceId);
+        };
+
+        _proto.recallFromDeployed = function recallFromDeployed(instanceId) {
+          if (this.phase !== 'prep') return false;
+          return this.roster.recall(instanceId);
+        };
+
+        _proto.startBattle = function startBattle() {
+          if (this.phase !== 'prep') return false;
+          if (this.pendingBattleStart) return false;
+          if (this.roster.getDeployCount() === 0) return false;
+          this.uiState = {
+            prepPanel: 'falling',
+            battlefieldLighting: 'brightening',
+            transitionProgress: 0,
+            nextWaveReady: false
+          };
+          this.pendingBattleStart = true;
+          return true;
+        };
+
+        _proto.startNextWaveFromPrep = function startNextWaveFromPrep() {
+          return this.startBattle();
+        };
+
+        _proto.tick = function tick(dt) {
+          if (dt === void 0) {
+            dt = 0.1;
+          }
+
+          var before = this.phase;
+          this.tickWaveTransitionUi(dt);
+
+          if (this.phase !== 'battle') {
+            return {
+              advancedWave: false,
+              changedPhase: false
+            };
+          }
+
+          var killsByUnit = {};
+          var healingByUnit = {};
+          this.tickAllies(dt, killsByUnit, healingByUnit);
+          this.enemyAiSystem.tick(this.enemies, this.allies, dt);
+          this.collisionSystem.resolve(this.allies, this.enemies, 3);
+          this.enemies = this.enemies.filter(function (enemy) {
+            return enemy.alive;
+          });
+
+          for (var _i = 0, _Object$entries = Object.entries(killsByUnit); _i < _Object$entries.length; _i++) {
+            var _Object$entries$_i = _Object$entries[_i],
+                unitInstanceId = _Object$entries$_i[0],
+                kills = _Object$entries$_i[1];
+            this.divine.addMetric(unitInstanceId, 'kills', kills);
+            var completed = this.divine.resolveCompleted(unitInstanceId);
+
+            if (completed) {
+              this.evolveUnitInstance(unitInstanceId, completed.targetUnitId);
+            }
+          }
+
+          for (var _i2 = 0, _Object$entries2 = Object.entries(healingByUnit); _i2 < _Object$entries2.length; _i2++) {
+            var _Object$entries2$_i = _Object$entries2[_i2],
+                _unitInstanceId = _Object$entries2$_i[0],
+                healing = _Object$entries2$_i[1];
+            this.divine.addMetric(_unitInstanceId, 'healing', healing);
+
+            var _completed = this.divine.resolveCompleted(_unitInstanceId);
+
+            if (_completed) {
+              this.evolveUnitInstance(_unitInstanceId, _completed.targetUnitId);
+            }
+          }
+
+          if (this.allies.filter(function (ally) {
+            return ally.alive;
+          }).length === 0) {
+            this.phase = 'defeat';
+            return {
+              advancedWave: false,
+              changedPhase: before !== this.phase
+            };
+          }
+
+          if (this.enemies.length === 0) {
+            if (this.waveNumber >= this.waves.length) {
+              var _this$onVictory;
+
+              this.phase = 'victory';
+              (_this$onVictory = this.onVictory) === null || _this$onVictory === void 0 ? void 0 : _this$onVictory.call(this);
+              return {
+                advancedWave: false,
+                changedPhase: before !== this.phase
+              };
+            }
+
+            this.waveNumber += 1;
+            this.phase = 'prep';
+            this.resetBattleStateForNextWave();
+            this.shop.refresh();
+            this.uiState = {
+              prepPanel: 'rising',
+              battlefieldLighting: 'dim',
+              transitionProgress: 0,
+              nextWaveReady: false
+            };
+            return {
+              advancedWave: true,
+              changedPhase: before !== this.phase
+            };
+          }
+
+          return {
+            advancedWave: false,
+            changedPhase: before !== this.phase
+          };
+        };
+
+        _proto.tickWaveTransitionUi = function tickWaveTransitionUi(dt) {
+          if (this.uiState.transitionProgress >= 1) {
+            if (this.pendingBattleStart && this.phase === 'prep') {
+              this.beginBattleNow();
+            }
+
+            return;
+          }
+
+          this.uiState.transitionProgress = Math.min(1, this.uiState.transitionProgress + dt * 2.5);
+
+          if (this.uiState.transitionProgress >= 1) {
+            if (this.pendingBattleStart) {
+              this.uiState.prepPanel = 'hidden';
+              this.uiState.battlefieldLighting = 'bright';
+              this.uiState.nextWaveReady = true;
+
+              if (this.phase === 'prep') {
+                this.beginBattleNow();
+              }
+            } else {
+              this.uiState.prepPanel = 'visible';
+              this.uiState.battlefieldLighting = 'dim';
+              this.uiState.nextWaveReady = true;
+            }
+          }
+        };
+
+        _proto.beginBattleNow = function beginBattleNow() {
+          this.assignDivineTasksAtRoundStart();
+          this.phase = 'battle';
+          this.pendingBattleStart = false;
+          this.allies = this.buildBattleAlliesFromDeployedRoster();
+          this.spawnWave(this.waveNumber);
+        };
+
+        _proto.selectUnit = function selectUnit(unitInstanceId) {
+          return this.commandSystem.selectUnit(unitInstanceId, this.allies);
+        };
+
+        _proto.commandMoveToGround = function commandMoveToGround(position) {
+          return this.commandSystem.issueMoveToGround(position, this.allies);
+        };
+
+        _proto.commandFocusEnemy = function commandFocusEnemy(enemyInstanceId) {
+          return this.commandSystem.issueFocusEnemy(enemyInstanceId, this.allies);
+        };
+
+        _proto.commandPriestHeal = function commandPriestHeal(allyInstanceId) {
+          return this.commandSystem.issueChannelHealAlly(allyInstanceId, this.allies);
+        };
+
+        _proto.sellUnit = function sellUnit(instanceId) {
+          if (this.phase !== 'prep') return false;
+          var snap = this.getSnapshot();
+          var target = [].concat(snap.bench, snap.deployed).find(function (u) {
+            return u.instanceId === instanceId;
+          });
+          if (!target) return false;
+          if (!this.roster.removeUnit(instanceId)) return false;
+          var sellPrice = Math.max(1, Math.floor(UNIT_CONFIG[target.unitId].cost * target.star / 2));
+          this.economy.earn(sellPrice);
+          return true;
+        };
+
+        _proto.getSnapshot = function getSnapshot() {
+          return {
+            phase: this.phase,
+            waveNumber: this.waveNumber,
+            totalWaves: this.waves.length,
+            currentWave: this.waveNumber,
+            gold: this.economy.getGold(),
+            shop: this.shop.getEntries(),
+            bench: this.roster.getBench(),
+            deployed: this.roster.getDeployed(),
+            divineTasks: this.divine.getAllProgress().map(function (p) {
+              return {
+                unitInstanceId: p.unitInstanceId,
+                divineTaskId: p.taskId,
+                divineProgress: p.progress
+              };
+            }),
+            slotConfig: {
+              deployed: SQUAD_DEPLOY_SLOTS,
+              bench: SQUAD_BENCH_SLOTS,
+              shop: SQUAD_SHOP_SLOTS
+            },
+            uiState: _extends({}, this.uiState),
+            selectedUnitId: this.commandSystem.getSelectedUnitId(),
+            allies: this.allies.map(function (u) {
+              return _extends({}, u, {
+                position: _extends({}, u.position),
+                velocity: _extends({}, u.velocity),
+                command: _extends({}, u.command)
+              });
+            }),
+            enemies: this.enemies.map(function (e) {
+              return _extends({}, e, {
+                position: _extends({}, e.position),
+                velocity: _extends({}, e.velocity)
+              });
+            })
+          };
+        };
+
+        _proto.exportSaveData = function exportSaveData() {
+          return {
+            difficulty: this.difficulty,
+            phase: this.phase,
+            waveNumber: this.waveNumber,
+            gold: this.economy.getGold(),
+            shop: this.shop.getEntries(),
+            bench: this.roster.getBench(),
+            deployed: this.roster.getDeployed(),
+            divineTasks: this.divine.getAllProgress().map(function (progress) {
+              return _extends({}, progress);
+            }),
+            selectedStarterUnitId: this.selectedStarterUnitId,
+            pendingBattleStart: this.pendingBattleStart,
+            uiState: _extends({}, this.uiState),
+            allies: this.allies.map(function (u) {
+              return _extends({}, u, {
+                position: _extends({}, u.position),
+                velocity: _extends({}, u.velocity),
+                command: _extends({}, u.command)
+              });
+            }),
+            enemies: this.enemies.map(function (e) {
+              return _extends({}, e, {
+                position: _extends({}, e.position),
+                velocity: _extends({}, e.velocity)
+              });
+            })
+          };
+        };
+
+        _proto.loadFromSaveData = function loadFromSaveData(data) {
+          if (!data) return false;
+          this.phase = data.phase;
+          this.difficulty = data.difficulty;
+          this.selectedStarterUnitId = data.selectedStarterUnitId;
+          this.waveNumber = data.waveNumber;
+          this.pendingBattleStart = data.pendingBattleStart;
+          this.uiState = _extends({}, data.uiState);
+          this.economy.setGold(data.gold);
+          this.shop.setEntries(data.shop);
+          this.roster.setState(data.bench, data.deployed);
+          this.divine = new DivineTaskSystem();
+          this.divine.setAllProgress(data.divineTasks.map(function (progress) {
+            return _extends({}, progress);
+          }));
+          this.allies = data.allies.map(function (u) {
+            return _extends({}, u, {
+              position: _extends({}, u.position),
+              velocity: _extends({}, u.velocity),
+              command: _extends({}, u.command)
+            });
+          });
+          this.enemies = data.enemies.map(function (e) {
+            return _extends({}, e, {
+              position: _extends({}, e.position),
+              velocity: _extends({}, e.velocity)
+            });
+          });
+          this.commandSystem.clearSelection();
+          syncIdSeedFromIds([].concat(data.bench.map(function (u) {
+            return u.instanceId;
+          }), data.deployed.map(function (u) {
+            return u.instanceId;
+          }), data.allies.map(function (u) {
+            return u.instanceId;
+          }), data.enemies.map(function (u) {
+            return u.instanceId;
+          })));
+          return true;
+        };
+
+        _proto.tickAllies = function tickAllies(dt, killsByUnit, healingByUnit) {
+          for (var _iterator = _createForOfIteratorHelperLoose(this.allies), _step; !(_step = _iterator()).done;) {
+            var ally = _step.value;
+            if (!ally.alive) continue;
+            ally.attackCooldownLeft = Math.max(0, ally.attackCooldownLeft - dt);
+            var cfg = this.getScaledStats(ally.unitId, ally.star);
+
+            if (ally.role === 'priest') {
+              var healing = this.tickPriest(ally, dt);
+
+              if (healing > 0) {
+                var _healingByUnit$ally$i;
+
+                healingByUnit[ally.instanceId] = ((_healingByUnit$ally$i = healingByUnit[ally.instanceId]) !== null && _healingByUnit$ally$i !== void 0 ? _healingByUnit$ally$i : 0) + healing;
+              }
+
+              continue;
+            }
+
+            if (ally.command.type === 'move' && ally.command.position) {
+              this.movementSystem.moveTowards(ally, ally.command.position, cfg.moveSpeed, dt);
+              continue;
+            }
+
+            var commandTarget = ally.command.type === 'focus_enemy' && ally.command.targetEnemyId ? this.targetingSystem.findEnemyById(ally.command.targetEnemyId, this.enemies) : undefined;
+
+            if (!commandTarget) {
+              var searchRange = ally.role === 'melee' ? cfg.reactionRange : cfg.attackRange;
+              commandTarget = this.targetingSystem.findNearestEnemyInRange(ally, this.enemies, searchRange);
+            }
+
+            if (!commandTarget) {
+              this.movementSystem.stop(ally);
+              continue;
+            }
+
+            var dist = Math.hypot(commandTarget.position.x - ally.position.x, commandTarget.position.y - ally.position.y);
+
+            if (dist > cfg.attackRange) {
+              if (ally.command.type === 'focus_enemy' || ally.role === 'melee') {
+                this.movementSystem.moveTowards(ally, commandTarget.position, cfg.moveSpeed, dt, cfg.attackRange * 0.9);
+              } else {
+                this.movementSystem.stop(ally);
+              }
+            } else {
+              this.movementSystem.stop(ally);
+              var attackResult = this.attackSystem.attackIfPossible(ally, commandTarget);
+
+              if (attackResult.killed) {
+                var _killsByUnit$ally$ins;
+
+                killsByUnit[ally.instanceId] = ((_killsByUnit$ally$ins = killsByUnit[ally.instanceId]) !== null && _killsByUnit$ally$ins !== void 0 ? _killsByUnit$ally$ins : 0) + 1;
+              }
+            }
+          }
+        };
+
+        _proto.tickPriest = function tickPriest(priest, dt) {
+          var cfg = this.getScaledStats(priest.unitId, priest.star);
+          var target = priest.command.type === 'channel_heal' && priest.command.targetAllyId ? this.targetingSystem.findAllyById(priest.command.targetAllyId, this.allies) : undefined;
+
+          if (!target) {
+            this.movementSystem.stop(priest);
+            return 0;
+          }
+
+          var dist = Math.hypot(priest.position.x - target.position.x, priest.position.y - target.position.y);
+
+          if (dist > cfg.attackRange) {
+            this.movementSystem.moveTowards(priest, target.position, cfg.moveSpeed, dt, cfg.attackRange * 0.85);
+            return 0;
+          }
+
+          this.movementSystem.stop(priest);
+          var healResult = this.healingSystem.healIfPossible(priest, target);
+          return healResult.actualHeal;
+        };
+
+        _proto.resetBattleStateForNextWave = function resetBattleStateForNextWave() {
+          this.enemies = [];
+          this.allies = [];
+          this.commandSystem.clearSelection();
+        };
+
+        _proto.assignDivineTasksAtRoundStart = function assignDivineTasksAtRoundStart() {
+          for (var _iterator2 = _createForOfIteratorHelperLoose(this.roster.getAllUnits()), _step2; !(_step2 = _iterator2()).done;) {
+            var unit = _step2.value;
+            var progress = this.divine.tryAssignTask({
+              instanceId: unit.instanceId,
+              unitId: unit.unitId,
+              star: unit.star,
+              assignedTaskId: unit.assignedTaskId
+            });
+
+            if (progress) {
+              this.roster.assignTask(unit.instanceId, progress.taskId);
+            }
+          }
+        };
+
+        _proto.evolveUnitInstance = function evolveUnitInstance(instanceId, targetUnitId) {
+          this.roster.evolveUnit(instanceId, targetUnitId);
+          var ally = this.allies.find(function (u) {
+            return u.instanceId === instanceId;
+          });
+          if (!ally) return;
+          ally.unitId = targetUnitId;
+          ally.star = 3;
+          ally.assignedTaskId = undefined;
+          ally.role = SQUAD_ROLE_MAP[targetUnitId];
+          ally.currentHp = Math.min(ally.currentHp, this.getScaledStats(targetUnitId, 3).maxHp);
+        };
+
+        _proto.buildBattleAlliesFromDeployedRoster = function buildBattleAlliesFromDeployedRoster() {
+          var _this = this;
+
+          var deploy = this.roster.getDeployUnitsForBattle().slice(0, 5);
+          return deploy.map(function (unit, idx) {
+            return {
+              instanceId: unit.instanceId,
+              unitId: unit.unitId,
+              star: unit.star,
+              isCaptain: unit.isCaptain,
+              role: SQUAD_ROLE_MAP[unit.unitId],
+              position: {
+                x: SQUAD_BATTLEFIELD.centerLineX,
+                y: SQUAD_BATTLEFIELD.centerLineY + (idx - Math.floor(deploy.length / 2)) * SQUAD_BATTLEFIELD.allySpawnGapY
+              },
+              velocity: {
+                x: 0,
+                y: 0
+              },
+              currentHp: _this.getScaledStats(unit.unitId, unit.star).maxHp,
+              attackCooldownLeft: 0,
+              alive: true,
+              assignedTaskId: unit.assignedTaskId,
+              command: {
+                type: 'idle'
+              }
+            };
+          });
+        };
+
+        _proto.getScaledStats = function getScaledStats(unitId, star) {
+          var base = SQUAD_UNIT_STATS[unitId];
+          var hpMultiplier = 1 + (star - 1) * 0.7;
+          return _extends({}, base, {
+            maxHp: Math.round(base.maxHp * hpMultiplier)
+          });
+        };
+
+        _proto.spawnWave = function spawnWave(waveNumber) {
+          var wave = this.waves[waveNumber - 1];
+
+          if (!wave) {
+            this.enemies = [];
+            return;
+          }
+
+          var leftBias = this.isAlliesCampingLeft();
+          var spawned = [];
+
+          for (var _iterator3 = _createForOfIteratorHelperLoose(wave.enemies), _step3; !(_step3 = _iterator3()).done;) {
+            var entry = _step3.value;
+
+            for (var i = 0; i < entry.count; i += 1) {
+              var spawnFromLeft = leftBias && i % 4 === 0;
+              var yRange = SQUAD_BATTLEFIELD.spawnYMax - SQUAD_BATTLEFIELD.spawnYMin;
+              var y = SQUAD_BATTLEFIELD.spawnYMin + (i * 71 + waveNumber * 37) % Math.max(1, yRange);
+              var x = spawnFromLeft ? SQUAD_BATTLEFIELD.leftSpawnX : SQUAD_BATTLEFIELD.rightSpawnX;
+              var cfg = ENEMY_STATS[entry.enemyType];
+              spawned.push({
+                instanceId: nextId('enemy_squad'),
+                enemyType: entry.enemyType,
+                position: {
+                  x: x,
+                  y: y
+                },
+                velocity: {
+                  x: 0,
+                  y: 0
+                },
+                currentHp: cfg.maxHp,
+                attackCooldownLeft: 0,
+                alive: true
+              });
+            }
+          }
+
+          this.enemies = spawned;
+        };
+
+        _proto.isAlliesCampingLeft = function isAlliesCampingLeft() {
+          if (this.allies.length === 0) return false;
+          var leftCount = this.allies.filter(function (ally) {
+            return ally.position.x < SQUAD_BATTLEFIELD.centerLineX - 120;
+          }).length;
+          return leftCount >= Math.ceil(this.allies.length * 0.7);
+        };
+
+        return SquadBattleSession;
+      }());
+
+      cclegacy._RF.pop();
+    }
+  };
+});
+
+System.register("chunks:///_virtual/unit-view.ts", ['cc', './_rollupPluginModLoBabelHelpers.js'], function (exports) {
+  'use strict';
+
+  var cclegacy, _decorator, Layers, UITransform, Node, Sprite, Color, Vec3, Label, ProgressBar, Graphics, Button, Component, _inheritsLoose, _defineProperty, _assertThisInitialized;
+
+  return {
+    setters: [function (module) {
       cclegacy = module.cclegacy;
+      _decorator = module._decorator;
+      Layers = module.Layers;
+      UITransform = module.UITransform;
+      Node = module.Node;
+      Sprite = module.Sprite;
+      Color = module.Color;
+      Vec3 = module.Vec3;
+      Label = module.Label;
+      ProgressBar = module.ProgressBar;
+      Graphics = module.Graphics;
+      Button = module.Button;
+      Component = module.Component;
+    }, function (module) {
+      _inheritsLoose = module.inheritsLoose;
+      _defineProperty = module.defineProperty;
+      _assertThisInitialized = module.assertThisInitialized;
+    }],
+    execute: function () {
+      var _dec, _class, _temp;
+
+      cclegacy._RF.push({}, "3396fuSmt9OqZ1xZStFxYY3", "unit-view", undefined);
+
+      var ccclass = _decorator.ccclass;
+      var UNIT_SIZE = 96;
+      var UNIT_HP_WIDTH = 82;
+      var UNIT_FRAME_MS = 170;
+      var UnitView = exports('UnitView', (_dec = ccclass('UnitView'), _dec(_class = (_temp = /*#__PURE__*/function (_Component) {
+        _inheritsLoose(UnitView, _Component);
+
+        function UnitView() {
+          var _this;
+
+          for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+            args[_key] = arguments[_key];
+          }
+
+          _this = _Component.call.apply(_Component, [this].concat(args)) || this;
+
+          _defineProperty(_assertThisInitialized(_this), "spriteNode", null);
+
+          _defineProperty(_assertThisInitialized(_this), "sprite", null);
+
+          _defineProperty(_assertThisInitialized(_this), "label", null);
+
+          _defineProperty(_assertThisInitialized(_this), "commandLabel", null);
+
+          _defineProperty(_assertThisInitialized(_this), "hpBar", null);
+
+          _defineProperty(_assertThisInitialized(_this), "hpFill", null);
+
+          _defineProperty(_assertThisInitialized(_this), "selectedRing", null);
+
+          _defineProperty(_assertThisInitialized(_this), "onClick", void 0);
+
+          return _this;
+        }
+
+        var _proto = UnitView.prototype;
+
+        _proto.setup = function setup() {
+          var _this2 = this;
+
+          this.node.layer = Layers.Enum.UI_2D;
+          this.node.addComponent(UITransform).setContentSize(UNIT_SIZE, UNIT_SIZE);
+          this.spriteNode = new Node('Sprite');
+          this.spriteNode.layer = Layers.Enum.UI_2D;
+          this.node.addChild(this.spriteNode);
+          this.spriteNode.addComponent(UITransform).setContentSize(UNIT_SIZE, UNIT_SIZE);
+          this.sprite = this.spriteNode.addComponent(Sprite);
+          this.sprite.sizeMode = Sprite.SizeMode.CUSTOM;
+          this.sprite.color = new Color(52, 211, 153, 255);
+          var labelNode = new Node('Label');
+          labelNode.layer = Layers.Enum.UI_2D;
+          this.node.addChild(labelNode);
+          labelNode.setPosition(new Vec3(0, 56, 0));
+          labelNode.addComponent(UITransform).setContentSize(140, 22);
+          this.label = labelNode.addComponent(Label);
+          this.label.fontSize = 12;
+          this.label.lineHeight = 16;
+          this.label.color = new Color(241, 245, 249, 255);
+          var commandNode = new Node('Command');
+          commandNode.layer = Layers.Enum.UI_2D;
+          this.node.addChild(commandNode);
+          commandNode.setPosition(new Vec3(0, 42, 0));
+          commandNode.addComponent(UITransform).setContentSize(120, 18);
+          this.commandLabel = commandNode.addComponent(Label);
+          this.commandLabel.fontSize = 10;
+          this.commandLabel.lineHeight = 12;
+          this.commandLabel.color = new Color(253, 224, 71, 255);
+          var hpNode = new Node('Hp');
+          hpNode.layer = Layers.Enum.UI_2D;
+          this.node.addChild(hpNode);
+          hpNode.setPosition(new Vec3(0, -56, 0));
+          hpNode.addComponent(UITransform).setContentSize(UNIT_HP_WIDTH, 8);
+          var hpBg = hpNode.addComponent(Sprite);
+          hpBg.color = new Color(30, 41, 59, 255);
+          this.hpBar = hpNode.addComponent(ProgressBar);
+          var hpFillNode = new Node('Fill');
+          hpFillNode.layer = Layers.Enum.UI_2D;
+          hpNode.addChild(hpFillNode);
+          hpFillNode.setPosition(new Vec3(-UNIT_HP_WIDTH / 2, 0, 0));
+          hpFillNode.addComponent(UITransform).setContentSize(UNIT_HP_WIDTH, 8);
+          this.hpFill = hpFillNode.addComponent(Sprite);
+          this.hpFill.color = new Color(74, 222, 128, 255);
+          this.hpBar.barSprite = this.hpFill;
+          this.hpBar.mode = ProgressBar.Mode.HORIZONTAL;
+          this.hpBar.totalLength = UNIT_HP_WIDTH;
+          this.selectedRing = new Node('Selected');
+          this.selectedRing.layer = Layers.Enum.UI_2D;
+          this.node.addChild(this.selectedRing);
+          this.selectedRing.setPosition(new Vec3(0, -34, 0));
+          this.selectedRing.addComponent(UITransform).setContentSize(UNIT_SIZE + 12, UNIT_SIZE + 12);
+          var ring = this.selectedRing.addComponent(Graphics);
+          ring.fillColor = new Color(251, 191, 36, 110);
+          ring.strokeColor = new Color(254, 240, 138, 235);
+          ring.lineWidth = 4;
+          ring.circle(0, 0, 34);
+          ring.fill();
+          ring.stroke();
+          this.selectedRing.active = false;
+          this.node.addComponent(Button);
+          this.node.on(Button.EventType.CLICK, function () {
+            var _this2$onClick;
+
+            return (_this2$onClick = _this2.onClick) === null || _this2$onClick === void 0 ? void 0 : _this2$onClick.call(_this2);
+          }, this);
+        };
+
+        _proto.render = function render(state, maxHp, selected, spriteFrame, animationFrames) {
+          if (animationFrames === void 0) {
+            animationFrames = [];
+          }
+
+          if (!this.sprite || !this.label || !this.hpBar || !this.commandLabel) return;
+          var moving = state.alive && (Math.hypot(state.velocity.x, state.velocity.y) > 1 || state.command.type === 'move');
+          this.sprite.spriteFrame = moving ? spriteFrame : this.pickFrame(spriteFrame, animationFrames);
+          this.applyPose(state, moving);
+          this.sprite.color = spriteFrame ? new Color(255, 255, 255, 255) : selected ? new Color(249, 115, 22, 255) : state.role === 'priest' ? new Color(96, 165, 250, 255) : new Color(52, 211, 153, 255);
+          this.label.string = "" + (state.isCaptain ? '♛ ' : '') + state.unitId + "\u2605" + state.star + (state.assignedTaskId ? ' ✦' : '');
+          this.commandLabel.string = this.getCommandText(state);
+          this.hpBar.progress = Math.max(0, Math.min(1, state.currentHp / Math.max(1, maxHp)));
+          if (this.selectedRing) this.selectedRing.active = selected;
+        };
+
+        _proto.getCommandText = function getCommandText(state) {
+          if (state.command.type === 'move') return '移动';
+          if (state.command.type === 'focus_enemy') return '集火';
+          if (state.command.type === 'channel_heal') return '治疗';
+          if (state.isCaptain) return '队长';
+          return state.assignedTaskId ? '神品' : '';
+        };
+
+        _proto.pickFrame = function pickFrame(spriteFrame, animationFrames) {
+          var _animationFrames$inde;
+
+          if (animationFrames.length === 0) return spriteFrame;
+          var index = Math.floor(Date.now() / UNIT_FRAME_MS) % animationFrames.length;
+          return (_animationFrames$inde = animationFrames[index]) !== null && _animationFrames$inde !== void 0 ? _animationFrames$inde : spriteFrame;
+        };
+
+        _proto.applyPose = function applyPose(state, moving) {
+          if (!this.spriteNode) return;
+          this.spriteNode.setPosition(new Vec3(0, 0, 0));
+          this.spriteNode.setScale(new Vec3(1, 1, 1));
+          this.spriteNode.angle = 0;
+
+          if (!state.alive) {
+            this.spriteNode.setPosition(new Vec3(6, -12, 0));
+            this.spriteNode.setScale(new Vec3(0.95, 0.95, 1));
+            this.spriteNode.angle = 72;
+            return;
+          }
+
+          if (moving) {
+            var cycle = Date.now() % 720 / 720;
+            var step = Math.sin(cycle * Math.PI * 2);
+            var stride = Math.sin(cycle * Math.PI * 4);
+            var lift = Math.abs(stride);
+            this.spriteNode.setPosition(new Vec3(step * 2.2, lift * 4, 0));
+            this.spriteNode.setScale(new Vec3(1 + lift * 0.025, 1 - lift * 0.018, 1));
+            this.spriteNode.angle = step * 3.2;
+            return;
+          }
+
+          if (state.attackCooldownLeft > 0 || state.command.type === 'focus_enemy' || state.command.type === 'channel_heal') {
+            var pulse = Math.sin(Date.now() % 360 / 360 * Math.PI);
+            this.spriteNode.setPosition(new Vec3(pulse * 3, 0, 0));
+            this.spriteNode.setScale(new Vec3(1 + pulse * 0.025, 1 + pulse * 0.015, 1));
+            this.spriteNode.angle = -pulse * 2;
+          }
+        };
+
+        return UnitView;
+      }(Component), _temp)) || _class));
+
+      cclegacy._RF.pop();
+    }
+  };
+});
+
+System.register("chunks:///_virtual/enemy-view.ts", ['cc', './_rollupPluginModLoBabelHelpers.js'], function (exports) {
+  'use strict';
+
+  var cclegacy, _decorator, Layers, UITransform, Node, Sprite, Color, Vec3, Label, ProgressBar, Button, Component, _inheritsLoose, _defineProperty, _assertThisInitialized;
+
+  return {
+    setters: [function (module) {
+      cclegacy = module.cclegacy;
+      _decorator = module._decorator;
+      Layers = module.Layers;
+      UITransform = module.UITransform;
+      Node = module.Node;
+      Sprite = module.Sprite;
+      Color = module.Color;
+      Vec3 = module.Vec3;
+      Label = module.Label;
+      ProgressBar = module.ProgressBar;
+      Button = module.Button;
+      Component = module.Component;
+    }, function (module) {
+      _inheritsLoose = module.inheritsLoose;
+      _defineProperty = module.defineProperty;
+      _assertThisInitialized = module.assertThisInitialized;
+    }],
+    execute: function () {
+      var _dec, _class, _temp;
+
+      cclegacy._RF.push({}, "34207wp5mJFo572Vny6hwRJ", "enemy-view", undefined);
+
+      var ccclass = _decorator.ccclass;
+      var ENEMY_NAMES = {
+        grunt: '小兵',
+        brute: '蛮兵',
+        boss: '首领'
+      };
+      var ENEMY_FRAME_MS = 170;
+      var ENEMY_SIZE = {
+        grunt: 88,
+        brute: 100,
+        boss: 128
+      };
+      var EnemyView = exports('EnemyView', (_dec = ccclass('EnemyView'), _dec(_class = (_temp = /*#__PURE__*/function (_Component) {
+        _inheritsLoose(EnemyView, _Component);
+
+        function EnemyView() {
+          var _this;
+
+          for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+            args[_key] = arguments[_key];
+          }
+
+          _this = _Component.call.apply(_Component, [this].concat(args)) || this;
+
+          _defineProperty(_assertThisInitialized(_this), "spriteNode", null);
+
+          _defineProperty(_assertThisInitialized(_this), "sprite", null);
+
+          _defineProperty(_assertThisInitialized(_this), "label", null);
+
+          _defineProperty(_assertThisInitialized(_this), "hpBar", null);
+
+          _defineProperty(_assertThisInitialized(_this), "hpFill", null);
+
+          _defineProperty(_assertThisInitialized(_this), "onClick", void 0);
+
+          return _this;
+        }
+
+        var _proto = EnemyView.prototype;
+
+        _proto.setup = function setup() {
+          var _this2 = this;
+
+          this.node.layer = Layers.Enum.UI_2D;
+          this.node.addComponent(UITransform).setContentSize(88, 88);
+          this.spriteNode = new Node('Sprite');
+          this.spriteNode.layer = Layers.Enum.UI_2D;
+          this.node.addChild(this.spriteNode);
+          this.spriteNode.addComponent(UITransform).setContentSize(88, 88);
+          this.sprite = this.spriteNode.addComponent(Sprite);
+          this.sprite.sizeMode = Sprite.SizeMode.CUSTOM;
+          this.sprite.color = new Color(248, 113, 113, 255);
+          var labelNode = new Node('Label');
+          labelNode.layer = Layers.Enum.UI_2D;
+          this.node.addChild(labelNode);
+          labelNode.setPosition(new Vec3(0, 54, 0));
+          labelNode.addComponent(UITransform).setContentSize(100, 20);
+          this.label = labelNode.addComponent(Label);
+          this.label.fontSize = 11;
+          this.label.color = new Color(254, 226, 226, 255);
+          var hpNode = new Node('Hp');
+          hpNode.layer = Layers.Enum.UI_2D;
+          this.node.addChild(hpNode);
+          hpNode.setPosition(new Vec3(0, -54, 0));
+          hpNode.addComponent(UITransform).setContentSize(76, 7);
+          var hpBg = hpNode.addComponent(Sprite);
+          hpBg.color = new Color(69, 10, 10, 255);
+          this.hpBar = hpNode.addComponent(ProgressBar);
+          var hpFillNode = new Node('Fill');
+          hpFillNode.layer = Layers.Enum.UI_2D;
+          hpNode.addChild(hpFillNode);
+          hpFillNode.setPosition(new Vec3(-38, 0, 0));
+          hpFillNode.addComponent(UITransform).setContentSize(76, 7);
+          this.hpFill = hpFillNode.addComponent(Sprite);
+          this.hpFill.color = new Color(239, 68, 68, 255);
+          this.hpBar.barSprite = this.hpFill;
+          this.hpBar.mode = ProgressBar.Mode.HORIZONTAL;
+          this.hpBar.totalLength = 76;
+          this.node.addComponent(Button);
+          this.node.on(Button.EventType.CLICK, function () {
+            var _this2$onClick;
+
+            return (_this2$onClick = _this2.onClick) === null || _this2$onClick === void 0 ? void 0 : _this2$onClick.call(_this2);
+          }, this);
+        };
+
+        _proto.render = function render(state, maxHp, spriteFrame, animationFrames) {
+          var _ENEMY_NAMES$state$en;
+
+          if (animationFrames === void 0) {
+            animationFrames = [];
+          }
+
+          if (!this.sprite || !this.label || !this.hpBar) return;
+          var moving = state.alive && Math.hypot(state.velocity.x, state.velocity.y) > 1;
+          this.resizeForEnemy(state.enemyType);
+          this.sprite.spriteFrame = moving ? spriteFrame : this.pickFrame(spriteFrame, animationFrames);
+          this.applyPose(state, moving);
+          this.sprite.color = spriteFrame ? new Color(255, 255, 255, 255) : new Color(248, 113, 113, 255);
+          this.label.string = ((_ENEMY_NAMES$state$en = ENEMY_NAMES[state.enemyType]) !== null && _ENEMY_NAMES$state$en !== void 0 ? _ENEMY_NAMES$state$en : state.enemyType) + " " + Math.floor(state.currentHp);
+          this.hpBar.progress = Math.max(0, Math.min(1, state.currentHp / Math.max(1, maxHp)));
+        };
+
+        _proto.pickFrame = function pickFrame(spriteFrame, animationFrames) {
+          var _animationFrames$inde;
+
+          if (animationFrames.length === 0) return spriteFrame;
+          var index = Math.floor(Date.now() / ENEMY_FRAME_MS) % animationFrames.length;
+          return (_animationFrames$inde = animationFrames[index]) !== null && _animationFrames$inde !== void 0 ? _animationFrames$inde : spriteFrame;
+        };
+
+        _proto.resizeForEnemy = function resizeForEnemy(enemyType) {
+          var _this$node$getCompone, _this$spriteNode, _this$spriteNode$getC;
+
+          var size = ENEMY_SIZE[enemyType];
+          (_this$node$getCompone = this.node.getComponent(UITransform)) === null || _this$node$getCompone === void 0 ? void 0 : _this$node$getCompone.setContentSize(size, size);
+          (_this$spriteNode = this.spriteNode) === null || _this$spriteNode === void 0 ? void 0 : (_this$spriteNode$getC = _this$spriteNode.getComponent(UITransform)) === null || _this$spriteNode$getC === void 0 ? void 0 : _this$spriteNode$getC.setContentSize(size, size);
+        };
+
+        _proto.applyPose = function applyPose(state, moving) {
+          if (!this.spriteNode) return;
+          this.spriteNode.setPosition(new Vec3(0, 0, 0));
+          this.spriteNode.setScale(new Vec3(1, 1, 1));
+          this.spriteNode.angle = 0;
+
+          if (!state.alive) {
+            this.spriteNode.setPosition(new Vec3(6, -12, 0));
+            this.spriteNode.setScale(new Vec3(0.95, 0.95, 1));
+            this.spriteNode.angle = 72;
+            return;
+          }
+
+          if (moving) {
+            var cycle = Date.now() % 760 / 760;
+            var step = Math.sin(cycle * Math.PI * 2);
+            var stride = Math.sin(cycle * Math.PI * 4);
+            var lift = Math.abs(stride);
+            this.spriteNode.setPosition(new Vec3(step * 2, lift * 3.5, 0));
+            this.spriteNode.setScale(new Vec3(1 + lift * 0.02, 1 - lift * 0.016, 1));
+            this.spriteNode.angle = step * 3;
+            return;
+          }
+
+          if (state.attackCooldownLeft > 0) {
+            var pulse = Math.sin(Date.now() % 360 / 360 * Math.PI);
+            this.spriteNode.setPosition(new Vec3(-pulse * 3, 0, 0));
+            this.spriteNode.setScale(new Vec3(1 + pulse * 0.025, 1 + pulse * 0.015, 1));
+            this.spriteNode.angle = pulse * 2;
+          }
+        };
+
+        return EnemyView;
+      }(Component), _temp)) || _class));
+
+      cclegacy._RF.pop();
+    }
+  };
+});
+
+System.register("chunks:///_virtual/economy-system.ts", ['cc', './_rollupPluginModLoBabelHelpers.js'], function (exports) {
+  'use strict';
+
+  var cclegacy, _defineProperty;
+
+  return {
+    setters: [function (module) {
+      cclegacy = module.cclegacy;
+    }, function (module) {
+      _defineProperty = module.defineProperty;
     }],
     execute: function () {
       cclegacy._RF.push({}, "361875FOyFCwZMKV9JBH4+I", "economy-system", undefined);
@@ -1836,6 +1782,10 @@ System.register("chunks:///_virtual/economy-system.ts", ['./_rollupPluginModLoBa
 
         _proto.setStartingGold = function setStartingGold(value) {
           this.gold = value;
+        };
+
+        _proto.setGold = function setGold(value) {
+          this.gold = Math.max(0, Math.floor(value));
         };
 
         _proto.canSpend = function canSpend(cost) {
@@ -1867,420 +1817,142 @@ System.register("chunks:///_virtual/economy-system.ts", ['./_rollupPluginModLoBa
   };
 });
 
-System.register("chunks:///_virtual/verify-divine-task-rules.ts", ['./_rollupPluginModLoBabelHelpers.js', 'cc', './unit-config.ts', './unit-system.ts', './battle-system.ts', './divine-task-system.ts', './game-session.ts'], function (exports) {
+System.register("chunks:///_virtual/movement-system.ts", ['cc', './math.ts', './squad-battle-config.ts'], function (exports) {
   'use strict';
 
-  var _createForOfIteratorHelperLoose, cclegacy, UNIT_CONFIG, UnitSystem, BattleSystem, DivineTaskSystem, GameSession;
+  var cclegacy, distance, normalize, clamp, SQUAD_BATTLEFIELD;
+  return {
+    setters: [function (module) {
+      cclegacy = module.cclegacy;
+    }, function (module) {
+      distance = module.distance;
+      normalize = module.normalize;
+      clamp = module.clamp;
+    }, function (module) {
+      SQUAD_BATTLEFIELD = module.SQUAD_BATTLEFIELD;
+    }],
+    execute: function () {
+      cclegacy._RF.push({}, "425deeSCSJM65zxJ9IptJV7", "movement-system", undefined);
+
+      var MovementSystem = exports('MovementSystem', /*#__PURE__*/function () {
+        function MovementSystem() {}
+
+        var _proto = MovementSystem.prototype;
+
+        _proto.moveTowards = function moveTowards(unit, target, speed, dt, stopDistance) {
+          if (stopDistance === void 0) {
+            stopDistance = 4;
+          }
+
+          var dist = distance(unit.position, target);
+
+          if (dist <= stopDistance) {
+            unit.velocity.x = 0;
+            unit.velocity.y = 0;
+            return;
+          }
+
+          var dir = normalize(unit.position, target);
+          unit.velocity.x = dir.x * speed;
+          unit.velocity.y = dir.y * speed;
+          unit.position.x = clamp(unit.position.x + unit.velocity.x * dt, 0, SQUAD_BATTLEFIELD.width);
+          unit.position.y = clamp(unit.position.y + unit.velocity.y * dt, 0, SQUAD_BATTLEFIELD.height);
+        };
+
+        _proto.stop = function stop(unit) {
+          unit.velocity.x = 0;
+          unit.velocity.y = 0;
+        };
+
+        return MovementSystem;
+      }());
+
+      cclegacy._RF.pop();
+    }
+  };
+});
+
+System.register("chunks:///_virtual/local-profile-storage.ts", ['cc', './_rollupPluginModLoBabelHelpers.js'], function (exports) {
+  'use strict';
+
+  var cclegacy, sys, _extends;
 
   return {
     setters: [function (module) {
-      _createForOfIteratorHelperLoose = module.createForOfIteratorHelperLoose;
-    }, function (module) {
       cclegacy = module.cclegacy;
+      sys = module.sys;
     }, function (module) {
-      UNIT_CONFIG = module.UNIT_CONFIG;
-    }, function (module) {
-      UnitSystem = module.UnitSystem;
-    }, function (module) {
-      BattleSystem = module.BattleSystem;
-    }, function (module) {
-      DivineTaskSystem = module.DivineTaskSystem;
-    }, function (module) {
-      GameSession = module.GameSession;
+      _extends = module.extends;
     }],
     execute: function () {
-      exports('verifyDivineTaskRules', verifyDivineTaskRules);
+      cclegacy._RF.push({}, "4a406rRNdBF56f45kaE8XoC", "local-profile-storage", undefined);
 
-      cclegacy._RF.push({}, "3fa01GpPwdJpJTrvnJvMvSX", "verify-divine-task-rules", undefined);
+      var RUN_SAVE_KEY = 'divine_tower_chess.run_save.v1';
+      var SETTINGS_KEY = 'divine_tower_chess.settings.v1';
+      var ACHIEVEMENTS_KEY = 'divine_tower_chess.achievements.v1';
+      var DEFAULT_SETTINGS = {
+        master: 80,
+        music: 70,
+        sfx: 80
+      };
+      var DEFAULT_ACHIEVEMENTS = {
+        firstClear: false
+      };
 
-      function assertRule(condition, message) {
-        if (!condition) {
-          throw new Error("Divine task rule failed: " + message);
-        }
-      }
-
-      function requireValue(value, message) {
-        assertRule(value !== undefined && value !== null, message);
-        return value;
-      }
-
-      function buildThreeStarUnits(unitSystem, unitId, count) {
-        for (var i = 0; i < count * 9; i += 1) {
-          unitSystem.addToBench(unitId);
-        }
-      }
-
-      function assignAllEligibleTasks(unitSystem, divine) {
-        for (var _iterator = _createForOfIteratorHelperLoose(unitSystem.getUnitsForTaskRoll()), _step; !(_step = _iterator()).done;) {
-          var unit = _step.value;
-          var progress = divine.tryAssignTask(unit);
-
-          if (progress) {
-            unitSystem.setAssignedTask(unit.instanceId, progress.taskId);
-          }
-        }
-      }
-
-      function withGuaranteedTaskRoll(cb) {
-        var originalRandom = Math.random;
-
-        Math.random = function () {
-          return 0.01;
-        };
-
+      function readJson(key, fallback) {
         try {
-          cb();
-        } finally {
-          Math.random = originalRandom;
+          var raw = sys.localStorage.getItem(key);
+          if (!raw) return fallback;
+          return _extends({}, fallback, JSON.parse(raw));
+        } catch (_unused) {
+          return fallback;
         }
       }
 
-      function verifyMultipleWarriorTasks() {
-        var unitSystem = new UnitSystem();
-        var divine = new DivineTaskSystem();
-        buildThreeStarUnits(unitSystem, 'warrior', 2);
-        withGuaranteedTaskRoll(function () {
-          return assignAllEligibleTasks(unitSystem, divine);
-        });
-        var tasks = divine.getAllProgress().filter(function (task) {
-          return task.taskId === 'warrior_to_berserker';
-        });
-        var unitIds = new Set(tasks.map(function (task) {
-          return task.unitInstanceId;
-        }));
-        assertRule(tasks.length === 2, 'two 3-star warriors should each receive a warrior task');
-        assertRule(unitIds.size === 2, 'warrior tasks should bind to different unit instances');
-      }
+      var LocalProfileStorage = exports('LocalProfileStorage', /*#__PURE__*/function () {
+        function LocalProfileStorage() {}
 
-      function verifyMultiplePriestTasks() {
-        var unitSystem = new UnitSystem();
-        var divine = new DivineTaskSystem();
-        buildThreeStarUnits(unitSystem, 'priest', 2);
-        withGuaranteedTaskRoll(function () {
-          return assignAllEligibleTasks(unitSystem, divine);
-        });
-        var tasks = divine.getAllProgress().filter(function (task) {
-          return task.taskId === 'priest_to_light_mage';
-        });
-        var unitIds = new Set(tasks.map(function (task) {
-          return task.unitInstanceId;
-        }));
-        assertRule(tasks.length === 2, 'two 3-star priests should each receive a priest task');
-        assertRule(unitIds.size === 2, 'priest tasks should bind to different unit instances');
-      }
+        var _proto = LocalProfileStorage.prototype;
 
-      function verifyMoveKeepsTaskIdentityAndProgress() {
-        var unitSystem = new UnitSystem();
-        var divine = new DivineTaskSystem();
-        buildThreeStarUnits(unitSystem, 'warrior', 1);
-        withGuaranteedTaskRoll(function () {
-          return assignAllEligibleTasks(unitSystem, divine);
-        });
-        var task = requireValue(divine.getAllProgress()[0], 'warrior task should be assigned before movement verification');
-        requireValue(unitSystem.getBenchUnits().find(function (unit) {
-          return unit.instanceId === task.unitInstanceId;
-        }), 'assigned warrior should still be available on bench before placement');
-        assertRule(unitSystem.placeFromBench(task.unitInstanceId, 0, 1), 'assigned warrior should be placeable');
-        divine.addMetric(task.unitInstanceId, 'kills', 25);
-        var before = requireValue(unitSystem.getPlacedUnits().find(function (unit) {
-          return unit.instanceId === task.unitInstanceId;
-        }), 'assigned warrior should be placed before move');
-        assertRule(unitSystem.movePlacedUnit(task.unitInstanceId, 1, 4), 'assigned warrior should move to an open tile');
-        var after = requireValue(unitSystem.getPlacedUnits().find(function (unit) {
-          return unit.instanceId === task.unitInstanceId;
-        }), 'assigned warrior should still be placed after move');
-        var progress = requireValue(divine.getAllProgress().find(function (item) {
-          return item.unitInstanceId === task.unitInstanceId;
-        }), 'assigned warrior should still have divine progress after move');
-        assertRule(after.instanceId === before.instanceId, 'move should keep instanceId');
-        assertRule(after.star === before.star, 'move should keep star level');
-        assertRule(after.unitId === before.unitId, 'move should keep unitId');
-        assertRule(after.assignedTaskId === before.assignedTaskId, 'move should keep assigned task id');
-        assertRule(after.lane === 1 && after.tileIndex === 4, 'move should update only board position');
-        assertRule(progress.progress === 25, 'move should keep divine task progress');
-      }
-
-      function verifyEvolutionTargets() {
-        var warriorUnits = new UnitSystem();
-        var warriorDivine = new DivineTaskSystem();
-        buildThreeStarUnits(warriorUnits, 'warrior', 1);
-        withGuaranteedTaskRoll(function () {
-          return assignAllEligibleTasks(warriorUnits, warriorDivine);
-        });
-        var warriorTask = requireValue(warriorDivine.getAllProgress()[0], 'warrior task should be assigned');
-        warriorDivine.addMetric(warriorTask.unitInstanceId, 'kills', 1000);
-        var warriorCompletion = requireValue(warriorDivine.resolveCompleted(warriorTask.unitInstanceId), 'warrior task should complete');
-        assertRule(warriorCompletion.targetUnitId === 'berserker', 'warrior task should resolve to berserker');
-        warriorUnits.evolveUnit(warriorTask.unitInstanceId, warriorCompletion.targetUnitId);
-        var evolvedWarrior = requireValue(warriorUnits.getBenchUnits().find(function (unit) {
-          return unit.instanceId === warriorTask.unitInstanceId;
-        }), 'completed warrior should still exist after evolution');
-        assertRule(evolvedWarrior.unitId === 'berserker', 'completed warrior should evolve to berserker');
-        assertRule(UNIT_CONFIG[evolvedWarrior.unitId].isDivine === true, 'berserker should be marked divine');
-        var priestUnits = new UnitSystem();
-        var priestDivine = new DivineTaskSystem();
-        buildThreeStarUnits(priestUnits, 'priest', 1);
-        withGuaranteedTaskRoll(function () {
-          return assignAllEligibleTasks(priestUnits, priestDivine);
-        });
-        var priestTask = requireValue(priestDivine.getAllProgress()[0], 'priest task should be assigned');
-        priestDivine.addMetric(priestTask.unitInstanceId, 'healing', 100000);
-        var priestCompletion = requireValue(priestDivine.resolveCompleted(priestTask.unitInstanceId), 'priest task should complete');
-        assertRule(priestCompletion.targetUnitId === 'light_mage', 'priest task should resolve to light mage');
-        priestUnits.evolveUnit(priestTask.unitInstanceId, priestCompletion.targetUnitId);
-        var evolvedPriest = requireValue(priestUnits.getBenchUnits().find(function (unit) {
-          return unit.instanceId === priestTask.unitInstanceId;
-        }), 'completed priest should still exist after evolution');
-        assertRule(evolvedPriest.unitId === 'light_mage', 'completed priest should evolve to light mage');
-        assertRule(UNIT_CONFIG[evolvedPriest.unitId].isDivine === true, 'light mage should be marked divine');
-      }
-
-      function verifyActualHealingOnly() {
-        var battle = new BattleSystem();
-        var priest = {
-          instanceId: 'priest_test',
-          unitId: 'priest',
-          star: 3,
-          lane: 0,
-          tileIndex: 1,
-          cooldownLeft: 0,
-          currentHp: UNIT_CONFIG.priest.maxHp,
-          assignedTaskId: 'priest_to_light_mage'
+        _proto.loadSettings = function loadSettings() {
+          return readJson(SETTINGS_KEY, DEFAULT_SETTINGS);
         };
-        var warrior = {
-          instanceId: 'warrior_test',
-          unitId: 'warrior',
-          star: 3,
-          lane: 0,
-          tileIndex: 0,
-          cooldownLeft: 0,
-          currentHp: UNIT_CONFIG.warrior.maxHp - 35
+
+        _proto.saveSettings = function saveSettings(settings) {
+          sys.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
         };
-        var damagedResult = battle.tick([priest, warrior], [], 0.2);
-        assertRule(damagedResult.healingDoneByUnit.priest_test === 35, 'healing progress should count actual restored HP only');
-        priest.cooldownLeft = 0;
-        var fullHpResult = battle.tick([priest, warrior], [], 0.2);
-        assertRule(!fullHpResult.healingDoneByUnit.priest_test, 'full HP targets should not create virtual healing progress');
-      }
 
-      function verifyDefeatedUnitLifecycle() {
-        var battle = new BattleSystem();
-        var defeatedArcher = {
-          instanceId: 'defeated_archer',
-          unitId: 'archer',
-          star: 3,
-          lane: 0,
-          tileIndex: 1,
-          cooldownLeft: 0,
-          currentHp: 0
+        _proto.loadAchievements = function loadAchievements() {
+          return readJson(ACHIEVEMENTS_KEY, DEFAULT_ACHIEVEMENTS);
         };
-        var enemy = {
-          instanceId: 'enemy_test',
-          enemyId: 'slime',
-          lane: 0,
-          currentHp: 80,
-          distanceOnPath: 0,
-          reachedCrystal: false
+
+        _proto.saveAchievements = function saveAchievements(achievements) {
+          sys.localStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify(achievements));
         };
-        battle.tick([defeatedArcher], [enemy], 0.2);
-        assertRule(enemy.currentHp === 80, 'defeated units should not attack during the current round');
-        var unitSystem = new UnitSystem();
-        unitSystem.addToBench('warrior');
-        unitSystem.addToBench('priest');
 
-        var _unitSystem$getBenchU = unitSystem.getBenchUnits(),
-            warrior = _unitSystem$getBenchU[0],
-            priest = _unitSystem$getBenchU[1];
-
-        assertRule(unitSystem.placeFromBench(warrior.instanceId, 0, 0), 'warrior should be placed for defeat reset verification');
-        assertRule(unitSystem.placeFromBench(priest.instanceId, 0, 1), 'priest should be placed for defeat reset verification');
-        var placed = unitSystem.getPlacedUnits();
-        var placedWarrior = requireValue(placed.find(function (unit) {
-          return unit.instanceId === warrior.instanceId;
-        }), 'placed warrior should exist for defeat reset verification');
-        var placedPriest = requireValue(placed.find(function (unit) {
-          return unit.instanceId === priest.instanceId;
-        }), 'placed priest should exist for defeat reset verification');
-        placedWarrior.currentHp = 0;
-        placedWarrior.cooldownLeft = 2;
-        placedPriest.currentHp = UNIT_CONFIG.priest.maxHp - 10;
-        placedPriest.cooldownLeft = 2;
-        var resetCount = unitSystem.resetDefeatedPlacedUnits();
-        assertRule(resetCount === 1, 'only defeated placed units should be reset at round end');
-        assertRule(placedWarrior.currentHp === UNIT_CONFIG.warrior.maxHp, 'defeated warrior should revive to max HP');
-        assertRule(placedWarrior.cooldownLeft === 0, 'defeated warrior cooldown should reset for the next round');
-        assertRule(placedPriest.currentHp === UNIT_CONFIG.priest.maxHp - 10, 'living damaged units should not be healed by defeat reset');
-        assertRule(placedPriest.cooldownLeft === 2, 'living unit cooldown should not be changed by defeat reset');
-      }
-
-      function verifyMeleeAggroRules() {
-        var battle = new BattleSystem();
-        var shield = {
-          instanceId: 'shield_test',
-          unitId: 'shield_guard',
-          star: 1,
-          lane: 0,
-          tileIndex: 1,
-          cooldownLeft: 99,
-          currentHp: UNIT_CONFIG.shield_guard.maxHp
+        _proto.loadRun = function loadRun() {
+          try {
+            var raw = sys.localStorage.getItem(RUN_SAVE_KEY);
+            return raw ? JSON.parse(raw) : null;
+          } catch (_unused2) {
+            return null;
+          }
         };
-        var shieldEnemies = [0, 1, 2].map(function (index) {
-          return {
-            instanceId: "shield_enemy_" + index,
-            enemyId: 'slime',
-            lane: 0,
-            currentHp: UNIT_CONFIG.archer.maxHp,
-            distanceOnPath: 3.8,
-            reachedCrystal: false
-          };
-        });
-        battle.tick([shield], shieldEnemies, 1);
-        assertRule(shield.currentHp === UNIT_CONFIG.shield_guard.maxHp - 15, 'shield guard should block and be attacked by all enemies in range');
-        assertRule(shieldEnemies.every(function (enemy) {
-          return enemy.distanceOnPath === 3.8;
-        }), 'enemies blocked by shield guard should stop moving');
-        var warrior = {
-          instanceId: 'warrior_aggro_test',
-          unitId: 'warrior',
-          star: 1,
-          lane: 0,
-          tileIndex: 1,
-          cooldownLeft: 99,
-          currentHp: UNIT_CONFIG.warrior.maxHp
+
+        _proto.saveRun = function saveRun(data) {
+          sys.localStorage.setItem(RUN_SAVE_KEY, JSON.stringify(data));
         };
-        var meleeEnemies = [0, 1, 2].map(function (index) {
-          return {
-            instanceId: "melee_enemy_" + index,
-            enemyId: 'slime',
-            lane: 0,
-            currentHp: UNIT_CONFIG.archer.maxHp,
-            distanceOnPath: 3.8,
-            reachedCrystal: false
-          };
-        });
-        battle.tick([warrior], meleeEnemies, 1);
-        assertRule(warrior.currentHp === UNIT_CONFIG.warrior.maxHp - 5, 'non-shield melee units should attract only one enemy');
-        assertRule(meleeEnemies.filter(function (enemy) {
-          return enemy.distanceOnPath === 3.8;
-        }).length === 1, 'only the attracted enemy should stop against a non-shield melee unit');
-        meleeEnemies[0].currentHp = 0;
-        var warriorHpBeforeRefill = warrior.currentHp;
-        battle.tick([warrior], meleeEnemies, 1);
-        assertRule(warrior.currentHp === warriorHpBeforeRefill - 5, 'another enemy in range should fill the duel slot after the previous enemy dies');
-        var archer = {
-          instanceId: 'archer_aggro_test',
-          unitId: 'archer',
-          star: 1,
-          lane: 0,
-          tileIndex: 1,
-          cooldownLeft: 99,
-          currentHp: UNIT_CONFIG.archer.maxHp
+
+        _proto.clearRun = function clearRun() {
+          sys.localStorage.removeItem(RUN_SAVE_KEY);
         };
-        var rangedEnemies = [0, 1].map(function (index) {
-          return {
-            instanceId: "ranged_enemy_" + index,
-            enemyId: 'slime',
-            lane: 0,
-            currentHp: UNIT_CONFIG.archer.maxHp,
-            distanceOnPath: 3.8,
-            reachedCrystal: false
-          };
-        });
-        battle.tick([archer], rangedEnemies, 1);
-        assertRule(archer.currentHp === UNIT_CONFIG.archer.maxHp, 'ranged units should not attract normal enemy aggro');
-        assertRule(rangedEnemies.every(function (enemy) {
-          return enemy.distanceOnPath > 3.8;
-        }), 'normal enemies should keep moving past ranged units');
-      }
 
-      function verifyRoundPhaseGuards() {
-        var session = new GameSession();
-        assertRule(!session.refreshShopByCost(), 'shop refresh should fail before game start');
-        assertRule(!session.placeUnit('missing_unit', 0, 0), 'placement should fail before prep phase');
-        assertRule(!session.beginBattle(), 'battle should not start before prep phase');
-        session.startNewGame('beginner');
-        assertRule(session.beginBattle(), 'battle should start from prep phase');
-        assertRule(!session.refreshShopByCost(), 'shop refresh should fail during battle');
-        assertRule(!session.buyShopUnit(0), 'buy should fail during battle');
-        assertRule(!session.placeUnit('missing_unit', 0, 0), 'placement should fail during battle');
-        assertRule(!session.beginBattle(), 'battle should not restart while already in battle');
-      }
+        _proto.hasRunSave = function hasRunSave() {
+          return Boolean(this.loadRun());
+        };
 
-      function verifyMergeAcrossBenchAndPlaced() {
-        var unitSystem = new UnitSystem();
-
-        for (var i = 0; i < 3; i += 1) {
-          unitSystem.addToBench('warrior');
-        }
-
-        var firstTwoStar = requireValue(unitSystem.getBenchUnits()[0], 'first 2-star warrior should be created on bench');
-        assertRule(firstTwoStar.star === 2, 'three 1-star warriors should merge into one 2-star warrior');
-        assertRule(unitSystem.placeFromBench(firstTwoStar.instanceId, 0, 0), '2-star warrior should be placeable before cross-area merge');
-        var placedBeforeMerge = requireValue(unitSystem.getPlacedUnits().find(function (unit) {
-          return unit.instanceId === firstTwoStar.instanceId;
-        }), 'placed 2-star warrior should exist before cross-area merge');
-        placedBeforeMerge.currentHp = 1;
-        placedBeforeMerge.cooldownLeft = 3;
-
-        for (var _i = 0; _i < 6; _i += 1) {
-          unitSystem.addToBench('warrior');
-        }
-
-        var placedAfterMerge = requireValue(unitSystem.getPlacedUnits().find(function (unit) {
-          return unit.instanceId === firstTwoStar.instanceId;
-        }), 'placed warrior should be kept as merge result');
-        assertRule(placedAfterMerge.star === 3, 'placed 2-star plus two bench 2-star warriors should merge into a placed 3-star warrior');
-        assertRule(placedAfterMerge.currentHp === UNIT_CONFIG.warrior.maxHp, 'placed merge result should reset to max HP');
-        assertRule(placedAfterMerge.cooldownLeft === 0, 'placed merge result should reset cooldown');
-        assertRule(unitSystem.getBenchUnits().filter(function (unit) {
-          return unit.unitId === 'warrior';
-        }).length === 0, 'consumed bench merge materials should be removed');
-      }
-
-      function verifyAssignedUnitsDoNotMerge() {
-        var unitSystem = new UnitSystem();
-        var divine = new DivineTaskSystem();
-        buildThreeStarUnits(unitSystem, 'warrior', 1);
-        withGuaranteedTaskRoll(function () {
-          return assignAllEligibleTasks(unitSystem, divine);
-        });
-        var assignedTask = requireValue(divine.getAllProgress()[0], 'warrior task should be assigned before protected merge verification');
-        var assignedUnit = requireValue(unitSystem.getBenchUnits().find(function (unit) {
-          return unit.instanceId === assignedTask.unitInstanceId;
-        }), 'assigned 3-star warrior should stay on bench before protected merge verification');
-        assertRule(assignedUnit.assignedTaskId === 'warrior_to_berserker', 'assigned warrior should hold the divine task id');
-
-        for (var i = 0; i < 9; i += 1) {
-          unitSystem.addToBench('warrior');
-        }
-
-        var stillAssigned = requireValue(unitSystem.getBenchUnits().find(function (unit) {
-          return unit.instanceId === assignedTask.unitInstanceId;
-        }), 'assigned warrior should not be consumed by later merges');
-        var unassignedThreeStars = unitSystem.getBenchUnits().filter(function (unit) {
-          return unit.unitId === 'warrior' && unit.star === 3 && !unit.assignedTaskId;
-        });
-        assertRule(stillAssigned.assignedTaskId === 'warrior_to_berserker', 'assigned warrior should keep task id after later merges');
-        assertRule(unassignedThreeStars.length === 1, 'later unassigned warriors should merge separately from assigned task holder');
-      }
-
-      function verifyDivineTaskRules() {
-        verifyMultipleWarriorTasks();
-        verifyMultiplePriestTasks();
-        verifyMoveKeepsTaskIdentityAndProgress();
-        verifyEvolutionTargets();
-        verifyActualHealingOnly();
-        verifyDefeatedUnitLifecycle();
-        verifyMeleeAggroRules();
-        verifyRoundPhaseGuards();
-        verifyMergeAcrossBenchAndPlaced();
-        verifyAssignedUnitsDoNotMerge();
-      }
-
-      if (typeof require !== 'undefined' && require.main === module) {
-        verifyDivineTaskRules();
-        console.log('Divine task rules verified.');
-      }
+        return LocalProfileStorage;
+      }());
 
       cclegacy._RF.pop();
     }
@@ -2325,6 +1997,450 @@ System.register("chunks:///_virtual/random.ts", ['cc'], function (exports) {
   };
 });
 
+System.register("chunks:///_virtual/prep-panel-controller.ts", ['cc', './_rollupPluginModLoBabelHelpers.js', './unit-config.ts', './sprite-resolvers.ts'], function (exports) {
+  'use strict';
+
+  var cclegacy, _decorator, Layers, UITransform, Color, Node, Vec3, Sprite, Label, Button, Graphics, Component, _inheritsLoose, _defineProperty, _assertThisInitialized, _createForOfIteratorHelperLoose, SHOP_UNIT_POOL, UNIT_CONFIG, UnitSpriteResolver, UiIconResolver;
+
+  return {
+    setters: [function (module) {
+      cclegacy = module.cclegacy;
+      _decorator = module._decorator;
+      Layers = module.Layers;
+      UITransform = module.UITransform;
+      Color = module.Color;
+      Node = module.Node;
+      Vec3 = module.Vec3;
+      Sprite = module.Sprite;
+      Label = module.Label;
+      Button = module.Button;
+      Graphics = module.Graphics;
+      Component = module.Component;
+    }, function (module) {
+      _inheritsLoose = module.inheritsLoose;
+      _defineProperty = module.defineProperty;
+      _assertThisInitialized = module.assertThisInitialized;
+      _createForOfIteratorHelperLoose = module.createForOfIteratorHelperLoose;
+    }, function (module) {
+      SHOP_UNIT_POOL = module.SHOP_UNIT_POOL;
+      UNIT_CONFIG = module.UNIT_CONFIG;
+    }, function (module) {
+      UnitSpriteResolver = module.UnitSpriteResolver;
+      UiIconResolver = module.UiIconResolver;
+    }],
+    execute: function () {
+      var _dec, _class, _temp;
+
+      cclegacy._RF.push({}, "58095pyklxOy4f8v8ZmQ6vI", "prep-panel-controller", undefined);
+
+      var ccclass = _decorator.ccclass;
+      var SHOP_CARD_WIDTH = 132;
+      var SHOP_CARD_HEIGHT = 76;
+      var ROSTER_CARD_WIDTH = 92;
+      var ROSTER_CARD_HEIGHT = 66;
+      var PrepPanelController = exports('PrepPanelController', (_dec = ccclass('PrepPanelController'), _dec(_class = (_temp = /*#__PURE__*/function (_Component) {
+        _inheritsLoose(PrepPanelController, _Component);
+
+        function PrepPanelController() {
+          var _this;
+
+          for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+            args[_key] = arguments[_key];
+          }
+
+          _this = _Component.call.apply(_Component, [this].concat(args)) || this;
+
+          _defineProperty(_assertThisInitialized(_this), "unitResolver", new UnitSpriteResolver());
+
+          _defineProperty(_assertThisInitialized(_this), "iconResolver", new UiIconResolver());
+
+          _defineProperty(_assertThisInitialized(_this), "avatarFrames", new Map());
+
+          _defineProperty(_assertThisInitialized(_this), "goldFrame", null);
+
+          _defineProperty(_assertThisInitialized(_this), "onBuy", void 0);
+
+          _defineProperty(_assertThisInitialized(_this), "onDeploy", void 0);
+
+          _defineProperty(_assertThisInitialized(_this), "onRecall", void 0);
+
+          _defineProperty(_assertThisInitialized(_this), "onSell", void 0);
+
+          _defineProperty(_assertThisInitialized(_this), "onRefresh", void 0);
+
+          _defineProperty(_assertThisInitialized(_this), "onStartWave", void 0);
+
+          _defineProperty(_assertThisInitialized(_this), "infoLabel", null);
+
+          return _this;
+        }
+
+        var _proto = PrepPanelController.prototype;
+
+        _proto.initialize = function initialize() {
+          var _this$node$getCompone,
+              _this2 = this;
+
+          this.node.layer = Layers.Enum.UI_2D;
+          var transform = (_this$node$getCompone = this.node.getComponent(UITransform)) !== null && _this$node$getCompone !== void 0 ? _this$node$getCompone : this.node.addComponent(UITransform);
+          transform.setContentSize(920, 240);
+          this.paintRect(this.node, 920, 240, new Color(15, 23, 42, 235));
+          this.infoLabel = this.makeLabel('Info', -430, 100, 840, 14, new Color(251, 191, 36, 255));
+
+          var _loop = function _loop() {
+            var unitId = _step.value;
+            void _this2.unitResolver.resolveAvatar(unitId).then(function (frame) {
+              if (frame) _this2.avatarFrames.set(unitId, frame);
+            });
+          };
+
+          for (var _iterator = _createForOfIteratorHelperLoose(SHOP_UNIT_POOL), _step; !(_step = _iterator()).done;) {
+            _loop();
+          }
+
+          void this.iconResolver.resolve('gold').then(function (frame) {
+            _this2.goldFrame = frame;
+          });
+        };
+
+        _proto.render = function render(snapshot, selectedLabel, selectedUnitId) {
+          var _this3 = this;
+
+          this.node.removeAllChildren();
+          this.infoLabel = this.makeLabel('Info', -430, 100, 680, 14, new Color(251, 191, 36, 255));
+          this.infoLabel.string = "\u51C6\u5907\u9636\u6BB5 \xB7 \u5F53\u524D\u9009\u62E9\uFF1A" + selectedLabel;
+          this.makeGoldReadout(snapshot.gold);
+          this.makeLabel('ShopTitle', -430, 72, 140, 13, new Color(226, 232, 240, 255)).string = '商店（3）';
+          snapshot.shop.forEach(function (unitId, index) {
+            _this3.makeUnitCard({
+              name: "Buy-" + index,
+              unitId: unitId,
+              star: 1,
+              text: _this3.getUnitName(unitId) + "\n\u8D2D\u4E70",
+              x: -300 + index * 156,
+              y: 42,
+              width: SHOP_CARD_WIDTH,
+              height: SHOP_CARD_HEIGHT,
+              selected: false,
+              color: new Color(30, 41, 59, 255),
+              onClick: function onClick() {
+                var _this3$onBuy;
+
+                return (_this3$onBuy = _this3.onBuy) === null || _this3$onBuy === void 0 ? void 0 : _this3$onBuy.call(_this3, index);
+              }
+            });
+          });
+          this.makeLabel('DeployTitle', -430, 20, 140, 13, new Color(226, 232, 240, 255)).string = '上阵区（5）';
+
+          var _loop2 = function _loop2(i) {
+            var unit = snapshot.deployed[i];
+
+            if (unit) {
+              _this3.makeUnitCard({
+                name: "Recall-" + unit.instanceId,
+                unitId: unit.unitId,
+                star: unit.star,
+                text: "" + (unit.isCaptain ? '♛ ' : '') + _this3.getUnitName(unit.unitId) + "\u2605" + unit.star + (unit.assignedTaskId ? ' ✦' : '') + "\n\u64A4\u56DE",
+                x: -320 + i * 130,
+                y: -8,
+                width: 122,
+                height: 68,
+                selected: unit.instanceId === selectedUnitId,
+                color: new Color(30, 41, 59, 255),
+                onClick: function onClick() {
+                  var _this3$onRecall;
+
+                  return (_this3$onRecall = _this3.onRecall) === null || _this3$onRecall === void 0 ? void 0 : _this3$onRecall.call(_this3, unit.instanceId);
+                }
+              });
+            } else {
+              _this3.makeButton("DeployEmpty-" + i, '空位', -320 + i * 130, -8, 122, 68, new Color(51, 65, 85, 160));
+            }
+          };
+
+          for (var i = 0; i < snapshot.slotConfig.deployed; i += 1) {
+            _loop2(i);
+          }
+
+          this.makeLabel('BenchTitle', -430, -52, 140, 13, new Color(226, 232, 240, 255)).string = '备战区（8）';
+
+          var _loop3 = function _loop3(_i) {
+            var unit = snapshot.bench[_i];
+            var x = -382 + _i * 96;
+            var y = -82;
+
+            if (unit) {
+              _this3.makeRosterCard(unit, x, y, unit.instanceId === selectedUnitId, function () {
+                var _this3$onDeploy;
+
+                return (_this3$onDeploy = _this3.onDeploy) === null || _this3$onDeploy === void 0 ? void 0 : _this3$onDeploy.call(_this3, unit.instanceId);
+              });
+            } else {
+              _this3.makeButton("BenchEmpty-" + _i, '空位', x, y, ROSTER_CARD_WIDTH, ROSTER_CARD_HEIGHT, new Color(51, 65, 85, 160));
+            }
+          };
+
+          for (var _i = 0; _i < snapshot.slotConfig.bench; _i += 1) {
+            _loop3(_i);
+          }
+
+          this.makeButton('Sell', '卖出选中', 330, 52, 160, 34, new Color(127, 29, 29, 255), function () {
+            var _this3$onSell;
+
+            return (_this3$onSell = _this3.onSell) === null || _this3$onSell === void 0 ? void 0 : _this3$onSell.call(_this3);
+          });
+          this.makeButton('Refresh', '刷新商店', 330, 8, 160, 34, new Color(37, 99, 235, 255), function () {
+            var _this3$onRefresh;
+
+            return (_this3$onRefresh = _this3.onRefresh) === null || _this3$onRefresh === void 0 ? void 0 : _this3$onRefresh.call(_this3);
+          });
+          this.makeButton('Start', '开始下一波', 330, -36, 160, 34, new Color(21, 128, 61, 255), function () {
+            var _this3$onStartWave;
+
+            return (_this3$onStartWave = _this3.onStartWave) === null || _this3$onStartWave === void 0 ? void 0 : _this3$onStartWave.call(_this3);
+          });
+          this.makeLabel('Hint', -430, -116, 860, 12, new Color(191, 219, 254, 255)).string = this.buildHint(snapshot, selectedUnitId);
+        };
+
+        _proto.buildHint = function buildHint(snapshot, selectedUnitId) {
+          if (!selectedUnitId) {
+            return '提示：先购买或直接上阵起始队长。橙色高亮表示当前选中实例，带 ✦ 的单位持有神品任务。';
+          }
+
+          var rosterUnit = [].concat(snapshot.deployed, snapshot.bench).find(function (unit) {
+            return unit.instanceId === selectedUnitId;
+          });
+
+          if (!rosterUnit) {
+            return '提示：当前选中单位已离开备战链路。';
+          }
+
+          var inDeployed = snapshot.deployed.some(function (unit) {
+            return unit.instanceId === selectedUnitId;
+          });
+          var task = snapshot.divineTasks.find(function (entry) {
+            return entry.unitInstanceId === selectedUnitId;
+          });
+
+          if (task) {
+            var _task$divineProgress;
+
+            return "\u63D0\u793A\uFF1A" + this.getUnitName(rosterUnit.unitId) + "\u2605" + rosterUnit.star + " \u6301\u6709 " + task.divineTaskId + "\uFF0C\u5B9E\u4F8B\u8FDB\u5EA6 " + Math.floor((_task$divineProgress = task.divineProgress) !== null && _task$divineProgress !== void 0 ? _task$divineProgress : 0) + "\uFF0C\u666E\u901A\u5347\u661F\u4E0D\u4F1A\u6D88\u8017\u5B83\u3002";
+          }
+
+          if (rosterUnit.isCaptain) {
+            return inDeployed ? "\u63D0\u793A\uFF1A" + this.getUnitName(rosterUnit.unitId) + "\u2605" + rosterUnit.star + " \u662F\u5F53\u524D\u961F\u957F\u5B9E\u4F8B\uFF0C\u5DF2\u5728\u4E0A\u9635\u533A\u3002" : "\u63D0\u793A\uFF1A" + this.getUnitName(rosterUnit.unitId) + "\u2605" + rosterUnit.star + " \u662F\u4F60\u9009\u62E9\u7684\u8D77\u59CB\u961F\u957F\u5B9E\u4F8B\uFF0C\u5F53\u524D\u4F4D\u4E8E\u5907\u6218\u533A\u3002";
+          }
+
+          return inDeployed ? "\u63D0\u793A\uFF1A" + this.getUnitName(rosterUnit.unitId) + "\u2605" + rosterUnit.star + " \u5F53\u524D\u5728\u4E0A\u9635\u533A\uFF0C\u53EF\u64A4\u56DE\u6216\u76F4\u63A5\u5F00\u6CE2\u3002" : "\u63D0\u793A\uFF1A" + this.getUnitName(rosterUnit.unitId) + "\u2605" + rosterUnit.star + " \u5F53\u524D\u5728\u5907\u6218\u533A\uFF0C\u53EF\u4E0A\u9635\uFF1B3 \u4E2A\u540C\u540D\u540C\u661F\u5B9E\u4F8B\u4F1A\u81EA\u52A8\u5408\u6210\u3002";
+        };
+
+        _proto.getUnitName = function getUnitName(unitId) {
+          var _UNIT_CONFIG$unitId$n, _UNIT_CONFIG$unitId;
+
+          return (_UNIT_CONFIG$unitId$n = (_UNIT_CONFIG$unitId = UNIT_CONFIG[unitId]) === null || _UNIT_CONFIG$unitId === void 0 ? void 0 : _UNIT_CONFIG$unitId.name) !== null && _UNIT_CONFIG$unitId$n !== void 0 ? _UNIT_CONFIG$unitId$n : unitId;
+        };
+
+        _proto.makeGoldReadout = function makeGoldReadout(gold) {
+          var _this4 = this;
+
+          var node = new Node('GoldReadout');
+          node.layer = Layers.Enum.UI_2D;
+          this.node.addChild(node);
+          node.setPosition(new Vec3(302, 100, 0));
+          node.addComponent(UITransform).setContentSize(150, 28);
+          var iconNode = new Node('GoldIcon');
+          iconNode.layer = Layers.Enum.UI_2D;
+          node.addChild(iconNode);
+          iconNode.setPosition(new Vec3(-48, 0, 0));
+          iconNode.addComponent(UITransform).setContentSize(24, 24);
+          var icon = iconNode.addComponent(Sprite);
+          icon.sizeMode = Sprite.SizeMode.CUSTOM;
+          icon.color = new Color(245, 158, 11, 255);
+
+          if (this.goldFrame) {
+            icon.spriteFrame = this.goldFrame;
+            icon.color = new Color(255, 255, 255, 255);
+          } else {
+            void this.iconResolver.resolve('gold').then(function (frame) {
+              if (!frame || !icon.node.parent) return;
+              _this4.goldFrame = frame;
+              icon.spriteFrame = frame;
+              icon.color = new Color(255, 255, 255, 255);
+            });
+          }
+
+          var label = this.makeLabel('GoldValue', 18, 0, 90, 15, new Color(254, 240, 138, 255), node);
+          label.string = "" + gold;
+        };
+
+        _proto.makeRosterCard = function makeRosterCard(unit, x, y, selected, onClick) {
+          this.makeUnitCard({
+            name: "Deploy-" + unit.instanceId,
+            unitId: unit.unitId,
+            star: unit.star,
+            text: "" + (unit.isCaptain ? '♛ ' : '') + this.getUnitName(unit.unitId) + "\u2605" + unit.star + (unit.assignedTaskId ? ' ✦' : '') + "\n\u4E0A\u9635",
+            x: x,
+            y: y,
+            width: ROSTER_CARD_WIDTH,
+            height: ROSTER_CARD_HEIGHT,
+            selected: selected,
+            color: selected ? new Color(180, 83, 9, 255) : new Color(30, 41, 59, 255),
+            onClick: onClick
+          });
+        };
+
+        _proto.makeLabel = function makeLabel(name, x, y, width, fontSize, color, parent) {
+          if (parent === void 0) {
+            parent = this.node;
+          }
+
+          var node = new Node(name);
+          node.layer = Layers.Enum.UI_2D;
+          parent.addChild(node);
+          node.setPosition(new Vec3(x, y, 0));
+          node.addComponent(UITransform).setContentSize(width, 24);
+          var label = node.addComponent(Label);
+          label.fontSize = fontSize;
+          label.lineHeight = fontSize + 4;
+          label.color = color;
+          return label;
+        };
+
+        _proto.makeButton = function makeButton(name, text, x, y, width, height, color, onClick) {
+          var node = new Node(name);
+          node.layer = Layers.Enum.UI_2D;
+          this.node.addChild(node);
+          node.setPosition(new Vec3(x, y, 0));
+          node.addComponent(UITransform).setContentSize(width, height);
+          this.paintRect(node, width, height, color, new Color(148, 163, 184, 70));
+          var guardedClick = onClick ? this.makeGuardedClick(onClick) : undefined;
+
+          if (guardedClick) {
+            node.addComponent(Button);
+            node.on(Button.EventType.CLICK, guardedClick, this);
+          }
+
+          var labelNode = new Node(name + "-label");
+          labelNode.layer = Layers.Enum.UI_2D;
+          node.addChild(labelNode);
+          labelNode.addComponent(UITransform).setContentSize(width - 8, height - 8);
+          var label = labelNode.addComponent(Label);
+          label.string = text;
+          label.fontSize = 12;
+          label.lineHeight = 14;
+          label.color = new Color(248, 250, 252, 255);
+
+          if (guardedClick) {
+            labelNode.addComponent(Button);
+            labelNode.on(Button.EventType.CLICK, guardedClick, this);
+          }
+        };
+
+        _proto.makeUnitCard = function makeUnitCard(options) {
+          var _this5 = this;
+
+          var node = new Node(options.name);
+          node.layer = Layers.Enum.UI_2D;
+          this.node.addChild(node);
+          node.setPosition(new Vec3(options.x, options.y, 0));
+          node.addComponent(UITransform).setContentSize(options.width, options.height);
+          this.paintRect(node, options.width, options.height, options.selected ? new Color(180, 83, 9, 255) : options.color, options.selected ? new Color(254, 240, 138, 210) : new Color(148, 163, 184, 80));
+
+          if (options.selected) {
+            var glow = new Node(options.name + "-selected");
+            glow.layer = Layers.Enum.UI_2D;
+            node.addChild(glow);
+            glow.setPosition(new Vec3(0, -6, 0));
+            glow.addComponent(UITransform).setContentSize(options.width - 12, 12);
+            this.paintRect(glow, options.width - 12, 12, new Color(254, 240, 138, 180));
+          }
+
+          var imageBack = new Node(options.name + "-image-back");
+          imageBack.layer = Layers.Enum.UI_2D;
+          node.addChild(imageBack);
+          imageBack.setPosition(new Vec3(0, options.height * 0.13, 0));
+          var imageBackWidth = Math.min(options.width - 18, options.height > 70 ? 74 : 58);
+          var imageBackHeight = Math.min(options.height - 22, options.height > 70 ? 56 : 46);
+          imageBack.addComponent(UITransform).setContentSize(imageBackWidth, imageBackHeight);
+          var imageNode = new Node(options.name + "-image");
+          imageNode.layer = Layers.Enum.UI_2D;
+          imageBack.addChild(imageNode);
+          imageNode.setPosition(new Vec3(0, 0, 0));
+          imageNode.addComponent(UITransform).setContentSize(Math.min(72, options.width - 18), Math.min(58, options.height - 18));
+          var unitSprite = imageNode.addComponent(Sprite);
+          unitSprite.sizeMode = Sprite.SizeMode.CUSTOM;
+          unitSprite.color = new Color(148, 163, 184, 255);
+          var cachedFrame = this.avatarFrames.get(options.unitId);
+
+          if (cachedFrame) {
+            unitSprite.spriteFrame = cachedFrame;
+            unitSprite.color = new Color(255, 255, 255, 255);
+          } else {
+            void this.unitResolver.resolveAvatar(options.unitId).then(function (frame) {
+              if (!frame || !unitSprite.node.parent) return;
+
+              _this5.avatarFrames.set(options.unitId, frame);
+
+              unitSprite.spriteFrame = frame;
+              unitSprite.color = new Color(255, 255, 255, 255);
+            });
+          }
+
+          var labelNode = new Node(options.name + "-label");
+          labelNode.layer = Layers.Enum.UI_2D;
+          node.addChild(labelNode);
+          labelNode.setPosition(new Vec3(0, -options.height * 0.32, 0));
+          labelNode.addComponent(UITransform).setContentSize(options.width - 8, 26);
+          var label = labelNode.addComponent(Label);
+          label.string = options.text;
+          label.fontSize = 11;
+          label.lineHeight = 13;
+          label.color = new Color(248, 250, 252, 255);
+          var guardedClick = options.onClick ? this.makeGuardedClick(options.onClick) : undefined;
+
+          if (guardedClick) {
+            node.addComponent(Button);
+            node.on(Button.EventType.CLICK, guardedClick, this);
+            labelNode.addComponent(Button);
+            labelNode.on(Button.EventType.CLICK, guardedClick, this);
+            imageNode.addComponent(Button);
+            imageNode.on(Button.EventType.CLICK, guardedClick, this);
+          }
+        };
+
+        _proto.paintRect = function paintRect(node, width, height, fill, stroke) {
+          var graphics = node.addComponent(Graphics);
+          graphics.fillColor = fill;
+          graphics.rect(-width / 2, -height / 2, width, height);
+          graphics.fill();
+
+          if (stroke) {
+            graphics.strokeColor = stroke;
+            graphics.lineWidth = 2;
+            graphics.rect(-width / 2 + 1, -height / 2 + 1, width - 2, height - 2);
+            graphics.stroke();
+          }
+        };
+
+        _proto.makeGuardedClick = function makeGuardedClick(onClick) {
+          var lastClickAt = 0;
+          return function () {
+            var now = Date.now();
+            if (now - lastClickAt < 80) return;
+            lastClickAt = now;
+            onClick();
+          };
+        };
+
+        return PrepPanelController;
+      }(Component), _temp)) || _class));
+
+      cclegacy._RF.pop();
+    }
+  };
+});
+
 System.register("chunks:///_virtual/unit-config.ts", ['cc'], function (exports) {
   'use strict';
 
@@ -2343,21 +2459,13 @@ System.register("chunks:///_virtual/unit-config.ts", ['cc'], function (exports) 
           cost: 3,
           baseDamage: 18,
           attackInterval: 1,
-          range: 4,
           maxHp: 140,
+          detectionRange: 340,
+          attackRange: 250,
+          moveSpeed: 120,
+          projectileSpeed: 560,
           skillType: 'single',
-          aggroRole: 'ranged'
-        },
-        paladin: {
-          id: 'paladin',
-          name: '圣骑士',
-          cost: 4,
-          baseDamage: 16,
-          attackInterval: 1.2,
-          range: 1.8,
-          maxHp: 260,
-          skillType: 'none',
-          aggroRole: 'melee'
+          behaviorRole: 'ranged'
         },
         shield_guard: {
           id: 'shield_guard',
@@ -2365,10 +2473,12 @@ System.register("chunks:///_virtual/unit-config.ts", ['cc'], function (exports) 
           cost: 3,
           baseDamage: 12,
           attackInterval: 1.1,
-          range: 1.5,
           maxHp: 300,
+          detectionRange: 240,
+          attackRange: 68,
+          moveSpeed: 90,
           skillType: 'none',
-          aggroRole: 'blocker'
+          behaviorRole: 'melee'
         },
         warrior: {
           id: 'warrior',
@@ -2376,10 +2486,12 @@ System.register("chunks:///_virtual/unit-config.ts", ['cc'], function (exports) 
           cost: 3,
           baseDamage: 22,
           attackInterval: 1,
-          range: 1.8,
           maxHp: 220,
+          detectionRange: 260,
+          attackRange: 72,
+          moveSpeed: 130,
           skillType: 'single',
-          aggroRole: 'melee'
+          behaviorRole: 'melee'
         },
         mage: {
           id: 'mage',
@@ -2387,10 +2499,14 @@ System.register("chunks:///_virtual/unit-config.ts", ['cc'], function (exports) 
           cost: 4,
           baseDamage: 14,
           attackInterval: 1.4,
-          range: 3.8,
           maxHp: 130,
+          detectionRange: 360,
+          attackRange: 230,
+          moveSpeed: 105,
+          projectileSpeed: 500,
+          skillRadius: 100,
           skillType: 'aoe',
-          aggroRole: 'ranged'
+          behaviorRole: 'mage'
         },
         priest: {
           id: 'priest',
@@ -2398,11 +2514,13 @@ System.register("chunks:///_virtual/unit-config.ts", ['cc'], function (exports) 
           cost: 4,
           baseDamage: 6,
           attackInterval: 1.5,
-          range: 3.5,
           maxHp: 160,
+          detectionRange: 360,
+          attackRange: 210,
+          moveSpeed: 110,
           healPower: 20,
           skillType: 'heal',
-          aggroRole: 'ranged'
+          behaviorRole: 'healer'
         },
         cavalry: {
           id: 'cavalry',
@@ -2410,10 +2528,12 @@ System.register("chunks:///_virtual/unit-config.ts", ['cc'], function (exports) 
           cost: 4,
           baseDamage: 24,
           attackInterval: 0.95,
-          range: 2.2,
           maxHp: 200,
+          detectionRange: 280,
+          attackRange: 78,
+          moveSpeed: 170,
           skillType: 'single',
-          aggroRole: 'melee'
+          behaviorRole: 'melee'
         },
         spearman: {
           id: 'spearman',
@@ -2421,10 +2541,12 @@ System.register("chunks:///_virtual/unit-config.ts", ['cc'], function (exports) 
           cost: 3,
           baseDamage: 19,
           attackInterval: 1,
-          range: 2.6,
           maxHp: 170,
+          detectionRange: 270,
+          attackRange: 90,
+          moveSpeed: 125,
           skillType: 'single',
-          aggroRole: 'melee'
+          behaviorRole: 'melee'
         },
         berserker: {
           id: 'berserker',
@@ -2433,10 +2555,12 @@ System.register("chunks:///_virtual/unit-config.ts", ['cc'], function (exports) 
           cost: 0,
           baseDamage: 50,
           attackInterval: 0.7,
-          range: 2.2,
           maxHp: 360,
+          detectionRange: 300,
+          attackRange: 80,
+          moveSpeed: 160,
           skillType: 'single',
-          aggroRole: 'melee'
+          behaviorRole: 'melee'
         },
         light_mage: {
           id: 'light_mage',
@@ -2445,621 +2569,24 @@ System.register("chunks:///_virtual/unit-config.ts", ['cc'], function (exports) 
           cost: 0,
           baseDamage: 28,
           attackInterval: 1.1,
-          range: 4.2,
           maxHp: 240,
+          detectionRange: 400,
+          attackRange: 260,
+          moveSpeed: 120,
+          projectileSpeed: 620,
           healPower: 40,
           skillType: 'heal',
-          aggroRole: 'ranged'
+          behaviorRole: 'healer'
         }
       });
-      var SHOP_UNIT_POOL = exports('SHOP_UNIT_POOL', ['archer', 'paladin', 'shield_guard', 'warrior', 'mage', 'priest', 'cavalry', 'spearman']);
+      var SHOP_UNIT_POOL = exports('SHOP_UNIT_POOL', ['archer', 'shield_guard', 'warrior', 'mage', 'priest', 'cavalry', 'spearman']);
 
       cclegacy._RF.pop();
     }
   };
 });
 
-System.register("chunks:///_virtual/battle-system.ts", ['./_rollupPluginModLoBabelHelpers.js', 'cc', './unit-config.ts', './enemy-config.ts'], function (exports) {
-  'use strict';
-
-  var _createForOfIteratorHelperLoose, _defineProperty, cclegacy, UNIT_CONFIG, ENEMY_CONFIG;
-
-  return {
-    setters: [function (module) {
-      _createForOfIteratorHelperLoose = module.createForOfIteratorHelperLoose;
-      _defineProperty = module.defineProperty;
-    }, function (module) {
-      cclegacy = module.cclegacy;
-    }, function (module) {
-      UNIT_CONFIG = module.UNIT_CONFIG;
-    }, function (module) {
-      ENEMY_CONFIG = module.ENEMY_CONFIG;
-    }],
-    execute: function () {
-      cclegacy._RF.push({}, "5e5af6hu6pIKrzqvnJnbp5Z", "battle-system", undefined);
-
-      var BattleSystem = exports('BattleSystem', /*#__PURE__*/function () {
-        function BattleSystem() {
-          _defineProperty(this, "lanePathLength", [14, 15.5]);
-
-          _defineProperty(this, "enemyDpsPerUnit", 5);
-
-          _defineProperty(this, "firstTileDistance", 2);
-
-          _defineProperty(this, "tileDistanceStep", 1.8);
-        }
-
-        var _proto = BattleSystem.prototype;
-
-        _proto.tick = function tick(units, enemies, dt) {
-          var _this = this;
-
-          var killsByUnit = {};
-          var healingDoneByUnit = {};
-          var engagements = this.assignEngagements(units, enemies);
-
-          for (var _iterator = _createForOfIteratorHelperLoose(enemies), _step; !(_step = _iterator()).done;) {
-            var enemy = _step.value;
-            if (enemy.currentHp <= 0) continue;
-            if (engagements.has(enemy.instanceId)) continue;
-            var cfg = ENEMY_CONFIG[enemy.enemyId];
-            enemy.distanceOnPath += cfg.speed * dt;
-
-            if (enemy.distanceOnPath >= this.lanePathLength[enemy.lane]) {
-              enemy.reachedCrystal = true;
-            }
-          }
-
-          engagements = this.assignEngagements(units, enemies);
-          this.applyEnemyPressure(engagements, dt);
-
-          var _loop = function _loop() {
-            var unit = _step2.value;
-
-            if (unit.currentHp <= 0) {
-              return "continue";
-            }
-
-            var cfg = UNIT_CONFIG[unit.unitId];
-            unit.cooldownLeft -= dt;
-            if (unit.cooldownLeft > 0) return "continue";
-            var laneEnemies = enemies.filter(function (enemy) {
-              return !enemy.reachedCrystal && enemy.currentHp > 0 && enemy.lane === unit.lane;
-            });
-            var target = laneEnemies.sort(function (a, b) {
-              return b.distanceOnPath - a.distanceOnPath;
-            })[0];
-
-            if (cfg.skillType === 'heal') {
-              var healed = _this.applyHeal(unit, units);
-
-              if (healed > 0) {
-                var _healingDoneByUnit$un;
-
-                healingDoneByUnit[unit.instanceId] = ((_healingDoneByUnit$un = healingDoneByUnit[unit.instanceId]) !== null && _healingDoneByUnit$un !== void 0 ? _healingDoneByUnit$un : 0) + healed;
-              }
-            } else {
-              if (!target) {
-                return "continue";
-              }
-
-              var damage = cfg.baseDamage * (1 + (unit.star - 1) * 0.8);
-
-              if (cfg.skillType === 'aoe') {
-                var splash = enemies.filter(function (enemy) {
-                  return enemy.lane === unit.lane && !enemy.reachedCrystal && enemy.currentHp > 0 && Math.abs(enemy.distanceOnPath - target.distanceOnPath) <= 1.2;
-                });
-
-                for (var _iterator3 = _createForOfIteratorHelperLoose(splash), _step3; !(_step3 = _iterator3()).done;) {
-                  var _enemy = _step3.value;
-                  _enemy.currentHp -= damage;
-
-                  if (_enemy.currentHp <= 0) {
-                    var _killsByUnit$unit$ins;
-
-                    killsByUnit[unit.instanceId] = ((_killsByUnit$unit$ins = killsByUnit[unit.instanceId]) !== null && _killsByUnit$unit$ins !== void 0 ? _killsByUnit$unit$ins : 0) + 1;
-                  }
-                }
-              } else {
-                target.currentHp -= damage;
-
-                if (target.currentHp <= 0) {
-                  var _killsByUnit$unit$ins2;
-
-                  killsByUnit[unit.instanceId] = ((_killsByUnit$unit$ins2 = killsByUnit[unit.instanceId]) !== null && _killsByUnit$unit$ins2 !== void 0 ? _killsByUnit$unit$ins2 : 0) + 1;
-                }
-              }
-            }
-
-            unit.cooldownLeft = cfg.attackInterval;
-          };
-
-          for (var _iterator2 = _createForOfIteratorHelperLoose(units), _step2; !(_step2 = _iterator2()).done;) {
-            var _ret = _loop();
-
-            if (_ret === "continue") continue;
-          }
-
-          var killedEnemyIds = enemies.filter(function (e) {
-            return e.currentHp <= 0;
-          }).map(function (e) {
-            return e.instanceId;
-          });
-          var goldFromKills = enemies.filter(function (e) {
-            return e.currentHp <= 0;
-          }).reduce(function (sum, e) {
-            return sum + ENEMY_CONFIG[e.enemyId].goldReward;
-          }, 0);
-          var crystalDamage = enemies.filter(function (e) {
-            return e.reachedCrystal;
-          }).reduce(function (sum, e) {
-            return sum + ENEMY_CONFIG[e.enemyId].crystalDamage;
-          }, 0);
-          return {
-            crystalDamage: crystalDamage,
-            killedEnemyIds: killedEnemyIds,
-            goldFromKills: goldFromKills,
-            healingDoneByUnit: healingDoneByUnit,
-            killsByUnit: killsByUnit
-          };
-        };
-
-        _proto.assignEngagements = function assignEngagements(units, enemies) {
-          var _this2 = this;
-
-          var engagements = new Map();
-          var liveEnemies = enemies.filter(function (enemy) {
-            return enemy.currentHp > 0 && !enemy.reachedCrystal;
-          }).sort(function (a, b) {
-            return b.distanceOnPath - a.distanceOnPath;
-          });
-
-          var _loop2 = function _loop2() {
-            var lane = _arr[_i];
-            var laneEnemies = liveEnemies.filter(function (enemy) {
-              return enemy.lane === lane;
-            });
-            var blockers = units.filter(function (unit) {
-              return unit.lane === lane && unit.currentHp > 0;
-            }).filter(function (unit) {
-              return UNIT_CONFIG[unit.unitId].aggroRole === 'blocker';
-            }).sort(function (a, b) {
-              return a.tileIndex - b.tileIndex;
-            });
-
-            var _loop3 = function _loop3() {
-              var enemy = _step4.value;
-              var blocker = blockers.find(function (unit) {
-                return _this2.isEnemyInUnitAggroRange(enemy, unit);
-              });
-
-              if (blocker) {
-                engagements.set(enemy.instanceId, blocker);
-              }
-            };
-
-            for (var _iterator4 = _createForOfIteratorHelperLoose(laneEnemies), _step4; !(_step4 = _iterator4()).done;) {
-              _loop3();
-            }
-
-            var meleeUnits = units.filter(function (unit) {
-              return unit.lane === lane && unit.currentHp > 0;
-            }).filter(function (unit) {
-              return UNIT_CONFIG[unit.unitId].aggroRole === 'melee';
-            }).sort(function (a, b) {
-              return a.tileIndex - b.tileIndex;
-            });
-
-            var _loop4 = function _loop4() {
-              var unit = _step5.value;
-              var target = laneEnemies.find(function (enemy) {
-                return !engagements.has(enemy.instanceId) && _this2.isEnemyInUnitAggroRange(enemy, unit);
-              });
-
-              if (target) {
-                engagements.set(target.instanceId, unit);
-              }
-            };
-
-            for (var _iterator5 = _createForOfIteratorHelperLoose(meleeUnits), _step5; !(_step5 = _iterator5()).done;) {
-              _loop4();
-            }
-          };
-
-          for (var _i = 0, _arr = [0, 1]; _i < _arr.length; _i++) {
-            _loop2();
-          }
-
-          return engagements;
-        };
-
-        _proto.applyEnemyPressure = function applyEnemyPressure(engagements, dt) {
-          var attackersByUnit = new Map();
-
-          for (var _iterator6 = _createForOfIteratorHelperLoose(engagements.values()), _step6; !(_step6 = _iterator6()).done;) {
-            var unit = _step6.value;
-
-            if (unit.currentHp <= 0) {
-              continue;
-            }
-
-            var current = attackersByUnit.get(unit.instanceId);
-
-            if (current) {
-              current.count += 1;
-            } else {
-              attackersByUnit.set(unit.instanceId, {
-                unit: unit,
-                count: 1
-              });
-            }
-          }
-
-          for (var _iterator7 = _createForOfIteratorHelperLoose(attackersByUnit.values()), _step7; !(_step7 = _iterator7()).done;) {
-            var _step7$value = _step7.value,
-                _unit = _step7$value.unit,
-                count = _step7$value.count;
-            _unit.currentHp -= count * this.enemyDpsPerUnit * dt;
-
-            if (_unit.currentHp < 0) {
-              _unit.currentHp = 0;
-            }
-          }
-        };
-
-        _proto.isEnemyInUnitAggroRange = function isEnemyInUnitAggroRange(enemy, unit) {
-          var cfg = UNIT_CONFIG[unit.unitId];
-          var distance = Math.abs(enemy.distanceOnPath - this.getUnitPathDistance(unit));
-          return distance <= cfg.range;
-        };
-
-        _proto.getUnitPathDistance = function getUnitPathDistance(unit) {
-          return this.firstTileDistance + unit.tileIndex * this.tileDistanceStep;
-        };
-
-        _proto.applyHeal = function applyHeal(caster, units) {
-          var _UNIT_CONFIG$caster$u;
-
-          var healAmount = ((_UNIT_CONFIG$caster$u = UNIT_CONFIG[caster.unitId].healPower) !== null && _UNIT_CONFIG$caster$u !== void 0 ? _UNIT_CONFIG$caster$u : 0) * caster.star;
-
-          if (healAmount <= 0) {
-            return 0;
-          }
-
-          var wounded = units.filter(function (unit) {
-            return unit.lane === caster.lane && unit.currentHp > 0;
-          }).map(function (unit) {
-            var maxHp = UNIT_CONFIG[unit.unitId].maxHp;
-            return {
-              unit: unit,
-              missingHp: Math.max(0, maxHp - unit.currentHp),
-              hpRatio: unit.currentHp / maxHp
-            };
-          }).filter(function (entry) {
-            return entry.missingHp > 0;
-          }).sort(function (a, b) {
-            return a.hpRatio - b.hpRatio;
-          })[0];
-
-          if (!wounded) {
-            return 0;
-          }
-
-          var actualHeal = Math.min(healAmount, wounded.missingHp);
-          wounded.unit.currentHp += actualHeal;
-          return actualHeal;
-        };
-
-        return BattleSystem;
-      }());
-
-      cclegacy._RF.pop();
-    }
-  };
-});
-
-System.register("chunks:///_virtual/simulate-run.ts", ['./_rollupPluginModLoBabelHelpers.js', 'cc', './game-controller.ts'], function (exports) {
-  'use strict';
-
-  var _createForOfIteratorHelperLoose, cclegacy, GameController;
-
-  return {
-    setters: [function (module) {
-      _createForOfIteratorHelperLoose = module.createForOfIteratorHelperLoose;
-    }, function (module) {
-      cclegacy = module.cclegacy;
-    }, function (module) {
-      GameController = module.GameController;
-    }],
-    execute: function () {
-      exports('simulateBeginnerRun', simulateBeginnerRun);
-
-      cclegacy._RF.push({}, "678c4YqmIFAZJrEf9r3qMcj", "simulate-run", undefined);
-
-      function simulateBeginnerRun() {
-        var controller = new GameController();
-        controller.startGame('beginner');
-
-        for (var safety = 0; safety < 200 && ['win', 'lose'].includes(controller.snapshot().phase) === false; safety += 1) {
-          var prep = controller.snapshot();
-
-          if (prep.phase === 'prep') {
-            // 简单自动化策略：尽量买，优先铺满第一条路线。
-            for (var i = 0; i < 3; i += 1) {
-              controller.buy(0);
-            }
-
-            var bench = controller.snapshot().bench;
-
-            for (var _iterator = _createForOfIteratorHelperLoose(bench), _step; !(_step = _iterator()).done;) {
-              var unit = _step.value;
-              var lane = prep.waveNumber % 2;
-
-              for (var tile = 0; tile < 6; tile += 1) {
-                if (controller.place(unit.instanceId, lane, tile)) {
-                  break;
-                }
-              }
-            }
-
-            controller.beginBattle();
-          }
-
-          if (controller.snapshot().phase === 'battle') {
-            for (var _i = 0; _i < 1000 && controller.snapshot().phase === 'battle'; _i += 1) {
-              controller.tick(0.2);
-            }
-          }
-        }
-
-        return controller.snapshot();
-      }
-
-      if (typeof require !== 'undefined' && require.main === module) {
-        console.log(JSON.stringify(simulateBeginnerRun(), null, 2));
-      }
-
-      cclegacy._RF.pop();
-    }
-  };
-});
-
-System.register("chunks:///_virtual/game-session.ts", ['./_rollupPluginModLoBabelHelpers.js', 'cc', './unit-config.ts', './unit-system.ts', './difficulty-config.ts', './battle-system.ts', './divine-task-system.ts', './economy-system.ts', './shop-system.ts', './wave-system.ts'], function (exports) {
-  'use strict';
-
-  var _createForOfIteratorHelperLoose, _defineProperty, cclegacy, UNIT_CONFIG, UnitSystem, DIFFICULTY_CONFIG, BattleSystem, DivineTaskSystem, EconomySystem, ShopSystem, WaveSystem;
-
-  return {
-    setters: [function (module) {
-      _createForOfIteratorHelperLoose = module.createForOfIteratorHelperLoose;
-      _defineProperty = module.defineProperty;
-    }, function (module) {
-      cclegacy = module.cclegacy;
-    }, function (module) {
-      UNIT_CONFIG = module.UNIT_CONFIG;
-    }, function (module) {
-      UnitSystem = module.UnitSystem;
-    }, function (module) {
-      DIFFICULTY_CONFIG = module.DIFFICULTY_CONFIG;
-    }, function (module) {
-      BattleSystem = module.BattleSystem;
-    }, function (module) {
-      DivineTaskSystem = module.DivineTaskSystem;
-    }, function (module) {
-      EconomySystem = module.EconomySystem;
-    }, function (module) {
-      ShopSystem = module.ShopSystem;
-    }, function (module) {
-      WaveSystem = module.WaveSystem;
-    }],
-    execute: function () {
-      cclegacy._RF.push({}, "806224v8q9AUZUTGp0jh8YB", "game-session", undefined);
-
-      var GameSession = exports('GameSession', /*#__PURE__*/function () {
-        function GameSession() {
-          _defineProperty(this, "economy", new EconomySystem());
-
-          _defineProperty(this, "shop", new ShopSystem());
-
-          _defineProperty(this, "unitSystem", new UnitSystem());
-
-          _defineProperty(this, "divine", new DivineTaskSystem());
-
-          _defineProperty(this, "waveSystem", new WaveSystem());
-
-          _defineProperty(this, "battleSystem", new BattleSystem());
-
-          _defineProperty(this, "phase", 'menu');
-
-          _defineProperty(this, "difficulty", 'beginner');
-
-          _defineProperty(this, "waveNumber", 1);
-
-          _defineProperty(this, "crystalHp", 0);
-
-          _defineProperty(this, "enemies", []);
-        }
-
-        var _proto = GameSession.prototype;
-
-        _proto.startNewGame = function startNewGame(difficulty) {
-          var diff = DIFFICULTY_CONFIG[difficulty];
-          this.phase = 'prep';
-          this.difficulty = difficulty;
-          this.waveNumber = 1;
-          this.crystalHp = diff.crystalHp;
-          this.enemies = [];
-          this.economy.setStartingGold(diff.startingGold);
-          this.onRoundPrepStart();
-        };
-
-        _proto.getSnapshot = function getSnapshot() {
-          return {
-            phase: this.phase,
-            difficulty: this.difficulty,
-            waveNumber: this.waveNumber,
-            totalWaves: DIFFICULTY_CONFIG[this.difficulty].totalWaves,
-            crystalHp: this.crystalHp,
-            gold: this.economy.getGold(),
-            shop: this.shop.getEntries(),
-            bench: this.unitSystem.getBenchUnits(),
-            placed: this.unitSystem.getPlacedUnits(),
-            divineTasks: this.divine.getAllProgress(),
-            enemies: this.enemies
-          };
-        };
-
-        _proto.refreshShopByCost = function refreshShopByCost() {
-          if (this.phase !== 'prep') {
-            return false;
-          }
-
-          var cost = DIFFICULTY_CONFIG[this.difficulty].refreshCost;
-
-          if (!this.economy.spend(cost)) {
-            return false;
-          }
-
-          this.shop.refresh();
-          return true;
-        };
-
-        _proto.buyShopUnit = function buyShopUnit(slotIndex) {
-          if (this.phase !== 'prep') {
-            return false;
-          }
-
-          var unitId = this.shop.peek(slotIndex);
-          if (!unitId) return false;
-          var cost = UNIT_CONFIG[unitId].cost;
-
-          if (!this.economy.spend(cost)) {
-            return false;
-          }
-
-          this.shop.take(slotIndex);
-          this.unitSystem.addToBench(unitId);
-          return true;
-        };
-
-        _proto.placeUnit = function placeUnit(instanceId, lane, tileIndex) {
-          if (this.phase !== 'prep') {
-            return false;
-          }
-
-          return this.unitSystem.placeFromBench(instanceId, lane, tileIndex);
-        };
-
-        _proto.movePlacedUnit = function movePlacedUnit(instanceId, lane, tileIndex) {
-          if (this.phase !== 'prep') {
-            return false;
-          }
-
-          return this.unitSystem.movePlacedUnit(instanceId, lane, tileIndex);
-        };
-
-        _proto.beginBattle = function beginBattle() {
-          if (this.phase !== 'prep') {
-            return false;
-          }
-
-          this.phase = 'battle';
-          this.enemies = [];
-          this.waveSystem.resetWave();
-          return true;
-        };
-
-        _proto.tickBattle = function tickBattle(dt) {
-          var _this$enemies;
-
-          if (dt === void 0) {
-            dt = 0.2;
-          }
-
-          if (this.phase !== 'battle') return;
-          var spawned = this.waveSystem.tickSpawn(this.difficulty, this.waveNumber, dt);
-
-          (_this$enemies = this.enemies).push.apply(_this$enemies, spawned);
-
-          var result = this.battleSystem.tick(this.unitSystem.getPlacedUnits(), this.enemies, dt);
-          this.crystalHp -= result.crystalDamage;
-          this.economy.earn(result.goldFromKills);
-
-          for (var _i = 0, _Object$entries = Object.entries(result.killsByUnit); _i < _Object$entries.length; _i++) {
-            var _Object$entries$_i = _Object$entries[_i],
-                unitId = _Object$entries$_i[0],
-                killCount = _Object$entries$_i[1];
-            this.divine.addMetric(unitId, 'kills', killCount);
-            var completed = this.divine.resolveCompleted(unitId);
-
-            if (completed) {
-              this.unitSystem.evolveUnit(unitId, completed.targetUnitId);
-            }
-          }
-
-          for (var _i2 = 0, _Object$entries2 = Object.entries(result.healingDoneByUnit); _i2 < _Object$entries2.length; _i2++) {
-            var _Object$entries2$_i = _Object$entries2[_i2],
-                _unitId = _Object$entries2$_i[0],
-                healAmount = _Object$entries2$_i[1];
-            this.divine.addMetric(_unitId, 'healing', healAmount);
-
-            var _completed = this.divine.resolveCompleted(_unitId);
-
-            if (_completed) {
-              this.unitSystem.evolveUnit(_unitId, _completed.targetUnitId);
-            }
-          }
-
-          var removedIds = new Set([].concat(result.killedEnemyIds, this.enemies.filter(function (e) {
-            return e.reachedCrystal;
-          }).map(function (e) {
-            return e.instanceId;
-          })));
-          this.enemies = this.enemies.filter(function (e) {
-            return !removedIds.has(e.instanceId);
-          });
-
-          if (this.crystalHp <= 0) {
-            this.phase = 'lose';
-            return;
-          }
-
-          var spawnDone = this.waveSystem.isWaveSpawnFinished(this.difficulty, this.waveNumber);
-
-          if (spawnDone && this.enemies.length === 0) {
-            if (this.waveNumber >= DIFFICULTY_CONFIG[this.difficulty].totalWaves) {
-              this.phase = 'win';
-            } else {
-              this.waveNumber += 1;
-              this.phase = 'prep';
-              this.onRoundPrepStart();
-            }
-          }
-        };
-
-        _proto.onRoundPrepStart = function onRoundPrepStart() {
-          this.unitSystem.resetDefeatedPlacedUnits();
-          this.shop.refresh();
-
-          for (var _iterator = _createForOfIteratorHelperLoose(this.unitSystem.getUnitsForTaskRoll()), _step; !(_step = _iterator()).done;) {
-            var unit = _step.value;
-            var progress = this.divine.tryAssignTask(unit);
-
-            if (progress) {
-              this.unitSystem.setAssignedTask(unit.instanceId, progress.taskId);
-            }
-          }
-        };
-
-        return GameSession;
-      }());
-
-      cclegacy._RF.pop();
-    }
-  };
-});
-
-System.register("chunks:///_virtual/wave-config.ts", ['cc'], function (exports) {
+System.register("chunks:///_virtual/squad-ui-layout-config.ts", ['cc'], function (exports) {
   'use strict';
 
   var cclegacy;
@@ -3068,161 +2595,680 @@ System.register("chunks:///_virtual/wave-config.ts", ['cc'], function (exports) 
       cclegacy = module.cclegacy;
     }],
     execute: function () {
-      cclegacy._RF.push({}, "99533lTHJZDhKZtQM++rZPl", "wave-config", undefined);
+      cclegacy._RF.push({}, "85f58kW/BBN64wdtg8algHP", "squad-ui-layout-config", undefined);
 
-      var PATTERNS = [[{
-        enemyId: 'slime',
-        count: 8,
-        spawnInterval: 0.8
-      }], [{
-        enemyId: 'slime',
-        count: 10,
-        spawnInterval: 0.75
-      }], [{
-        enemyId: 'slime',
-        count: 6,
-        spawnInterval: 0.7
-      }, {
-        enemyId: 'wolf',
-        count: 4,
-        spawnInterval: 1
-      }], [{
-        enemyId: 'wolf',
-        count: 8,
-        spawnInterval: 0.9
-      }], [{
-        enemyId: 'wolf',
-        count: 10,
-        spawnInterval: 0.85
-      }, {
-        enemyId: 'slime',
-        count: 6,
-        spawnInterval: 0.7
-      }], [{
-        enemyId: 'brute',
-        count: 3,
-        spawnInterval: 1.6
-      }, {
-        enemyId: 'wolf',
-        count: 8,
-        spawnInterval: 0.85
-      }], [{
-        enemyId: 'brute',
-        count: 5,
-        spawnInterval: 1.3
-      }], [{
-        enemyId: 'brute',
-        count: 6,
-        spawnInterval: 1.15
-      }, {
-        enemyId: 'wolf',
-        count: 10,
-        spawnInterval: 0.8
-      }]];
-
-      function scaleEntry(entry, scale) {
-        return {
-          enemyId: entry.enemyId,
-          count: Math.max(1, Math.floor(entry.count * scale)),
-          spawnInterval: Math.max(0.35, entry.spawnInterval / Math.min(2, scale))
-        };
-      }
-
-      function buildWaves(totalWaves, multiplier) {
-        var waves = [];
-
-        var _loop = function _loop(i) {
-          var pattern = PATTERNS[(i - 1) % PATTERNS.length];
-          var scale = 1 + Math.floor((i - 1) / PATTERNS.length) * 0.18 + multiplier;
-          waves.push({
-            waveNumber: i,
-            entries: pattern.map(function (entry) {
-              return scaleEntry(entry, scale);
-            })
-          });
-        };
-
-        for (var i = 1; i <= totalWaves; i += 1) {
-          _loop(i);
-        }
-
-        return waves;
-      }
-
-      var WAVE_CONFIG = exports('WAVE_CONFIG', {
-        beginner: buildWaves(10, 0),
-        normal: buildWaves(30, 0.2),
-        hard: buildWaves(60, 0.45)
-      });
+      var SQUAD_DEPLOY_SLOTS = exports('SQUAD_DEPLOY_SLOTS', 5);
+      var SQUAD_BENCH_SLOTS = exports('SQUAD_BENCH_SLOTS', 8);
+      var SQUAD_SHOP_SLOTS = exports('SQUAD_SHOP_SLOTS', 3);
 
       cclegacy._RF.pop();
     }
   };
 });
 
-System.register("chunks:///_virtual/game-controller.ts", ['./_rollupPluginModLoBabelHelpers.js', 'cc', './game-session.ts'], function (exports) {
+System.register("chunks:///_virtual/battlefield-controller.ts", ['cc', './_rollupPluginModLoBabelHelpers.js', './squad-battle-config.ts', './unit-config.ts', './sprite-resolvers.ts', './unit-view.ts', './enemy-view.ts'], function (exports) {
   'use strict';
 
-  var _defineProperty, cclegacy, GameSession;
+  var cclegacy, _decorator, Layers, UITransform, Node, Vec3, Sprite, Color, UIOpacity, Label, Graphics, Component, _inheritsLoose, _defineProperty, _assertThisInitialized, _createForOfIteratorHelperLoose, _asyncToGenerator, SQUAD_UNIT_STATS, ENEMY_STATS, UNIT_CONFIG, UnitSpriteResolver, EnemySpriteResolver, BackgroundResolver, UnitView, EnemyView;
 
   return {
     setters: [function (module) {
-      _defineProperty = module.defineProperty;
-    }, function (module) {
       cclegacy = module.cclegacy;
+      _decorator = module._decorator;
+      Layers = module.Layers;
+      UITransform = module.UITransform;
+      Node = module.Node;
+      Vec3 = module.Vec3;
+      Sprite = module.Sprite;
+      Color = module.Color;
+      UIOpacity = module.UIOpacity;
+      Label = module.Label;
+      Graphics = module.Graphics;
+      Component = module.Component;
     }, function (module) {
-      GameSession = module.GameSession;
+      _inheritsLoose = module.inheritsLoose;
+      _defineProperty = module.defineProperty;
+      _assertThisInitialized = module.assertThisInitialized;
+      _createForOfIteratorHelperLoose = module.createForOfIteratorHelperLoose;
+      _asyncToGenerator = module.asyncToGenerator;
+    }, function (module) {
+      SQUAD_UNIT_STATS = module.SQUAD_UNIT_STATS;
+      ENEMY_STATS = module.ENEMY_STATS;
+    }, function (module) {
+      UNIT_CONFIG = module.UNIT_CONFIG;
+    }, function (module) {
+      UnitSpriteResolver = module.UnitSpriteResolver;
+      EnemySpriteResolver = module.EnemySpriteResolver;
+      BackgroundResolver = module.BackgroundResolver;
+    }, function (module) {
+      UnitView = module.UnitView;
+    }, function (module) {
+      EnemyView = module.EnemyView;
     }],
     execute: function () {
-      cclegacy._RF.push({}, "9a78d143UJBhZl8KpY1LBt6", "game-controller", undefined);
-      /**
-       * Cocos Creator 接入建议：
-       * 1. 将该控制器挂在主场景节点上。
-       * 2. 将按钮事件绑定到 startGame/refreshShop/buy/place/movePlaced/beginBattle。
-       * 3. 在 update(dt) 中调用 tick。
-       */
+      var _dec, _class, _temp;
 
+      cclegacy._RF.push({}, "902a1UizRBMlLoHD+K2Wk60", "battlefield-controller", undefined);
 
-      var GameController = exports('GameController', /*#__PURE__*/function () {
-        function GameController() {
-          _defineProperty(this, "session", new GameSession());
+      var ccclass = _decorator.ccclass;
+      var BattlefieldController = exports('BattlefieldController', (_dec = ccclass('BattlefieldController'), _dec(_class = (_temp = /*#__PURE__*/function (_Component) {
+        _inheritsLoose(BattlefieldController, _Component);
+
+        function BattlefieldController() {
+          var _this;
+
+          for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+            args[_key] = arguments[_key];
+          }
+
+          _this = _Component.call.apply(_Component, [this].concat(args)) || this;
+
+          _defineProperty(_assertThisInitialized(_this), "unitResolver", new UnitSpriteResolver());
+
+          _defineProperty(_assertThisInitialized(_this), "enemyResolver", new EnemySpriteResolver());
+
+          _defineProperty(_assertThisInitialized(_this), "backgroundResolver", new BackgroundResolver());
+
+          _defineProperty(_assertThisInitialized(_this), "allyViews", new Map());
+
+          _defineProperty(_assertThisInitialized(_this), "enemyViews", new Map());
+
+          _defineProperty(_assertThisInitialized(_this), "allyLayer", null);
+
+          _defineProperty(_assertThisInitialized(_this), "enemyLayer", null);
+
+          _defineProperty(_assertThisInitialized(_this), "commandLayer", null);
+
+          _defineProperty(_assertThisInitialized(_this), "moveHint", null);
+
+          _defineProperty(_assertThisInitialized(_this), "dimmer", null);
+
+          _defineProperty(_assertThisInitialized(_this), "renderSerial", 0);
+
+          _defineProperty(_assertThisInitialized(_this), "onGroundClick", void 0);
+
+          _defineProperty(_assertThisInitialized(_this), "onAllyClick", void 0);
+
+          _defineProperty(_assertThisInitialized(_this), "onEnemyClick", void 0);
+
+          return _this;
         }
 
-        var _proto = GameController.prototype;
+        var _proto = BattlefieldController.prototype;
 
-        _proto.startGame = function startGame(difficulty) {
-          this.session.startNewGame(difficulty);
+        _proto.initialize = function initialize() {
+          var _this$node$getCompone,
+              _this2 = this;
+
+          this.node.layer = Layers.Enum.UI_2D;
+          var transform = (_this$node$getCompone = this.node.getComponent(UITransform)) !== null && _this$node$getCompone !== void 0 ? _this$node$getCompone : this.node.addComponent(UITransform);
+          transform.setContentSize(920, 390);
+          var bg = new Node('BattleBg');
+          bg.layer = Layers.Enum.UI_2D;
+          this.node.addChild(bg);
+          bg.addComponent(UITransform).setContentSize(888, 348);
+          bg.setPosition(new Vec3(0, 20, 0));
+          var bgSprite = bg.addComponent(Sprite);
+          bgSprite.sizeMode = Sprite.SizeMode.CUSTOM;
+          bgSprite.color = new Color(31, 79, 91, 255);
+          void this.loadBackground(bgSprite);
+          var dimNode = new Node('Dimmer');
+          dimNode.layer = Layers.Enum.UI_2D;
+          this.node.addChild(dimNode);
+          dimNode.addComponent(UITransform).setContentSize(888, 348);
+          dimNode.setPosition(new Vec3(0, 20, 0));
+          var dimSprite = dimNode.addComponent(Sprite);
+          dimSprite.color = new Color(2, 6, 23, 255);
+          this.dimmer = dimNode.addComponent(UIOpacity);
+          this.dimmer.opacity = 42;
+          var ground = new Node('GroundClick');
+          ground.layer = Layers.Enum.UI_2D;
+          this.node.addChild(ground);
+          var groundTransform = ground.addComponent(UITransform);
+          groundTransform.setContentSize(888, 348);
+          ground.setPosition(new Vec3(0, 20, 0));
+          ground.on(Node.EventType.TOUCH_END, function () {
+            var _this2$onGroundClick;
+
+            var event = arguments.length <= 0 ? undefined : arguments[0];
+            var uiPoint = event.getUILocation();
+            var local = groundTransform.convertToNodeSpaceAR(new Vec3(uiPoint.x, uiPoint.y, 0));
+            var worldX = (local.x / 888 + 0.5) * 1200;
+            var worldY = (0.5 - local.y / 348) * 700;
+            (_this2$onGroundClick = _this2.onGroundClick) === null || _this2$onGroundClick === void 0 ? void 0 : _this2$onGroundClick.call(_this2, Math.max(0, Math.min(1200, worldX)), Math.max(0, Math.min(700, worldY)));
+          }, this);
+          this.commandLayer = new Node('CommandLayer');
+          this.commandLayer.layer = Layers.Enum.UI_2D;
+          this.node.addChild(this.commandLayer);
+          this.commandLayer.addComponent(UITransform).setContentSize(888, 348);
+          this.allyLayer = new Node('Allies');
+          this.allyLayer.layer = Layers.Enum.UI_2D;
+          this.node.addChild(this.allyLayer);
+          this.enemyLayer = new Node('Enemies');
+          this.enemyLayer.layer = Layers.Enum.UI_2D;
+          this.node.addChild(this.enemyLayer);
+          this.moveHint = new Node('MoveHint');
+          this.moveHint.layer = Layers.Enum.UI_2D;
+          this.node.addChild(this.moveHint);
+          this.moveHint.addComponent(UITransform).setContentSize(20, 20);
+          var hintSprite = this.moveHint.addComponent(Sprite);
+          hintSprite.color = new Color(251, 191, 36, 220);
+          this.moveHint.active = false;
+          var title = new Node('Title');
+          title.layer = Layers.Enum.UI_2D;
+          this.node.addChild(title);
+          title.addComponent(UITransform).setContentSize(500, 24);
+          title.setPosition(new Vec3(-180, 198, 0));
+          var label = title.addComponent(Label);
+          label.fontSize = 14;
+          label.string = '战场：点己方单位后，可点地面移动、点敌人集火、牧师点友军持续治疗';
+          label.color = new Color(191, 219, 254, 255);
         };
 
-        _proto.refreshShop = function refreshShop() {
-          return this.session.refreshShopByCost();
+        _proto.render = /*#__PURE__*/function () {
+          var _render = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee(snapshot, selectedUnitId, moveMarker) {
+            var _this3 = this;
+
+            var serial, visibleAllies, visibleEnemies, _loop, _iterator, _step, _ret, _iterator2, _step2, enemy, pos;
+
+            return regeneratorRuntime.wrap(function _callee$(_context2) {
+              while (1) {
+                switch (_context2.prev = _context2.next) {
+                  case 0:
+                    if (!(!this.allyLayer || !this.enemyLayer || !this.commandLayer)) {
+                      _context2.next = 2;
+                      break;
+                    }
+
+                    return _context2.abrupt("return");
+
+                  case 2:
+                    serial = ++this.renderSerial;
+                    visibleAllies = new Set();
+                    visibleEnemies = new Set();
+                    this.commandLayer.removeAllChildren();
+                    _loop = /*#__PURE__*/regeneratorRuntime.mark(function _loop() {
+                      var ally, target, _target;
+
+                      return regeneratorRuntime.wrap(function _loop$(_context) {
+                        while (1) {
+                          switch (_context.prev = _context.next) {
+                            case 0:
+                              ally = _step.value;
+                              visibleAllies.add(ally.instanceId);
+                              _context.next = 4;
+                              return _this3.createAlly(ally, selectedUnitId, snapshot.allies, serial);
+
+                            case 4:
+                              if (!(serial !== _this3.renderSerial)) {
+                                _context.next = 6;
+                                break;
+                              }
+
+                              return _context.abrupt("return", {
+                                v: void 0
+                              });
+
+                            case 6:
+                              if (ally.command.type === 'focus_enemy' && ally.command.targetEnemyId) {
+                                target = snapshot.enemies.find(function (enemy) {
+                                  return enemy.instanceId === ally.command.targetEnemyId;
+                                });
+                                if (target) _this3.createCommandVisual(ally.position, target.position, '集火', new Color(245, 158, 11, 255));
+                              }
+
+                              if (ally.command.type === 'channel_heal' && ally.command.targetAllyId) {
+                                _target = snapshot.allies.find(function (other) {
+                                  return other.instanceId === ally.command.targetAllyId;
+                                });
+                                if (_target) _this3.createCommandVisual(ally.position, _target.position, '治疗', new Color(96, 165, 250, 255));
+                              }
+
+                              if (ally.command.type === 'move' && ally.command.position) {
+                                _this3.createCommandVisual(ally.position, ally.command.position, '移动', new Color(251, 191, 36, 255));
+                              }
+
+                            case 9:
+                            case "end":
+                              return _context.stop();
+                          }
+                        }
+                      }, _loop);
+                    });
+                    _iterator = _createForOfIteratorHelperLoose(snapshot.allies);
+
+                  case 8:
+                    if ((_step = _iterator()).done) {
+                      _context2.next = 15;
+                      break;
+                    }
+
+                    return _context2.delegateYield(_loop(), "t0", 10);
+
+                  case 10:
+                    _ret = _context2.t0;
+
+                    if (!(typeof _ret === "object")) {
+                      _context2.next = 13;
+                      break;
+                    }
+
+                    return _context2.abrupt("return", _ret.v);
+
+                  case 13:
+                    _context2.next = 8;
+                    break;
+
+                  case 15:
+                    _iterator2 = _createForOfIteratorHelperLoose(snapshot.enemies);
+
+                  case 16:
+                    if ((_step2 = _iterator2()).done) {
+                      _context2.next = 25;
+                      break;
+                    }
+
+                    enemy = _step2.value;
+                    visibleEnemies.add(enemy.instanceId);
+                    _context2.next = 21;
+                    return this.createEnemy(enemy, serial);
+
+                  case 21:
+                    if (!(serial !== this.renderSerial)) {
+                      _context2.next = 23;
+                      break;
+                    }
+
+                    return _context2.abrupt("return");
+
+                  case 23:
+                    _context2.next = 16;
+                    break;
+
+                  case 25:
+                    this.hideMissingViews(this.allyViews, visibleAllies);
+                    this.hideMissingViews(this.enemyViews, visibleEnemies);
+
+                    if (moveMarker && Date.now() <= moveMarker.until && this.moveHint) {
+                      pos = this.worldToUi(moveMarker.x, moveMarker.y);
+                      this.moveHint.active = true;
+                      this.moveHint.setPosition(new Vec3(pos.x, pos.y, 0));
+                    } else if (this.moveHint) {
+                      this.moveHint.active = false;
+                    }
+
+                    if (this.dimmer) {
+                      if (snapshot.uiState.battlefieldLighting === 'dim') {
+                        this.dimmer.opacity = 42;
+                      } else if (snapshot.uiState.battlefieldLighting === 'brightening') {
+                        this.dimmer.opacity = Math.round((1 - snapshot.uiState.transitionProgress) * 42);
+                      } else {
+                        this.dimmer.opacity = 0;
+                      }
+                    }
+
+                  case 29:
+                  case "end":
+                    return _context2.stop();
+                }
+              }
+            }, _callee, this);
+          }));
+
+          function render(_x, _x2, _x3) {
+            return _render.apply(this, arguments);
+          }
+
+          return render;
+        }();
+
+        _proto.loadBackground = /*#__PURE__*/function () {
+          var _loadBackground = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee2(bgSprite) {
+            var frame;
+            return regeneratorRuntime.wrap(function _callee2$(_context3) {
+              while (1) {
+                switch (_context3.prev = _context3.next) {
+                  case 0:
+                    _context3.next = 2;
+                    return this.backgroundResolver.resolve('battlefield_01');
+
+                  case 2:
+                    frame = _context3.sent;
+
+                    if (frame) {
+                      _context3.next = 5;
+                      break;
+                    }
+
+                    return _context3.abrupt("return");
+
+                  case 5:
+                    bgSprite.spriteFrame = frame;
+                    bgSprite.color = new Color(255, 255, 255, 255);
+
+                  case 7:
+                  case "end":
+                    return _context3.stop();
+                }
+              }
+            }, _callee2, this);
+          }));
+
+          function loadBackground(_x4) {
+            return _loadBackground.apply(this, arguments);
+          }
+
+          return loadBackground;
+        }();
+
+        _proto.createAlly = /*#__PURE__*/function () {
+          var _createAlly = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee3(ally, selectedUnitId, allies, serial) {
+            var _this4 = this,
+                _UNIT_CONFIG$ally$uni;
+
+            var _this$getOrCreateAlly, node, view, pos, isDivineUnit, clip, frame, animationFrames, maxHp;
+
+            return regeneratorRuntime.wrap(function _callee3$(_context4) {
+              while (1) {
+                switch (_context4.prev = _context4.next) {
+                  case 0:
+                    if (this.allyLayer) {
+                      _context4.next = 2;
+                      break;
+                    }
+
+                    return _context4.abrupt("return");
+
+                  case 2:
+                    _this$getOrCreateAlly = this.getOrCreateAllyView(ally.instanceId), node = _this$getOrCreateAlly.node, view = _this$getOrCreateAlly.view;
+
+                    view.onClick = function () {
+                      var _this4$onAllyClick;
+
+                      return (_this4$onAllyClick = _this4.onAllyClick) === null || _this4$onAllyClick === void 0 ? void 0 : _this4$onAllyClick.call(_this4, ally.instanceId, allies);
+                    };
+
+                    pos = this.worldToUi(ally.position.x, ally.position.y);
+                    node.setPosition(new Vec3(pos.x, pos.y, 0));
+                    isDivineUnit = Boolean((_UNIT_CONFIG$ally$uni = UNIT_CONFIG[ally.unitId]) === null || _UNIT_CONFIG$ally$uni === void 0 ? void 0 : _UNIT_CONFIG$ally$uni.isDivine);
+                    clip = this.getUnitAnimationClip(ally);
+                    _context4.next = 10;
+                    return this.unitResolver.resolve(ally.unitId, ally.star, isDivineUnit);
+
+                  case 10:
+                    frame = _context4.sent;
+                    _context4.next = 13;
+                    return this.unitResolver.resolveAnimation(ally.unitId, clip, isDivineUnit);
+
+                  case 13:
+                    animationFrames = _context4.sent;
+
+                    if (!(serial !== this.renderSerial || !node.parent)) {
+                      _context4.next = 16;
+                      break;
+                    }
+
+                    return _context4.abrupt("return");
+
+                  case 16:
+                    maxHp = this.getAllyMaxHp(ally);
+                    view.render(ally, maxHp, selectedUnitId === ally.instanceId, frame, animationFrames);
+
+                  case 18:
+                  case "end":
+                    return _context4.stop();
+                }
+              }
+            }, _callee3, this);
+          }));
+
+          function createAlly(_x5, _x6, _x7, _x8) {
+            return _createAlly.apply(this, arguments);
+          }
+
+          return createAlly;
+        }();
+
+        _proto.createEnemy = /*#__PURE__*/function () {
+          var _createEnemy = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee4(enemy, serial) {
+            var _this5 = this;
+
+            var _this$getOrCreateEnem, node, view, pos, clip, frame, animationFrames, maxHp;
+
+            return regeneratorRuntime.wrap(function _callee4$(_context5) {
+              while (1) {
+                switch (_context5.prev = _context5.next) {
+                  case 0:
+                    if (this.enemyLayer) {
+                      _context5.next = 2;
+                      break;
+                    }
+
+                    return _context5.abrupt("return");
+
+                  case 2:
+                    _this$getOrCreateEnem = this.getOrCreateEnemyView(enemy.instanceId), node = _this$getOrCreateEnem.node, view = _this$getOrCreateEnem.view;
+
+                    view.onClick = function () {
+                      var _this5$onEnemyClick;
+
+                      return (_this5$onEnemyClick = _this5.onEnemyClick) === null || _this5$onEnemyClick === void 0 ? void 0 : _this5$onEnemyClick.call(_this5, enemy.instanceId);
+                    };
+
+                    pos = this.worldToUi(enemy.position.x, enemy.position.y);
+                    node.setPosition(new Vec3(pos.x, pos.y, 0));
+                    clip = this.getEnemyAnimationClip(enemy);
+                    _context5.next = 9;
+                    return this.enemyResolver.resolve(enemy.enemyType);
+
+                  case 9:
+                    frame = _context5.sent;
+                    _context5.next = 12;
+                    return this.enemyResolver.resolveAnimation(enemy.enemyType, clip);
+
+                  case 12:
+                    animationFrames = _context5.sent;
+
+                    if (!(serial !== this.renderSerial || !node.parent)) {
+                      _context5.next = 15;
+                      break;
+                    }
+
+                    return _context5.abrupt("return");
+
+                  case 15:
+                    maxHp = ENEMY_STATS[enemy.enemyType].maxHp;
+                    view.render(enemy, maxHp, frame, animationFrames);
+
+                  case 17:
+                  case "end":
+                    return _context5.stop();
+                }
+              }
+            }, _callee4, this);
+          }));
+
+          function createEnemy(_x9, _x10) {
+            return _createEnemy.apply(this, arguments);
+          }
+
+          return createEnemy;
+        }();
+
+        _proto.getOrCreateAllyView = function getOrCreateAllyView(instanceId) {
+          var cached = this.allyViews.get(instanceId);
+
+          if (cached) {
+            cached.node.active = true;
+            if (!cached.node.parent && this.allyLayer) this.allyLayer.addChild(cached.node);
+            return cached;
+          }
+
+          var node = new Node("Ally-" + instanceId);
+          if (this.allyLayer) this.allyLayer.addChild(node);
+          var view = node.addComponent(UnitView);
+          view.setup();
+          var entry = {
+            node: node,
+            view: view
+          };
+          this.allyViews.set(instanceId, entry);
+          return entry;
         };
 
-        _proto.buy = function buy(slotIndex) {
-          return this.session.buyShopUnit(slotIndex);
+        _proto.getOrCreateEnemyView = function getOrCreateEnemyView(instanceId) {
+          var cached = this.enemyViews.get(instanceId);
+
+          if (cached) {
+            cached.node.active = true;
+            if (!cached.node.parent && this.enemyLayer) this.enemyLayer.addChild(cached.node);
+            return cached;
+          }
+
+          var node = new Node("Enemy-" + instanceId);
+          if (this.enemyLayer) this.enemyLayer.addChild(node);
+          var view = node.addComponent(EnemyView);
+          view.setup();
+          var entry = {
+            node: node,
+            view: view
+          };
+          this.enemyViews.set(instanceId, entry);
+          return entry;
         };
 
-        _proto.place = function place(instanceId, lane, tileIndex) {
-          return this.session.placeUnit(instanceId, lane, tileIndex);
+        _proto.hideMissingViews = function hideMissingViews(views, visibleIds) {
+          for (var _iterator3 = _createForOfIteratorHelperLoose(views), _step3; !(_step3 = _iterator3()).done;) {
+            var _step3$value = _step3.value,
+                instanceId = _step3$value[0],
+                entry = _step3$value[1];
+
+            if (!visibleIds.has(instanceId)) {
+              entry.node.active = false;
+            }
+          }
         };
 
-        _proto.movePlaced = function movePlaced(instanceId, lane, tileIndex) {
-          return this.session.movePlacedUnit(instanceId, lane, tileIndex);
+        _proto.getUnitAnimationClip = function getUnitAnimationClip(unit) {
+          if (!unit.alive) return 'death_fall';
+          if (unit.attackCooldownLeft > 0 || unit.command.type === 'channel_heal') return 'attack';
+          if (Math.hypot(unit.velocity.x, unit.velocity.y) > 1 || unit.command.type === 'move') return 'move';
+          return 'move';
         };
 
-        _proto.beginBattle = function beginBattle() {
-          return this.session.beginBattle();
+        _proto.getEnemyAnimationClip = function getEnemyAnimationClip(enemy) {
+          if (!enemy.alive) return 'death_fall';
+          if (enemy.attackCooldownLeft > 0) return 'attack';
+          if (Math.hypot(enemy.velocity.x, enemy.velocity.y) > 1) return 'move';
+          return 'move';
         };
 
-        _proto.tick = function tick(dt) {
-          this.session.tickBattle(dt);
+        _proto.createCommandVisual = function createCommandVisual(from, to, text, color) {
+          if (!this.commandLayer) return;
+          var fromPos = this.worldToUi(from.x, from.y);
+          var toPos = this.worldToUi(to.x, to.y);
+          var lineNode = new Node("CmdLine-" + text);
+          this.commandLayer.addChild(lineNode);
+          lineNode.addComponent(UITransform).setContentSize(888, 348);
+          var graphics = lineNode.addComponent(Graphics);
+          graphics.lineWidth = 3;
+          graphics.strokeColor = color;
+          graphics.moveTo(fromPos.x, fromPos.y);
+          graphics.lineTo(toPos.x, toPos.y);
+          graphics.stroke();
+          var markerNode = new Node("CmdMarker-" + text);
+          this.commandLayer.addChild(markerNode);
+          markerNode.setPosition(new Vec3(toPos.x, toPos.y, 0));
+          markerNode.addComponent(UITransform).setContentSize(20, 20);
+          var marker = markerNode.addComponent(Graphics);
+          marker.fillColor = color;
+          marker.circle(0, 0, 6);
+          marker.fill();
+          var node = new Node("CmdLabel-" + text);
+          this.commandLayer.addChild(node);
+          node.addComponent(UITransform).setContentSize(120, 20);
+          node.setPosition(new Vec3((fromPos.x + toPos.x) / 2, (fromPos.y + toPos.y) / 2 + 18, 0));
+          var label = node.addComponent(Label);
+          label.string = "" + text;
+          label.fontSize = 11;
+          label.color = color;
         };
 
-        _proto.snapshot = function snapshot() {
-          return this.session.getSnapshot();
+        _proto.worldToUi = function worldToUi(worldX, worldY) {
+          return {
+            x: (worldX / 1200 - 0.5) * 888,
+            y: (0.5 - worldY / 700) * 348 + 20
+          };
         };
 
-        return GameController;
+        _proto.getAllyMaxHp = function getAllyMaxHp(unit) {
+          var base = SQUAD_UNIT_STATS[unit.unitId].maxHp;
+          return Math.round(base * (1 + (unit.star - 1) * 0.7));
+        };
+
+        return BattlefieldController;
+      }(Component), _temp)) || _class));
+
+      cclegacy._RF.pop();
+    }
+  };
+});
+
+System.register("chunks:///_virtual/healing-system.ts", ['cc', './math.ts', './squad-battle-config.ts'], function (exports) {
+  'use strict';
+
+  var cclegacy, distance, SQUAD_UNIT_STATS;
+  return {
+    setters: [function (module) {
+      cclegacy = module.cclegacy;
+    }, function (module) {
+      distance = module.distance;
+    }, function (module) {
+      SQUAD_UNIT_STATS = module.SQUAD_UNIT_STATS;
+    }],
+    execute: function () {
+      cclegacy._RF.push({}, "9cf335Kl4BN/5YmEcoeT80O", "healing-system", undefined);
+
+      var HealingSystem = exports('HealingSystem', /*#__PURE__*/function () {
+        function HealingSystem() {}
+
+        var _proto = HealingSystem.prototype;
+
+        _proto.healIfPossible = function healIfPossible(priest, ally) {
+          var _cfg$healPower;
+
+          if (!priest.alive || !ally.alive) return {
+            casted: false,
+            actualHeal: 0
+          };
+          var cfg = SQUAD_UNIT_STATS[priest.unitId];
+          var scaledHeal = ((_cfg$healPower = cfg.healPower) !== null && _cfg$healPower !== void 0 ? _cfg$healPower : 0) * priest.star;
+          if (scaledHeal <= 0 || priest.attackCooldownLeft > 0) return {
+            casted: false,
+            actualHeal: 0
+          };
+          var dist = distance(priest.position, ally.position);
+
+          if (dist > cfg.attackRange) {
+            return {
+              casted: false,
+              actualHeal: 0
+            };
+          } // 满血也保持治疗动作：这里仍触发冷却并维持 channel 语义。
+
+
+          var maxHp = SQUAD_UNIT_STATS[ally.unitId].maxHp;
+          var before = ally.currentHp;
+          ally.currentHp = Math.min(maxHp, ally.currentHp + scaledHeal);
+          var actualHeal = Math.max(0, ally.currentHp - before);
+          priest.attackCooldownLeft = cfg.attackInterval;
+          return {
+            casted: true,
+            actualHeal: actualHeal
+          };
+        };
+
+        return HealingSystem;
       }());
 
       cclegacy._RF.pop();
@@ -3230,7 +3276,7 @@ System.register("chunks:///_virtual/game-controller.ts", ['./_rollupPluginModLoB
   };
 });
 
-System.register("chunks:///_virtual/types.ts", ['cc'], function () {
+System.register("chunks:///_virtual/types2.ts", ['cc'], function () {
   'use strict';
 
   var cclegacy;
@@ -3246,16 +3292,1200 @@ System.register("chunks:///_virtual/types.ts", ['cc'], function () {
   };
 });
 
-System.register("chunks:///_virtual/id.ts", ['cc'], function (exports) {
+System.register("chunks:///_virtual/battle-scene-controller.ts", ['cc', './_rollupPluginModLoBabelHelpers.js', './unit-config.ts', './battle-hud-controller.ts', './squad-battle-session.ts', './local-profile-storage.ts', './prep-panel-controller.ts', './battlefield-controller.ts', './character-select-controller.ts', './command-overlay-controller.ts', './main-menu-controller.ts', './wave-transition-controller.ts'], function (exports) {
   'use strict';
 
-  var cclegacy;
+  var cclegacy, _decorator, director, Node, Layers, UITransform, Vec3, Canvas, Component, _inheritsLoose, _defineProperty, _assertThisInitialized, _createForOfIteratorHelperLoose, _extends, SHOP_UNIT_POOL, UNIT_CONFIG, BattleHudController, SquadBattleSession, LocalProfileStorage, PrepPanelController, BattlefieldController, CharacterSelectController, CommandOverlayController, MainMenuController, WaveTransitionController;
+
   return {
     setters: [function (module) {
       cclegacy = module.cclegacy;
+      _decorator = module._decorator;
+      director = module.director;
+      Node = module.Node;
+      Layers = module.Layers;
+      UITransform = module.UITransform;
+      Vec3 = module.Vec3;
+      Canvas = module.Canvas;
+      Component = module.Component;
+    }, function (module) {
+      _inheritsLoose = module.inheritsLoose;
+      _defineProperty = module.defineProperty;
+      _assertThisInitialized = module.assertThisInitialized;
+      _createForOfIteratorHelperLoose = module.createForOfIteratorHelperLoose;
+      _extends = module.extends;
+    }, function (module) {
+      SHOP_UNIT_POOL = module.SHOP_UNIT_POOL;
+      UNIT_CONFIG = module.UNIT_CONFIG;
+    }, function (module) {
+      BattleHudController = module.BattleHudController;
+    }, function (module) {
+      SquadBattleSession = module.SquadBattleSession;
+    }, function (module) {
+      LocalProfileStorage = module.LocalProfileStorage;
+    }, function (module) {
+      PrepPanelController = module.PrepPanelController;
+    }, function (module) {
+      BattlefieldController = module.BattlefieldController;
+    }, function (module) {
+      CharacterSelectController = module.CharacterSelectController;
+    }, function (module) {
+      CommandOverlayController = module.CommandOverlayController;
+    }, function (module) {
+      MainMenuController = module.MainMenuController;
+    }, function (module) {
+      WaveTransitionController = module.WaveTransitionController;
     }],
     execute: function () {
-      exports('nextId', nextId);
+      var _dec, _class, _temp;
+
+      cclegacy._RF.push({}, "a8bd7X+JBFBRKNN4L6rnOJy", "battle-scene-controller", undefined);
+
+      var ccclass = _decorator.ccclass;
+      var BattleSceneController = exports('BattleSceneController', (_dec = ccclass('BattleSceneController'), _dec(_class = (_temp = /*#__PURE__*/function (_Component) {
+        _inheritsLoose(BattleSceneController, _Component);
+
+        function BattleSceneController() {
+          var _this;
+
+          for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+            args[_key] = arguments[_key];
+          }
+
+          _this = _Component.call.apply(_Component, [this].concat(args)) || this;
+
+          _defineProperty(_assertThisInitialized(_this), "session", new SquadBattleSession());
+
+          _defineProperty(_assertThisInitialized(_this), "storage", new LocalProfileStorage());
+
+          _defineProperty(_assertThisInitialized(_this), "mode", 'menu');
+
+          _defineProperty(_assertThisInitialized(_this), "rootNode", null);
+
+          _defineProperty(_assertThisInitialized(_this), "menuController", null);
+
+          _defineProperty(_assertThisInitialized(_this), "selectController", null);
+
+          _defineProperty(_assertThisInitialized(_this), "settings", {
+            master: 80,
+            music: 70,
+            sfx: 80
+          });
+
+          _defineProperty(_assertThisInitialized(_this), "achievements", {
+            firstClear: false
+          });
+
+          _defineProperty(_assertThisInitialized(_this), "selectedStarterUnitId", SHOP_UNIT_POOL[0]);
+
+          _defineProperty(_assertThisInitialized(_this), "selectedUnitId", void 0);
+
+          _defineProperty(_assertThisInitialized(_this), "transientNotice", null);
+
+          _defineProperty(_assertThisInitialized(_this), "moveMarker", null);
+
+          _defineProperty(_assertThisInitialized(_this), "hudController", null);
+
+          _defineProperty(_assertThisInitialized(_this), "prepController", null);
+
+          _defineProperty(_assertThisInitialized(_this), "fieldController", null);
+
+          _defineProperty(_assertThisInitialized(_this), "transitionController", null);
+
+          _defineProperty(_assertThisInitialized(_this), "commandOverlayController", null);
+
+          return _this;
+        }
+
+        var _proto = BattleSceneController.prototype;
+
+        _proto.onLoad = function onLoad() {
+          var _this2 = this;
+
+          this.hideRuntimeProfiler();
+          this.settings = this.storage.loadSettings();
+          this.achievements = this.storage.loadAchievements();
+
+          this.session.onVictory = function () {
+            return _this2.unlockFirstClearAchievement();
+          };
+
+          this.ensureMenuGraph();
+        };
+
+        _proto.update = function update(dt) {
+          if (this.mode !== 'battle') {
+            return;
+          }
+
+          var outcome = this.session.tick(Math.max(0.016, Math.min(0.05, dt || 0.016)));
+
+          if (outcome.advancedWave || outcome.changedPhase) {
+            this.persistRun();
+          }
+
+          this.render();
+        };
+
+        _proto.ensureMenuGraph = function ensureMenuGraph() {
+          var _this3 = this;
+
+          var scene = director.getScene();
+          var canvasNode = scene ? this.findCanvasNode(scene) : null;
+          var parent = canvasNode !== null && canvasNode !== void 0 ? canvasNode : this.node;
+          var root = new Node('BattleSceneRoot');
+          root.layer = Layers.Enum.UI_2D;
+          root.addComponent(UITransform).setContentSize(960, 640);
+          parent.addChild(root);
+          this.rootNode = root;
+          var menuNode = new Node('MainMenu');
+          menuNode.layer = Layers.Enum.UI_2D;
+          menuNode.addComponent(UITransform).setContentSize(960, 640);
+          root.addChild(menuNode);
+          this.menuController = menuNode.addComponent(MainMenuController);
+          this.menuController.initialize();
+
+          this.menuController.onStart = function () {
+            return _this3.startFromMainMenu();
+          };
+
+          this.menuController.onLoadRequested = function () {
+            return _this3.loadFromMenu();
+          };
+
+          this.menuController.onSettingAdjusted = function (key, nextValue) {
+            return _this3.updateSetting(key, nextValue);
+          };
+
+          this.menuController.setSettings(this.settings);
+          this.menuController.setAchievements(this.achievements);
+          this.menuController.setHasRunSave(this.storage.hasRunSave());
+          this.menuController.setFooterText('当前版本：先从开始界面进入，再进入准备阶段。');
+          var selectNode = new Node('CharacterSelect');
+          selectNode.layer = Layers.Enum.UI_2D;
+          selectNode.addComponent(UITransform).setContentSize(960, 640);
+          root.addChild(selectNode);
+          selectNode.active = false;
+          this.selectController = selectNode.addComponent(CharacterSelectController);
+          this.selectController.initialize();
+          this.selectController.setOptions(SHOP_UNIT_POOL, this.selectedStarterUnitId);
+
+          this.selectController.onBack = function () {
+            return _this3.backToMainMenu();
+          };
+
+          this.selectController.onConfirm = function (unitId) {
+            return _this3.startBattleRunWithStarter(unitId);
+          };
+        };
+
+        _proto.ensureSceneGraph = function ensureSceneGraph() {
+          var _this4 = this;
+
+          if (!this.rootNode) {
+            this.ensureMenuGraph();
+          }
+
+          var root = this.rootNode;
+
+          if (!root) {
+            return;
+          }
+
+          if (this.hudController || this.prepController || this.fieldController || this.transitionController || this.commandOverlayController) {
+            return;
+          }
+
+          var battleNode = new Node('Battlefield');
+          battleNode.layer = Layers.Enum.UI_2D;
+          battleNode.addComponent(UITransform).setContentSize(920, 400);
+          battleNode.setPosition(new Vec3(0, 108, 0));
+          root.addChild(battleNode);
+          var hudNode = new Node('Hud');
+          hudNode.layer = Layers.Enum.UI_2D;
+          hudNode.addComponent(UITransform).setContentSize(920, 150);
+          hudNode.setPosition(new Vec3(0, 244, 0));
+          root.addChild(hudNode);
+          var prepNode = new Node('PrepPanel');
+          prepNode.layer = Layers.Enum.UI_2D;
+          prepNode.addComponent(UITransform).setContentSize(920, 240);
+          prepNode.setPosition(new Vec3(0, -120, 0));
+          root.addChild(prepNode);
+          var cmdNode = new Node('CommandOverlay');
+          cmdNode.layer = Layers.Enum.UI_2D;
+          cmdNode.addComponent(UITransform).setContentSize(920, 40);
+          cmdNode.setPosition(new Vec3(0, 164, 0));
+          root.addChild(cmdNode);
+          this.hudController = hudNode.addComponent(BattleHudController);
+          this.hudController.initialize();
+          this.prepController = prepNode.addComponent(PrepPanelController);
+          this.prepController.initialize();
+
+          this.prepController.onBuy = function (index) {
+            return _this4.onBuy(index);
+          };
+
+          this.prepController.onDeploy = function (id) {
+            return _this4.onDeploy(id);
+          };
+
+          this.prepController.onRecall = function (id) {
+            return _this4.onRecall(id);
+          };
+
+          this.prepController.onSell = function () {
+            return _this4.onSell();
+          };
+
+          this.prepController.onRefresh = function () {
+            return _this4.onRefresh();
+          };
+
+          this.prepController.onStartWave = function () {
+            return _this4.onStartWave();
+          };
+
+          this.fieldController = battleNode.addComponent(BattlefieldController);
+          this.fieldController.initialize();
+
+          this.fieldController.onGroundClick = function (x, y) {
+            return _this4.onGroundClicked(x, y);
+          };
+
+          this.fieldController.onEnemyClick = function (enemyId) {
+            return _this4.onEnemyClicked(enemyId);
+          };
+
+          this.fieldController.onAllyClick = function (allyId, allies) {
+            return _this4.onAllyClicked(allyId, allies);
+          };
+
+          this.transitionController = root.addComponent(WaveTransitionController);
+          this.transitionController.bind(prepNode, battleNode);
+          this.commandOverlayController = cmdNode.addComponent(CommandOverlayController);
+          this.commandOverlayController.initialize();
+        };
+
+        _proto.startFromMainMenu = function startFromMainMenu() {
+          this.mode = 'select';
+
+          if (this.menuController) {
+            this.menuController.hidePanel();
+            this.menuController.node.active = false;
+          }
+
+          if (this.selectController) {
+            this.selectController.node.active = true;
+            this.selectController.setOptions(SHOP_UNIT_POOL, this.selectedStarterUnitId);
+          }
+        };
+
+        _proto.backToMainMenu = function backToMainMenu() {
+          this.mode = 'menu';
+
+          if (this.selectController) {
+            this.selectController.node.active = false;
+          }
+
+          if (this.menuController) {
+            this.menuController.node.active = true;
+            this.menuController.setFooterText('已返回主菜单。点击开始后先选职业，再进入第一回合。');
+          }
+        };
+
+        _proto.startBattleRunWithStarter = function startBattleRunWithStarter(unitId) {
+          this.selectedStarterUnitId = unitId;
+          this.session.startNewRun('beginner', unitId);
+          this.mode = 'battle';
+          this.selectedUnitId = undefined;
+          this.moveMarker = null;
+          this.transientNotice = null;
+          this.ensureSceneGraph();
+
+          if (this.selectController) {
+            this.selectController.node.active = false;
+          }
+
+          if (this.menuController) {
+            this.menuController.hidePanel();
+            this.menuController.node.active = false;
+          }
+
+          this.pushNotice("\u5DF2\u9009\u62E9 " + UNIT_CONFIG[unitId].name + " \u4F5C\u4E3A\u8D77\u59CB\u961F\u957F\uFF0C\u5148\u8D2D\u4E70\u5E76\u4E0A\u9635\uFF0C\u81F3\u5C11 1 \u4EBA\u540E\u5F00\u59CB\u4E0B\u4E00\u6CE2\u3002", 2400);
+          this.persistRun();
+          this.render();
+        };
+
+        _proto.loadFromMenu = function loadFromMenu() {
+          var _save$selectedStarter;
+
+          var save = this.storage.loadRun();
+
+          if (!save) {
+            var _this$menuController, _this$menuController2;
+
+            (_this$menuController = this.menuController) === null || _this$menuController === void 0 ? void 0 : _this$menuController.setHasRunSave(false);
+            (_this$menuController2 = this.menuController) === null || _this$menuController2 === void 0 ? void 0 : _this$menuController2.setFooterText('未找到可用存档。先开始一局，系统会自动保存关键进度。');
+            return;
+          }
+
+          if (!this.session.loadFromSaveData(save)) {
+            var _this$menuController3;
+
+            (_this$menuController3 = this.menuController) === null || _this$menuController3 === void 0 ? void 0 : _this$menuController3.setFooterText('载入失败：存档内容不兼容。');
+            return;
+          }
+
+          this.mode = 'battle';
+          this.selectedUnitId = undefined;
+          this.moveMarker = null;
+          this.transientNotice = null;
+          this.selectedStarterUnitId = (_save$selectedStarter = save.selectedStarterUnitId) !== null && _save$selectedStarter !== void 0 ? _save$selectedStarter : this.selectedStarterUnitId;
+          this.ensureSceneGraph();
+
+          if (this.menuController) {
+            this.menuController.hidePanel();
+            this.menuController.node.active = false;
+          }
+
+          if (this.selectController) {
+            this.selectController.node.active = false;
+          }
+
+          this.pushNotice("\u5DF2\u8F7D\u5165\u5B58\u6863\uFF1A\u6CE2\u6B21 " + save.waveNumber + "\uFF0C\u9636\u6BB5 " + save.phase + "\u3002", 2200);
+          this.render();
+        };
+
+        _proto.render = function render() {
+          var _this$getSelectedUnit, _this$hudController, _this$prepController, _this$fieldController, _this$transitionContr, _this$commandOverlayC;
+
+          var snap = this.session.getSnapshot();
+          this.syncSelection(snap);
+          var selectedLabel = (_this$getSelectedUnit = this.getSelectedUnitLabel(snap)) !== null && _this$getSelectedUnit !== void 0 ? _this$getSelectedUnit : 'none';
+          var notice = this.getNoticeText(snap);
+          (_this$hudController = this.hudController) === null || _this$hudController === void 0 ? void 0 : _this$hudController.render(snap, selectedLabel, notice);
+          (_this$prepController = this.prepController) === null || _this$prepController === void 0 ? void 0 : _this$prepController.render(snap, selectedLabel, this.selectedUnitId);
+          (_this$fieldController = this.fieldController) === null || _this$fieldController === void 0 ? void 0 : _this$fieldController.render(snap, this.selectedUnitId, this.moveMarker);
+          (_this$transitionContr = this.transitionController) === null || _this$transitionContr === void 0 ? void 0 : _this$transitionContr.sync(snap);
+          (_this$commandOverlayC = this.commandOverlayController) === null || _this$commandOverlayC === void 0 ? void 0 : _this$commandOverlayC.setNotice(notice);
+        };
+
+        _proto.syncSelection = function syncSelection(snap) {
+          var _this5 = this;
+
+          if (!this.selectedUnitId) return;
+          var stillExists = [].concat(snap.bench, snap.deployed, snap.allies).some(function (unit) {
+            return unit.instanceId === _this5.selectedUnitId;
+          });
+
+          if (!stillExists) {
+            this.selectedUnitId = undefined;
+          }
+        };
+
+        _proto.onGroundClicked = function onGroundClicked(worldX, worldY) {
+          if (!this.selectedUnitId) return;
+          this.session.selectUnit(this.selectedUnitId);
+          var issued = this.session.commandMoveToGround({
+            x: worldX,
+            y: worldY
+          });
+
+          if (!issued) {
+            this.pushNotice('移动命令失败：当前选中单位不能执行移动。');
+            return;
+          }
+
+          this.moveMarker = {
+            x: worldX,
+            y: worldY,
+            until: Date.now() + 900
+          };
+          this.pushNotice("\u5DF2\u4E0B\u8FBE\u79FB\u52A8\u547D\u4EE4\uFF1A(" + Math.round(worldX) + ", " + Math.round(worldY) + ")", 1200);
+          this.persistRun();
+        };
+
+        _proto.onEnemyClicked = function onEnemyClicked(enemyInstanceId) {
+          if (!this.selectedUnitId) return;
+          this.session.selectUnit(this.selectedUnitId);
+          var issued = this.session.commandFocusEnemy(enemyInstanceId);
+          this.pushNotice(issued ? "\u5DF2\u4E0B\u8FBE\u96C6\u706B\u547D\u4EE4\uFF1A\u76EE\u6807 " + enemyInstanceId.slice(-4) : '命令失败：当前选中单位无法执行集火。');
+          if (issued) this.persistRun();
+        };
+
+        _proto.onAllyClicked = function onAllyClicked(allyInstanceId, allies) {
+          var _this6 = this,
+              _ally$unitId;
+
+          var selectedUnit = allies.find(function (ally) {
+            return ally.instanceId === _this6.selectedUnitId;
+          });
+
+          if ((selectedUnit === null || selectedUnit === void 0 ? void 0 : selectedUnit.role) === 'priest' && this.selectedUnitId) {
+            this.session.selectUnit(this.selectedUnitId);
+            var issued = this.session.commandPriestHeal(allyInstanceId);
+            this.pushNotice(issued ? "\u5DF2\u4E0B\u8FBE\u6301\u7EED\u6CBB\u7597\uFF1A" + allyInstanceId.slice(-4) : '治疗命令失败：仅牧师可对友军持续治疗。');
+            if (issued) this.persistRun();
+            return;
+          }
+
+          this.selectedUnitId = allyInstanceId;
+          var ally = allies.find(function (u) {
+            return u.instanceId === allyInstanceId;
+          });
+          this.pushNotice("\u5DF2\u9009\u4E2D\u6218\u573A\u5355\u4F4D\uFF1A" + ((_ally$unitId = ally === null || ally === void 0 ? void 0 : ally.unitId) !== null && _ally$unitId !== void 0 ? _ally$unitId : allyInstanceId.slice(-4)) + (ally ? "\u2605" + ally.star : ''), 1200);
+        };
+
+        _proto.onBuy = function onBuy(slotIndex) {
+          var snap = this.session.getSnapshot();
+          var unitId = snap.shop[slotIndex];
+          var bought = this.session.buyShopUnit(slotIndex);
+          this.pushNotice(bought ? "\u8D2D\u4E70\u6210\u529F\uFF1A" + unitId : this.getBuyFailureReason(slotIndex));
+          if (bought) this.persistRun();
+        };
+
+        _proto.onDeploy = function onDeploy(instanceId) {
+          var snap = this.session.getSnapshot();
+          var unit = snap.bench.find(function (u) {
+            return u.instanceId === instanceId;
+          });
+          var deployed = this.session.deployFromBench(instanceId);
+
+          if (deployed) {
+            var _unit$unitId;
+
+            this.selectedUnitId = instanceId;
+            this.pushNotice("\u5DF2\u4E0A\u9635\uFF1A" + ((_unit$unitId = unit === null || unit === void 0 ? void 0 : unit.unitId) !== null && _unit$unitId !== void 0 ? _unit$unitId : instanceId.slice(-4)) + (unit ? "\u2605" + unit.star : ''));
+            this.persistRun();
+            return;
+          }
+
+          this.pushNotice('上阵失败：上阵位已满或单位不存在。');
+        };
+
+        _proto.onRecall = function onRecall(instanceId) {
+          var snap = this.session.getSnapshot();
+          var unit = snap.deployed.find(function (u) {
+            return u.instanceId === instanceId;
+          });
+          var recalled = this.session.recallFromDeployed(instanceId);
+
+          if (recalled) {
+            var _unit$unitId2;
+
+            this.selectedUnitId = instanceId;
+            this.pushNotice("\u5DF2\u64A4\u56DE\uFF1A" + ((_unit$unitId2 = unit === null || unit === void 0 ? void 0 : unit.unitId) !== null && _unit$unitId2 !== void 0 ? _unit$unitId2 : instanceId.slice(-4)) + (unit ? "\u2605" + unit.star : ''));
+            this.persistRun();
+            return;
+          }
+
+          this.pushNotice('撤回失败：单位不存在。');
+        };
+
+        _proto.onSell = function onSell() {
+          if (!this.selectedUnitId) {
+            this.pushNotice('卖出失败：请先选中单位。');
+            return;
+          }
+
+          var sold = this.session.sellUnit(this.selectedUnitId);
+
+          if (sold) {
+            this.pushNotice('已卖出当前选中单位。');
+            this.selectedUnitId = undefined;
+            this.persistRun();
+            return;
+          }
+
+          this.pushNotice('卖出失败：当前选中单位不可卖出。');
+        };
+
+        _proto.onRefresh = function onRefresh() {
+          var refreshed = this.session.refreshShopByCost();
+          this.pushNotice(refreshed ? '商店已刷新。' : '刷新失败：金币不足或当前不在准备阶段。');
+          if (refreshed) this.persistRun();
+        };
+
+        _proto.onStartWave = function onStartWave() {
+          var started = this.session.startNextWaveFromPrep();
+          this.pushNotice(started ? '已开始下一波。' : '开始失败：至少需要 1 名已上阵单位，且当前必须处于准备阶段。');
+          if (started) this.persistRun();
+        };
+
+        _proto.findCanvasNode = function findCanvasNode(root) {
+          if (root.getComponent(Canvas)) return root;
+
+          for (var _iterator = _createForOfIteratorHelperLoose(root.children), _step; !(_step = _iterator()).done;) {
+            var child = _step.value;
+            var found = this.findCanvasNode(child);
+            if (found) return found;
+          }
+
+          return null;
+        };
+
+        _proto.hideRuntimeProfiler = function hideRuntimeProfiler() {
+          var _runtimeGlobal$cc, _runtimeGlobal$cc$pro, _runtimeGlobal$cc$pro2;
+
+          var runtimeGlobal = globalThis;
+          (_runtimeGlobal$cc = runtimeGlobal.cc) === null || _runtimeGlobal$cc === void 0 ? void 0 : (_runtimeGlobal$cc$pro = _runtimeGlobal$cc.profiler) === null || _runtimeGlobal$cc$pro === void 0 ? void 0 : (_runtimeGlobal$cc$pro2 = _runtimeGlobal$cc$pro.hideStats) === null || _runtimeGlobal$cc$pro2 === void 0 ? void 0 : _runtimeGlobal$cc$pro2.call(_runtimeGlobal$cc$pro);
+        };
+
+        _proto.pushNotice = function pushNotice(message, durationMs) {
+          if (durationMs === void 0) {
+            durationMs = 1600;
+          }
+
+          this.transientNotice = {
+            message: message,
+            until: Date.now() + durationMs
+          };
+        };
+
+        _proto.getNoticeText = function getNoticeText(snap) {
+          var _this$transientNotice, _this$transientNotice2;
+
+          if (this.transientNotice && Date.now() > this.transientNotice.until) {
+            this.transientNotice = null;
+          }
+
+          var selected = this.getSelectedUnitLabel(snap);
+          return (_this$transientNotice = (_this$transientNotice2 = this.transientNotice) === null || _this$transientNotice2 === void 0 ? void 0 : _this$transientNotice2.message) !== null && _this$transientNotice !== void 0 ? _this$transientNotice : selected ? this.getSelectedHint(snap, selected) : snap.phase === 'prep' ? '准备阶段：购买 3 个同星同单位会自动合成；先上阵至少 1 人再开始下一波。' : '战斗阶段：点己方单位后，再点地面移动、点敌人集火、点友军为牧师持续治疗。';
+        };
+
+        _proto.getSelectedHint = function getSelectedHint(snap, selected) {
+          var _this7 = this;
+
+          var rosterUnit = [].concat(snap.bench, snap.deployed).find(function (u) {
+            return u.instanceId === _this7.selectedUnitId;
+          });
+
+          if (rosterUnit) {
+            var _task$divineProgress;
+
+            var location = snap.deployed.some(function (u) {
+              return u.instanceId === rosterUnit.instanceId;
+            }) ? '上阵区' : '备战区';
+            var task = snap.divineTasks.find(function (entry) {
+              return entry.unitInstanceId === rosterUnit.instanceId;
+            });
+            return task ? "\u5DF2\u9009\u4E2D " + selected + "\uFF0C\u4F4D\u4E8E" + location + "\u3002\u8BE5\u5B9E\u4F8B\u6709\u795E\u54C1\u4EFB\u52A1 " + task.divineTaskId + "\uFF0C\u5F53\u524D\u8FDB\u5EA6 " + Math.floor((_task$divineProgress = task.divineProgress) !== null && _task$divineProgress !== void 0 ? _task$divineProgress : 0) + "\u3002" : "\u5DF2\u9009\u4E2D " + selected + "\uFF0C\u4F4D\u4E8E" + location + "\u3002\u51C6\u5907\u9636\u6BB5\u53EF\u5356\u51FA/\u4E0A\u9635/\u64A4\u56DE\uFF0C3 \u540C\u661F\u540C\u5355\u4F4D\u4F1A\u81EA\u52A8\u5408\u6210\u3002";
+          }
+
+          var battleUnit = snap.allies.find(function (u) {
+            return u.instanceId === _this7.selectedUnitId;
+          });
+
+          if (!battleUnit) {
+            return "\u5DF2\u9009\u4E2D " + selected + "\u3002";
+          }
+
+          if (battleUnit.role === 'priest') {
+            return "\u5DF2\u9009\u4E2D " + selected + "\u3002\u7267\u5E08\u4E0D\u4F1A\u81EA\u52A8\u653B\u51FB\uFF0C\u8BF7\u70B9\u53CB\u519B\u4E0B\u8FBE\u6301\u7EED\u6CBB\u7597\uFF0C\u6216\u70B9\u5730\u9762\u91CD\u65B0\u8D70\u4F4D\u3002";
+          }
+
+          if (battleUnit.command.type === 'focus_enemy') {
+            return "\u5DF2\u9009\u4E2D " + selected + "\u3002\u5F53\u524D\u5904\u4E8E\u96C6\u706B\u547D\u4EE4\u72B6\u6001\uFF0C\u53EF\u6539\u70B9\u5730\u9762\u79FB\u52A8\u6216\u6539\u70B9\u5176\u4ED6\u654C\u4EBA\u3002";
+          }
+
+          if (battleUnit.command.type === 'move') {
+            return "\u5DF2\u9009\u4E2D " + selected + "\u3002\u5F53\u524D\u5904\u4E8E\u79FB\u52A8\u547D\u4EE4\u72B6\u6001\uFF0C\u53EF\u6539\u70B9\u654C\u4EBA\u96C6\u706B\u6216\u7EE7\u7EED\u91CD\u5B9A\u5411\u8D70\u4F4D\u3002";
+          }
+
+          return "\u5DF2\u9009\u4E2D " + selected + "\u3002\u6218\u6597\u9636\u6BB5\u53EF\u70B9\u5730\u9762\u79FB\u52A8\u3001\u70B9\u654C\u4EBA\u96C6\u706B\uFF1B\u8FD1\u6218\u53EA\u4F1A\u77ED\u8DDD\u79BB\u53CD\u5E94\uFF0C\u8FDC\u7A0B\u4E0D\u4F1A\u81EA\u52A8\u6EE1\u56FE\u8FFD\u51FB\u3002";
+        };
+
+        _proto.getSelectedUnitLabel = function getSelectedUnitLabel(snap) {
+          var _this8 = this;
+
+          if (!this.selectedUnitId) return undefined;
+          var rosterUnit = [].concat(snap.deployed, snap.bench).find(function (u) {
+            return u.instanceId === _this8.selectedUnitId;
+          });
+
+          if (rosterUnit) {
+            var source = snap.deployed.some(function (u) {
+              return u.instanceId === _this8.selectedUnitId;
+            }) ? 'deployed' : 'bench';
+            return rosterUnit.unitId + "\u2605" + rosterUnit.star + " [" + source + "]";
+          }
+
+          var battleUnit = snap.allies.find(function (u) {
+            return u.instanceId === _this8.selectedUnitId;
+          });
+
+          if (battleUnit) {
+            return battleUnit.unitId + "\u2605" + battleUnit.star + " [battle]";
+          }
+
+          return undefined;
+        };
+
+        _proto.getBuyFailureReason = function getBuyFailureReason(slotIndex) {
+          var snap = this.session.getSnapshot();
+          var unitId = snap.shop[slotIndex];
+          if (!unitId) return '购买失败：商店槽位为空。';
+          if (snap.phase !== 'prep') return '购买失败：当前不在准备阶段。';
+          if (snap.bench.length >= snap.slotConfig.bench) return '购买失败：备战区已满。';
+          var cost = UNIT_CONFIG[unitId].cost;
+          if (snap.gold < cost) return "\u8D2D\u4E70\u5931\u8D25\uFF1A\u91D1\u5E01\u4E0D\u8DB3\uFF0C\u9700\u8981 " + cost + "\u3002";
+          return '购买失败：该单位未能加入备战区。';
+        };
+
+        _proto.updateSetting = function updateSetting(key, nextValue) {
+          var _extends2, _this$menuController4, _this$menuController5;
+
+          this.settings = _extends({}, this.settings, (_extends2 = {}, _extends2[key] = nextValue, _extends2));
+          this.storage.saveSettings(this.settings);
+          (_this$menuController4 = this.menuController) === null || _this$menuController4 === void 0 ? void 0 : _this$menuController4.setSettings(this.settings);
+          (_this$menuController5 = this.menuController) === null || _this$menuController5 === void 0 ? void 0 : _this$menuController5.setFooterText("\u8BBE\u7F6E\u5DF2\u4FDD\u5B58\uFF1A" + this.getSettingLabel(key) + " " + nextValue + "%");
+        };
+
+        _proto.getSettingLabel = function getSettingLabel(key) {
+          if (key === 'master') return '总音量';
+          if (key === 'music') return '音乐';
+          return '音效';
+        };
+
+        _proto.unlockFirstClearAchievement = function unlockFirstClearAchievement() {
+          var _this$menuController6;
+
+          if (this.achievements.firstClear) return;
+          this.achievements = _extends({}, this.achievements, {
+            firstClear: true
+          });
+          this.storage.saveAchievements(this.achievements);
+          (_this$menuController6 = this.menuController) === null || _this$menuController6 === void 0 ? void 0 : _this$menuController6.setAchievements(this.achievements);
+          this.pushNotice('成就解锁：初次通关。', 2200);
+          this.persistRun();
+        };
+
+        _proto.persistRun = function persistRun() {
+          var _this$menuController7;
+
+          if (this.mode !== 'battle') return;
+          this.storage.saveRun(this.session.exportSaveData());
+          (_this$menuController7 = this.menuController) === null || _this$menuController7 === void 0 ? void 0 : _this$menuController7.setHasRunSave(true);
+        };
+
+        return BattleSceneController;
+      }(Component), _temp)) || _class));
+
+      cclegacy._RF.pop();
+    }
+  };
+});
+
+System.register("chunks:///_virtual/attack-system.ts", ['cc', './math.ts', './squad-battle-config.ts'], function (exports) {
+  'use strict';
+
+  var cclegacy, distance, SQUAD_UNIT_STATS;
+  return {
+    setters: [function (module) {
+      cclegacy = module.cclegacy;
+    }, function (module) {
+      distance = module.distance;
+    }, function (module) {
+      SQUAD_UNIT_STATS = module.SQUAD_UNIT_STATS;
+    }],
+    execute: function () {
+      cclegacy._RF.push({}, "b5794oJtq5Bf6JKPF4rZxop", "attack-system", undefined);
+
+      var AttackSystem = exports('AttackSystem', /*#__PURE__*/function () {
+        function AttackSystem() {}
+
+        var _proto = AttackSystem.prototype;
+
+        _proto.attackIfPossible = function attackIfPossible(attacker, target) {
+          if (!attacker.alive || !target.alive) return {
+            attacked: false,
+            killed: false
+          };
+          var cfg = SQUAD_UNIT_STATS[attacker.unitId];
+          var scaledDamage = cfg.attackDamage * (1 + (attacker.star - 1) * 0.8);
+          if (scaledDamage <= 0) return {
+            attacked: false,
+            killed: false
+          };
+          if (attacker.attackCooldownLeft > 0) return {
+            attacked: false,
+            killed: false
+          };
+          var dist = distance(attacker.position, target.position);
+          if (dist > cfg.attackRange) return {
+            attacked: false,
+            killed: false
+          };
+          target.currentHp = Math.max(0, target.currentHp - scaledDamage);
+          target.alive = target.currentHp > 0;
+          attacker.attackCooldownLeft = cfg.attackInterval;
+          return {
+            attacked: true,
+            killed: !target.alive
+          };
+        };
+
+        return AttackSystem;
+      }());
+
+      cclegacy._RF.pop();
+    }
+  };
+});
+
+System.register("chunks:///_virtual/unit-command-system.ts", ['cc', './_rollupPluginModLoBabelHelpers.js'], function (exports) {
+  'use strict';
+
+  var cclegacy, _extends, _defineProperty;
+
+  return {
+    setters: [function (module) {
+      cclegacy = module.cclegacy;
+    }, function (module) {
+      _extends = module.extends;
+      _defineProperty = module.defineProperty;
+    }],
+    execute: function () {
+      cclegacy._RF.push({}, "b8560zr1TRE2J0+ECaz5cIS", "unit-command-system", undefined);
+
+      var UnitCommandSystem = exports('UnitCommandSystem', /*#__PURE__*/function () {
+        function UnitCommandSystem() {
+          _defineProperty(this, "selectedUnitId", void 0);
+        }
+
+        var _proto = UnitCommandSystem.prototype;
+
+        _proto.selectUnit = function selectUnit(unitId, allies) {
+          var exists = allies.some(function (ally) {
+            return ally.instanceId === unitId && ally.alive;
+          });
+          if (!exists) return false;
+          this.selectedUnitId = unitId;
+          return true;
+        };
+
+        _proto.clearSelection = function clearSelection() {
+          this.selectedUnitId = undefined;
+        };
+
+        _proto.getSelectedUnitId = function getSelectedUnitId() {
+          return this.selectedUnitId;
+        };
+
+        _proto.issueMoveToGround = function issueMoveToGround(position, allies) {
+          var unit = this.getSelectedAlly(allies);
+          if (!unit) return false;
+          unit.command = {
+            type: 'move',
+            position: _extends({}, position)
+          };
+          return true;
+        };
+
+        _proto.issueFocusEnemy = function issueFocusEnemy(enemyId, allies) {
+          var unit = this.getSelectedAlly(allies);
+          if (!unit) return false;
+          unit.command = {
+            type: 'focus_enemy',
+            targetEnemyId: enemyId
+          };
+          return true;
+        };
+
+        _proto.issueChannelHealAlly = function issueChannelHealAlly(targetAllyId, allies) {
+          var unit = this.getSelectedAlly(allies);
+          if (!unit || unit.role !== 'priest') return false;
+          unit.command = {
+            type: 'channel_heal',
+            targetAllyId: targetAllyId
+          };
+          return true;
+        };
+
+        _proto.getSelectedAlly = function getSelectedAlly(allies) {
+          var _this = this;
+
+          if (!this.selectedUnitId) return undefined;
+          return allies.find(function (ally) {
+            return ally.instanceId === _this.selectedUnitId && ally.alive;
+          });
+        };
+
+        return UnitCommandSystem;
+      }());
+
+      cclegacy._RF.pop();
+    }
+  };
+});
+
+System.register("chunks:///_virtual/main-menu-controller.ts", ['cc', './_rollupPluginModLoBabelHelpers.js'], function (exports) {
+  'use strict';
+
+  var cclegacy, _decorator, Layers, UITransform, Sprite, Color, Node, Vec3, Button, Label, Component, _inheritsLoose, _defineProperty, _assertThisInitialized, _extends;
+
+  return {
+    setters: [function (module) {
+      cclegacy = module.cclegacy;
+      _decorator = module._decorator;
+      Layers = module.Layers;
+      UITransform = module.UITransform;
+      Sprite = module.Sprite;
+      Color = module.Color;
+      Node = module.Node;
+      Vec3 = module.Vec3;
+      Button = module.Button;
+      Label = module.Label;
+      Component = module.Component;
+    }, function (module) {
+      _inheritsLoose = module.inheritsLoose;
+      _defineProperty = module.defineProperty;
+      _assertThisInitialized = module.assertThisInitialized;
+      _extends = module.extends;
+    }],
+    execute: function () {
+      var _dec, _class, _temp;
+
+      cclegacy._RF.push({}, "bf0e3VUQ4pA+qwlTgC92zdD", "main-menu-controller", undefined);
+
+      var ccclass = _decorator.ccclass;
+      var MainMenuController = exports('MainMenuController', (_dec = ccclass('MainMenuController'), _dec(_class = (_temp = /*#__PURE__*/function (_Component) {
+        _inheritsLoose(MainMenuController, _Component);
+
+        function MainMenuController() {
+          var _this;
+
+          for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+            args[_key] = arguments[_key];
+          }
+
+          _this = _Component.call.apply(_Component, [this].concat(args)) || this;
+
+          _defineProperty(_assertThisInitialized(_this), "onStart", void 0);
+
+          _defineProperty(_assertThisInitialized(_this), "onLoadRequested", void 0);
+
+          _defineProperty(_assertThisInitialized(_this), "onSettingAdjusted", void 0);
+
+          _defineProperty(_assertThisInitialized(_this), "panelNode", null);
+
+          _defineProperty(_assertThisInitialized(_this), "panelTitleLabel", null);
+
+          _defineProperty(_assertThisInitialized(_this), "panelBodyLabel", null);
+
+          _defineProperty(_assertThisInitialized(_this), "footerLabel", null);
+
+          _defineProperty(_assertThisInitialized(_this), "panelContentNode", null);
+
+          _defineProperty(_assertThisInitialized(_this), "activePanel", null);
+
+          _defineProperty(_assertThisInitialized(_this), "settings", {
+            master: 80,
+            music: 70,
+            sfx: 80
+          });
+
+          _defineProperty(_assertThisInitialized(_this), "achievements", {
+            firstClear: false
+          });
+
+          _defineProperty(_assertThisInitialized(_this), "hasRunSave", false);
+
+          return _this;
+        }
+
+        var _proto = MainMenuController.prototype;
+
+        _proto.initialize = function initialize() {
+          var _this$node$getCompone,
+              _this2 = this;
+
+          this.node.layer = Layers.Enum.UI_2D;
+          var transform = (_this$node$getCompone = this.node.getComponent(UITransform)) !== null && _this$node$getCompone !== void 0 ? _this$node$getCompone : this.node.addComponent(UITransform);
+          transform.setContentSize(960, 640);
+          var bg = this.node.addComponent(Sprite);
+          bg.color = new Color(8, 15, 28, 255);
+          this.makeStripe('TopGlow', 0, 210, 760, 140, new Color(20, 184, 166, 72));
+          this.makeStripe('BottomGlow', 0, -180, 900, 180, new Color(245, 158, 11, 48));
+          this.makeLabel('Title', '神塔战棋', 0, 168, 760, 36, new Color(248, 250, 252, 255));
+          this.makeLabel('Subtitle', '2D 小队实时指挥战斗原型', 0, 124, 640, 16, new Color(148, 163, 184, 255));
+          this.makeLabel('Tagline', '先从主菜单进入，再进入准备阶段和实时指挥战斗。', 0, 88, 640, 14, new Color(191, 219, 254, 255));
+          this.makeMenuButton('StartButton', '开始', 0, 12, new Color(21, 128, 61, 255), function () {
+            var _this2$onStart;
+
+            return (_this2$onStart = _this2.onStart) === null || _this2$onStart === void 0 ? void 0 : _this2$onStart.call(_this2);
+          });
+          this.makeMenuButton('LoadButton', '载入', 0, -54, new Color(37, 99, 235, 255), function () {
+            var _this2$onLoadRequeste;
+
+            return (_this2$onLoadRequeste = _this2.onLoadRequested) === null || _this2$onLoadRequeste === void 0 ? void 0 : _this2$onLoadRequeste.call(_this2);
+          });
+          this.makeMenuButton('SettingsButton', '设置', 0, -120, new Color(71, 85, 105, 255), function () {
+            return _this2.showPanel('settings');
+          });
+          this.makeMenuButton('CreditsButton', '鸣谢', 0, -186, new Color(120, 53, 15, 255), function () {
+            return _this2.showPanel('credits');
+          });
+          this.makePanelButton(this.node, 'AchievementsButton', '成就', 332, 246, 120, 40, new Color(76, 29, 149, 255), function () {
+            return _this2.showPanel('achievements');
+          });
+          this.footerLabel = this.makeLabel('Footer', '当前版本：可玩原型，主循环已接通。', 0, -276, 720, 13, new Color(226, 232, 240, 255));
+          this.createPanel();
+          this.syncLoadButtonState();
+        };
+
+        _proto.setFooterText = function setFooterText(text) {
+          if (this.footerLabel) {
+            this.footerLabel.string = text;
+          }
+        };
+
+        _proto.setSettings = function setSettings(settings) {
+          this.settings = _extends({}, settings);
+
+          if (this.activePanel === 'settings') {
+            this.renderSettingsPanel();
+          }
+        };
+
+        _proto.setAchievements = function setAchievements(achievements) {
+          this.achievements = _extends({}, achievements);
+
+          if (this.activePanel === 'achievements') {
+            this.renderAchievementsPanel();
+          }
+        };
+
+        _proto.setHasRunSave = function setHasRunSave(hasSave) {
+          this.hasRunSave = hasSave;
+          this.syncLoadButtonState();
+        };
+
+        _proto.showPanel = function showPanel(panel) {
+          if (!this.panelNode || !this.panelTitleLabel || !this.panelBodyLabel || !this.panelContentNode) return;
+          this.activePanel = panel;
+          this.panelNode.active = true;
+          this.panelContentNode.removeAllChildren();
+
+          if (panel === 'settings') {
+            this.renderSettingsPanel();
+            return;
+          }
+
+          if (panel === 'achievements') {
+            this.renderAchievementsPanel();
+            return;
+          }
+
+          this.panelTitleLabel.string = '鸣谢';
+          this.panelBodyLabel.string = '项目方向：Battleheart 风格 2D 小队实时指挥。\n\n玩法原型、系统拆分与菜单/战斗串联由当前工程主线驱动完成。';
+          this.makePanelBodyNote('CreditsNote', '当前版本优先保证可玩性、存档与交互链路成立，美术仍以占位资源为主。', 0, -10, 420, new Color(191, 219, 254, 255));
+        };
+
+        _proto.hidePanel = function hidePanel() {
+          this.activePanel = null;
+
+          if (this.panelNode) {
+            this.panelNode.active = false;
+          }
+        };
+
+        _proto.renderSettingsPanel = function renderSettingsPanel() {
+          if (!this.panelTitleLabel || !this.panelBodyLabel || !this.panelContentNode) return;
+          this.panelTitleLabel.string = '设置';
+          this.panelBodyLabel.string = '音量调整会直接保存到本地配置。当前原型尚未接入正式 BGM / SFX，但数值会持久化。';
+          this.makeSettingRow('Master', '总音量', 'master', this.settings.master, 56);
+          this.makeSettingRow('Music', '音乐', 'music', this.settings.music, 6);
+          this.makeSettingRow('Sfx', '音效', 'sfx', this.settings.sfx, -44);
+        };
+
+        _proto.renderAchievementsPanel = function renderAchievementsPanel() {
+          if (!this.panelTitleLabel || !this.panelBodyLabel || !this.panelContentNode) return;
+          this.panelTitleLabel.string = '成就';
+          this.panelBodyLabel.string = '当前仅接入一个基础成就，用于确认单关通关链路。';
+          var unlocked = this.achievements.firstClear;
+          var row = new Node('AchievementRow');
+          row.layer = Layers.Enum.UI_2D;
+          this.panelContentNode.addChild(row);
+          row.setPosition(new Vec3(0, 18, 0));
+          row.addComponent(UITransform).setContentSize(420, 64);
+          var bg = row.addComponent(Sprite);
+          bg.color = unlocked ? new Color(21, 128, 61, 255) : new Color(51, 65, 85, 255);
+          var title = this.makeInlineLabel(row, 'AchTitle', -190, 12, 360, 16, new Color(248, 250, 252, 255));
+          title.string = '初次通关';
+          var desc = this.makeInlineLabel(row, 'AchDesc', -190, -12, 360, 12, new Color(226, 232, 240, 255));
+          desc.string = unlocked ? '已解锁：完成当前唯一关卡并进入 victory。' : '未解锁：完成当前唯一关卡并进入 victory。';
+          var badge = this.makeInlineLabel(row, 'AchBadge', 132, 0, 120, 14, new Color(253, 224, 71, 255));
+          badge.string = unlocked ? '已解锁' : '未解锁';
+        };
+
+        _proto.makeSettingRow = function makeSettingRow(name, labelText, key, value, y) {
+          var _this3 = this;
+
+          if (!this.panelContentNode) return;
+          var row = new Node(name + "Row");
+          row.layer = Layers.Enum.UI_2D;
+          this.panelContentNode.addChild(row);
+          row.setPosition(new Vec3(0, y, 0));
+          row.addComponent(UITransform).setContentSize(420, 40);
+          var label = this.makeInlineLabel(row, name + "Label", -190, 0, 120, 14, new Color(248, 250, 252, 255));
+          label.string = labelText;
+          var valueLabel = this.makeInlineLabel(row, name + "Value", 0, 0, 80, 14, new Color(251, 191, 36, 255));
+          valueLabel.string = value + "%";
+          this.makePanelButton(row, name + "Minus", '-', 110, 0, 34, 28, new Color(30, 41, 59, 255), function () {
+            return _this3.adjustSetting(key, -10);
+          });
+          this.makePanelButton(row, name + "Plus", '+', 156, 0, 34, 28, new Color(30, 41, 59, 255), function () {
+            return _this3.adjustSetting(key, 10);
+          });
+        };
+
+        _proto.adjustSetting = function adjustSetting(key, delta) {
+          var _this$onSettingAdjust;
+
+          var nextValue = Math.max(0, Math.min(100, this.settings[key] + delta));
+          (_this$onSettingAdjust = this.onSettingAdjusted) === null || _this$onSettingAdjust === void 0 ? void 0 : _this$onSettingAdjust.call(this, key, nextValue);
+        };
+
+        _proto.syncLoadButtonState = function syncLoadButtonState() {
+          if (!this.footerLabel) return;
+          this.footerLabel.string = this.hasRunSave ? '当前版本：检测到本地存档，可直接载入继续。' : this.footerLabel.string;
+        };
+
+        _proto.createPanel = function createPanel() {
+          var _this4 = this;
+
+          this.panelNode = new Node('MenuPanel');
+          this.panelNode.layer = Layers.Enum.UI_2D;
+          this.node.addChild(this.panelNode);
+          this.panelNode.addComponent(UITransform).setContentSize(520, 340);
+          this.panelNode.setPosition(new Vec3(0, -8, 0));
+          var bg = this.panelNode.addComponent(Sprite);
+          bg.color = new Color(15, 23, 42, 242);
+          this.panelNode.active = false;
+          this.panelTitleLabel = this.makePanelLabel(this.panelNode, 'PanelTitle', -220, 132, 440, 24, new Color(251, 191, 36, 255));
+          this.panelBodyLabel = this.makePanelLabel(this.panelNode, 'PanelBody', -220, 84, 440, 72, new Color(226, 232, 240, 255));
+
+          if (this.panelBodyLabel) {
+            this.panelBodyLabel.lineHeight = 20;
+          }
+
+          this.panelContentNode = new Node('PanelContent');
+          this.panelContentNode.layer = Layers.Enum.UI_2D;
+          this.panelNode.addChild(this.panelContentNode);
+          this.panelContentNode.setPosition(new Vec3(0, -10, 0));
+          this.panelContentNode.addComponent(UITransform).setContentSize(440, 150);
+          this.makePanelButton(this.panelNode, 'ClosePanel', '关闭', 0, -136, 136, 40, new Color(30, 41, 59, 255), function () {
+            return _this4.hidePanel();
+          });
+        };
+
+        _proto.makeStripe = function makeStripe(name, x, y, width, height, color) {
+          var node = new Node(name);
+          node.layer = Layers.Enum.UI_2D;
+          this.node.addChild(node);
+          node.setPosition(new Vec3(x, y, 0));
+          node.addComponent(UITransform).setContentSize(width, height);
+          var sprite = node.addComponent(Sprite);
+          sprite.color = color;
+        };
+
+        _proto.makeMenuButton = function makeMenuButton(name, text, x, y, color, onClick) {
+          this.makePanelButton(this.node, name, text, x, y, 240, 48, color, onClick);
+        };
+
+        _proto.makePanelButton = function makePanelButton(parent, name, text, x, y, width, height, color, onClick) {
+          var node = new Node(name);
+          node.layer = Layers.Enum.UI_2D;
+          parent.addChild(node);
+          node.setPosition(new Vec3(x, y, 0));
+          node.addComponent(UITransform).setContentSize(width, height);
+          var sprite = node.addComponent(Sprite);
+          sprite.color = color;
+          node.addComponent(Button);
+          node.on(Button.EventType.CLICK, onClick, this);
+          var labelNode = new Node(name + "Label");
+          labelNode.layer = Layers.Enum.UI_2D;
+          node.addChild(labelNode);
+          labelNode.addComponent(UITransform).setContentSize(width - 12, height - 8);
+          var label = labelNode.addComponent(Label);
+          label.string = text;
+          label.fontSize = 18;
+          label.lineHeight = 22;
+          label.color = new Color(248, 250, 252, 255);
+        };
+
+        _proto.makeLabel = function makeLabel(name, text, x, y, width, fontSize, color) {
+          var node = new Node(name);
+          node.layer = Layers.Enum.UI_2D;
+          this.node.addChild(node);
+          node.setPosition(new Vec3(x, y, 0));
+          node.addComponent(UITransform).setContentSize(width, fontSize + 14);
+          var label = node.addComponent(Label);
+          label.string = text;
+          label.fontSize = fontSize;
+          label.lineHeight = fontSize + 8;
+          label.color = color;
+          return label;
+        };
+
+        _proto.makePanelLabel = function makePanelLabel(parent, name, x, y, width, fontSize, color) {
+          var node = new Node(name);
+          node.layer = Layers.Enum.UI_2D;
+          parent.addChild(node);
+          node.setPosition(new Vec3(x, y, 0));
+          node.addComponent(UITransform).setContentSize(width, 120);
+          var label = node.addComponent(Label);
+          label.fontSize = fontSize;
+          label.lineHeight = fontSize + 6;
+          label.color = color;
+          return label;
+        };
+
+        _proto.makeInlineLabel = function makeInlineLabel(parent, name, x, y, width, fontSize, color) {
+          var node = new Node(name);
+          node.layer = Layers.Enum.UI_2D;
+          parent.addChild(node);
+          node.setPosition(new Vec3(x, y, 0));
+          node.addComponent(UITransform).setContentSize(width, fontSize + 10);
+          var label = node.addComponent(Label);
+          label.fontSize = fontSize;
+          label.lineHeight = fontSize + 4;
+          label.color = color;
+          return label;
+        };
+
+        _proto.makePanelBodyNote = function makePanelBodyNote(name, text, x, y, width, color) {
+          if (!this.panelContentNode) return;
+          var label = this.makeInlineLabel(this.panelContentNode, name, x, y, width, 13, color);
+          label.string = text;
+          label.lineHeight = 20;
+        };
+
+        return MainMenuController;
+      }(Component), _temp)) || _class));
+
+      cclegacy._RF.pop();
+    }
+  };
+});
+
+System.register("chunks:///_virtual/id.ts", ['cc', './_rollupPluginModLoBabelHelpers.js'], function (exports) {
+  'use strict';
+
+  var cclegacy, _createForOfIteratorHelperLoose;
+
+  return {
+    setters: [function (module) {
+      cclegacy = module.cclegacy;
+    }, function (module) {
+      _createForOfIteratorHelperLoose = module.createForOfIteratorHelperLoose;
+    }],
+    execute: function () {
+      exports({
+        nextId: nextId,
+        syncIdSeedFromIds: syncIdSeedFromIds
+      });
 
       cclegacy._RF.push({}, "cf91dmKjNlCwZeqk4O0iNzw", "id", undefined);
 
@@ -3267,96 +4497,697 @@ System.register("chunks:///_virtual/id.ts", ['cc'], function (exports) {
         return id;
       }
 
+      function syncIdSeedFromIds(ids) {
+        var maxSeed = 0;
+
+        for (var _iterator = _createForOfIteratorHelperLoose(ids), _step; !(_step = _iterator()).done;) {
+          var id = _step.value;
+          var match = /_(\d+)$/.exec(id);
+          if (!match) continue;
+          var value = Number(match[1]);
+
+          if (Number.isFinite(value) && value > maxSeed) {
+            maxSeed = value;
+          }
+        }
+
+        idSeed = Math.max(idSeed, maxSeed + 1);
+      }
+
       cclegacy._RF.pop();
     }
   };
 });
 
-System.register("chunks:///_virtual/wave-system.ts", ['./_rollupPluginModLoBabelHelpers.js', 'cc', './id.ts', './enemy-config.ts', './wave-config.ts'], function (exports) {
+System.register("chunks:///_virtual/sprite-resolvers.ts", ['cc', './_rollupPluginModLoBabelHelpers.js', './art-resource-manifest.ts', './unit-star-sprite-config.ts'], function (exports) {
   'use strict';
 
-  var _defineProperty, cclegacy, nextId, ENEMY_CONFIG, WAVE_CONFIG;
+  var cclegacy, resources, ImageAsset, SpriteFrame, _asyncToGenerator, _createForOfIteratorHelperLoose, ART_RESOURCE_MANIFEST, UNIT_STAR_SPRITE_BASE_FALLBACK, UNIT_STAR_SPRITE_PATHS;
 
   return {
     setters: [function (module) {
-      _defineProperty = module.defineProperty;
-    }, function (module) {
       cclegacy = module.cclegacy;
+      resources = module.resources;
+      ImageAsset = module.ImageAsset;
+      SpriteFrame = module.SpriteFrame;
     }, function (module) {
-      nextId = module.nextId;
+      _asyncToGenerator = module.asyncToGenerator;
+      _createForOfIteratorHelperLoose = module.createForOfIteratorHelperLoose;
     }, function (module) {
-      ENEMY_CONFIG = module.ENEMY_CONFIG;
+      ART_RESOURCE_MANIFEST = module.ART_RESOURCE_MANIFEST;
     }, function (module) {
-      WAVE_CONFIG = module.WAVE_CONFIG;
+      UNIT_STAR_SPRITE_BASE_FALLBACK = module.UNIT_STAR_SPRITE_BASE_FALLBACK;
+      UNIT_STAR_SPRITE_PATHS = module.UNIT_STAR_SPRITE_PATHS;
     }],
     execute: function () {
-      cclegacy._RF.push({}, "d4d0cS9AZNNDaY+CRVKB1yh", "wave-system", undefined);
+      cclegacy._RF.push({}, "d0658afYLdL748YYFKlOAjd", "sprite-resolvers", undefined);
 
-      var WaveSystem = exports('WaveSystem', /*#__PURE__*/function () {
-        function WaveSystem() {
-          _defineProperty(this, "cursor", {
-            entryIndex: 0,
-            spawnCooldown: 0,
-            spawnedInCurrentEntry: 0
-          });
+      var loadedFrames = new Map();
+      var loadedFrameSets = new Map();
+
+      var asResourcePath = function asResourcePath(rawPath) {
+        if (rawPath.startsWith('assets/resources/')) {
+          return rawPath.replace(/^assets\/resources\//, '').replace(/\.(png|jpg|jpeg)$/i, '');
         }
 
-        var _proto = WaveSystem.prototype;
+        if (rawPath.startsWith('assets/art/backgrounds/')) {
+          var _rawPath$split$pop;
 
-        _proto.resetWave = function resetWave() {
-          this.cursor = {
-            entryIndex: 0,
-            spawnCooldown: 0,
-            spawnedInCurrentEntry: 0
-          };
-        };
+          var file = (_rawPath$split$pop = rawPath.split('/').pop()) === null || _rawPath$split$pop === void 0 ? void 0 : _rawPath$split$pop.replace(/\.(png|jpg|jpeg)$/i, '');
+          return file ? "textures/backgrounds/" + file : null;
+        }
 
-        _proto.tickSpawn = function tickSpawn(difficulty, waveNumber, dt) {
-          var wave = WAVE_CONFIG[difficulty][waveNumber - 1];
+        return null;
+      };
 
-          if (!wave) {
-            return [];
-          }
-
-          var spawned = [];
-          this.cursor.spawnCooldown -= dt;
-
-          while (this.cursor.spawnCooldown <= 0) {
-            var entry = wave.entries[this.cursor.entryIndex];
-
-            if (!entry) {
-              break;
+      var loadFrame = function loadFrame(manifestPath) {
+        if (!manifestPath) return Promise.resolve(null);
+        var cacheKey = manifestPath;
+        var cached = loadedFrames.get(cacheKey);
+        if (cached) return cached;
+        var resourcePath = asResourcePath(manifestPath);
+        if (!resourcePath) return Promise.resolve(null);
+        var pending = new Promise(function (resolve) {
+          resources.load(resourcePath, ImageAsset, function (err, asset) {
+            if (err || !asset) {
+              resolve(null);
+              return;
             }
 
-            var lane = this.cursor.spawnedInCurrentEntry % 2;
-            var config = ENEMY_CONFIG[entry.enemyId];
-            spawned.push({
-              instanceId: nextId('enemy'),
-              enemyId: entry.enemyId,
-              currentHp: config.maxHp,
-              lane: lane,
-              distanceOnPath: 0,
-              reachedCrystal: false
-            });
-            this.cursor.spawnedInCurrentEntry += 1;
-            this.cursor.spawnCooldown += entry.spawnInterval;
+            resolve(SpriteFrame.createWithImage(asset));
+          });
+        });
+        loadedFrames.set(cacheKey, pending);
+        return pending;
+      };
 
-            if (this.cursor.spawnedInCurrentEntry >= entry.count) {
-              this.cursor.entryIndex += 1;
-              this.cursor.spawnedInCurrentEntry = 0;
+      var loadFrameFromResourcePath = function loadFrameFromResourcePath(resourcePath) {
+        if (!resourcePath) return Promise.resolve(null);
+        var cacheKey = "resource:" + resourcePath;
+        var cached = loadedFrames.get(cacheKey);
+        if (cached) return cached;
+        var pending = new Promise(function (resolve) {
+          resources.load(resourcePath, ImageAsset, function (err, asset) {
+            if (err || !asset) {
+              resolve(null);
+              return;
             }
+
+            resolve(SpriteFrame.createWithImage(asset));
+          });
+        });
+        loadedFrames.set(cacheKey, pending);
+        return pending;
+      };
+
+      var loadFrameSet = function loadFrameSet(manifestPaths) {
+        var cacheKey = "set:" + manifestPaths.join('|');
+        var cached = loadedFrameSets.get(cacheKey);
+        if (cached) return cached;
+        var pending = Promise.all(manifestPaths.map(function (path) {
+          return loadFrame(path);
+        })).then(function (frames) {
+          return frames.filter(function (frame) {
+            return Boolean(frame);
+          });
+        });
+        loadedFrameSets.set(cacheKey, pending);
+        return pending;
+      };
+
+      var loadFirstFrameSet = /*#__PURE__*/function () {
+        var _ref = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee(candidateSets) {
+          var _iterator, _step, paths, frames;
+
+          return regeneratorRuntime.wrap(function _callee$(_context) {
+            while (1) {
+              switch (_context.prev = _context.next) {
+                case 0:
+                  _iterator = _createForOfIteratorHelperLoose(candidateSets);
+
+                case 1:
+                  if ((_step = _iterator()).done) {
+                    _context.next = 10;
+                    break;
+                  }
+
+                  paths = _step.value;
+                  _context.next = 5;
+                  return loadFrameSet(paths);
+
+                case 5:
+                  frames = _context.sent;
+
+                  if (!(frames.length > 0)) {
+                    _context.next = 8;
+                    break;
+                  }
+
+                  return _context.abrupt("return", frames);
+
+                case 8:
+                  _context.next = 1;
+                  break;
+
+                case 10:
+                  return _context.abrupt("return", []);
+
+                case 11:
+                case "end":
+                  return _context.stop();
+              }
+            }
+          }, _callee);
+        }));
+
+        return function loadFirstFrameSet(_x) {
+          return _ref.apply(this, arguments);
+        };
+      }();
+
+      var UnitSpriteResolver = exports('UnitSpriteResolver', /*#__PURE__*/function () {
+        function UnitSpriteResolver() {}
+
+        var _proto = UnitSpriteResolver.prototype;
+
+        _proto.resolve = /*#__PURE__*/function () {
+          var _resolve = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee2(unitId, star, divineState) {
+            var _entry$divineOverride, _entry$stars, _entry$stars$star, _entry$stars2, _UNIT_STAR_SPRITE_PAT;
+
+            var entry, filename, path, primary, starFallback, starFrame;
+            return regeneratorRuntime.wrap(function _callee2$(_context2) {
+              while (1) {
+                switch (_context2.prev = _context2.next) {
+                  case 0:
+                    entry = ART_RESOURCE_MANIFEST.units[unitId];
+
+                    if (entry) {
+                      _context2.next = 3;
+                      break;
+                    }
+
+                    return _context2.abrupt("return", null);
+
+                  case 3:
+                    filename = divineState ? (_entry$divineOverride = entry.divineOverride) !== null && _entry$divineOverride !== void 0 ? _entry$divineOverride : (_entry$stars = entry.stars) === null || _entry$stars === void 0 ? void 0 : _entry$stars[star] : (_entry$stars$star = (_entry$stars2 = entry.stars) === null || _entry$stars2 === void 0 ? void 0 : _entry$stars2[star]) !== null && _entry$stars$star !== void 0 ? _entry$stars$star : entry.divineOverride;
+                    path = filename ? entry.directory + "/" + filename : undefined;
+                    _context2.next = 7;
+                    return loadFrame(path);
+
+                  case 7:
+                    primary = _context2.sent;
+
+                    if (!primary) {
+                      _context2.next = 10;
+                      break;
+                    }
+
+                    return _context2.abrupt("return", primary);
+
+                  case 10:
+                    starFallback = (_UNIT_STAR_SPRITE_PAT = UNIT_STAR_SPRITE_PATHS[unitId]) === null || _UNIT_STAR_SPRITE_PAT === void 0 ? void 0 : _UNIT_STAR_SPRITE_PAT[star];
+                    _context2.next = 13;
+                    return loadFrameFromResourcePath(starFallback);
+
+                  case 13:
+                    starFrame = _context2.sent;
+
+                    if (!starFrame) {
+                      _context2.next = 16;
+                      break;
+                    }
+
+                    return _context2.abrupt("return", starFrame);
+
+                  case 16:
+                    return _context2.abrupt("return", loadFrameFromResourcePath(UNIT_STAR_SPRITE_BASE_FALLBACK[unitId]));
+
+                  case 17:
+                  case "end":
+                    return _context2.stop();
+                }
+              }
+            }, _callee2);
+          }));
+
+          function resolve(_x2, _x3, _x4) {
+            return _resolve.apply(this, arguments);
           }
 
-          return spawned;
-        };
+          return resolve;
+        }();
 
-        _proto.isWaveSpawnFinished = function isWaveSpawnFinished(difficulty, waveNumber) {
-          var wave = WAVE_CONFIG[difficulty][waveNumber - 1];
-          return !wave || this.cursor.entryIndex >= wave.entries.length;
-        };
+        _proto.resolvePortrait = /*#__PURE__*/function () {
+          var _resolvePortrait = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee3(unitId, star, divineState) {
+            var entry, portraitPath, portraitFrame;
+            return regeneratorRuntime.wrap(function _callee3$(_context3) {
+              while (1) {
+                switch (_context3.prev = _context3.next) {
+                  case 0:
+                    entry = ART_RESOURCE_MANIFEST.units[unitId];
 
-        return WaveSystem;
+                    if (entry) {
+                      _context3.next = 3;
+                      break;
+                    }
+
+                    return _context3.abrupt("return", this.resolve(unitId, star, divineState));
+
+                  case 3:
+                    portraitPath = entry.portrait ? entry.directory + "/" + entry.portrait : undefined;
+                    _context3.next = 6;
+                    return loadFrame(portraitPath);
+
+                  case 6:
+                    portraitFrame = _context3.sent;
+
+                    if (!portraitFrame) {
+                      _context3.next = 9;
+                      break;
+                    }
+
+                    return _context3.abrupt("return", portraitFrame);
+
+                  case 9:
+                    return _context3.abrupt("return", this.resolve(unitId, star, divineState));
+
+                  case 10:
+                  case "end":
+                    return _context3.stop();
+                }
+              }
+            }, _callee3, this);
+          }));
+
+          function resolvePortrait(_x5, _x6, _x7) {
+            return _resolvePortrait.apply(this, arguments);
+          }
+
+          return resolvePortrait;
+        }();
+
+        _proto.resolveAvatar = /*#__PURE__*/function () {
+          var _resolveAvatar = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee4(unitId) {
+            return regeneratorRuntime.wrap(function _callee4$(_context4) {
+              while (1) {
+                switch (_context4.prev = _context4.next) {
+                  case 0:
+                    return _context4.abrupt("return", loadFrameFromResourcePath(UNIT_STAR_SPRITE_BASE_FALLBACK[unitId]));
+
+                  case 1:
+                  case "end":
+                    return _context4.stop();
+                }
+              }
+            }, _callee4);
+          }));
+
+          function resolveAvatar(_x8) {
+            return _resolveAvatar.apply(this, arguments);
+          }
+
+          return resolveAvatar;
+        }();
+
+        _proto.resolveAnimation = /*#__PURE__*/function () {
+          var _resolveAnimation = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee5(unitId, clip, divineState) {
+            var entry, baseId, clipNames, candidates;
+            return regeneratorRuntime.wrap(function _callee5$(_context5) {
+              while (1) {
+                switch (_context5.prev = _context5.next) {
+                  case 0:
+                    entry = ART_RESOURCE_MANIFEST.units[unitId];
+
+                    if (entry) {
+                      _context5.next = 3;
+                      break;
+                    }
+
+                    return _context5.abrupt("return", []);
+
+                  case 3:
+                    baseId = divineState ? unitId : unitId;
+                    clipNames = [clip];
+                    candidates = clipNames.map(function (clipName) {
+                      return Array.from({
+                        length: 5
+                      }, function (_, index) {
+                        return entry.directory + "/" + baseId + "_" + clipName + "_" + String(index + 1).padStart(2, '0') + ".png";
+                      });
+                    });
+                    return _context5.abrupt("return", loadFirstFrameSet(candidates));
+
+                  case 7:
+                  case "end":
+                    return _context5.stop();
+                }
+              }
+            }, _callee5);
+          }));
+
+          function resolveAnimation(_x9, _x10, _x11) {
+            return _resolveAnimation.apply(this, arguments);
+          }
+
+          return resolveAnimation;
+        }();
+
+        return UnitSpriteResolver;
       }());
+      var EnemySpriteResolver = exports('EnemySpriteResolver', /*#__PURE__*/function () {
+        function EnemySpriteResolver() {}
+
+        var _proto2 = EnemySpriteResolver.prototype;
+
+        _proto2.resolve = /*#__PURE__*/function () {
+          var _resolve2 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee6(enemyType) {
+            return regeneratorRuntime.wrap(function _callee6$(_context6) {
+              while (1) {
+                switch (_context6.prev = _context6.next) {
+                  case 0:
+                    return _context6.abrupt("return", loadFrame(ART_RESOURCE_MANIFEST.enemies[enemyType]));
+
+                  case 1:
+                  case "end":
+                    return _context6.stop();
+                }
+              }
+            }, _callee6);
+          }));
+
+          function resolve(_x12) {
+            return _resolve2.apply(this, arguments);
+          }
+
+          return resolve;
+        }();
+
+        _proto2.resolveAnimation = /*#__PURE__*/function () {
+          var _resolveAnimation2 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee7(enemyType, clip) {
+            var staticPath, directory, frames;
+            return regeneratorRuntime.wrap(function _callee7$(_context7) {
+              while (1) {
+                switch (_context7.prev = _context7.next) {
+                  case 0:
+                    staticPath = ART_RESOURCE_MANIFEST.enemies[enemyType];
+                    directory = staticPath.split('/').slice(0, -1).join('/');
+                    frames = Array.from({
+                      length: 5
+                    }, function (_, index) {
+                      return directory + "/" + enemyType + "_" + clip + "_" + String(index + 1).padStart(2, '0') + ".png";
+                    });
+                    return _context7.abrupt("return", loadFrameSet(frames));
+
+                  case 4:
+                  case "end":
+                    return _context7.stop();
+                }
+              }
+            }, _callee7);
+          }));
+
+          function resolveAnimation(_x13, _x14) {
+            return _resolveAnimation2.apply(this, arguments);
+          }
+
+          return resolveAnimation;
+        }();
+
+        return EnemySpriteResolver;
+      }());
+      var UiIconResolver = exports('UiIconResolver', /*#__PURE__*/function () {
+        function UiIconResolver() {}
+
+        var _proto3 = UiIconResolver.prototype;
+
+        _proto3.resolve = /*#__PURE__*/function () {
+          var _resolve3 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee8(iconId) {
+            var found;
+            return regeneratorRuntime.wrap(function _callee8$(_context8) {
+              while (1) {
+                switch (_context8.prev = _context8.next) {
+                  case 0:
+                    found = ART_RESOURCE_MANIFEST.uiIcons.find(function (path) {
+                      return path.endsWith("/" + iconId + ".png");
+                    });
+                    return _context8.abrupt("return", loadFrame(found));
+
+                  case 2:
+                  case "end":
+                    return _context8.stop();
+                }
+              }
+            }, _callee8);
+          }));
+
+          function resolve(_x15) {
+            return _resolve3.apply(this, arguments);
+          }
+
+          return resolve;
+        }();
+
+        return UiIconResolver;
+      }());
+      var BackgroundResolver = exports('BackgroundResolver', /*#__PURE__*/function () {
+        function BackgroundResolver() {}
+
+        var _proto4 = BackgroundResolver.prototype;
+
+        _proto4.resolve = /*#__PURE__*/function () {
+          var _resolve4 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee9(sceneId) {
+            var found;
+            return regeneratorRuntime.wrap(function _callee9$(_context9) {
+              while (1) {
+                switch (_context9.prev = _context9.next) {
+                  case 0:
+                    found = ART_RESOURCE_MANIFEST.backgrounds.find(function (path) {
+                      return path.includes(sceneId);
+                    });
+                    return _context9.abrupt("return", loadFrame(found));
+
+                  case 2:
+                  case "end":
+                    return _context9.stop();
+                }
+              }
+            }, _callee9);
+          }));
+
+          function resolve(_x16) {
+            return _resolve4.apply(this, arguments);
+          }
+
+          return resolve;
+        }();
+
+        return BackgroundResolver;
+      }());
+
+      cclegacy._RF.pop();
+    }
+  };
+});
+
+System.register("chunks:///_virtual/enemy-ai-system.ts", ['cc', './math.ts', './_rollupPluginModLoBabelHelpers.js', './squad-battle-config.ts'], function (exports) {
+  'use strict';
+
+  var cclegacy, distance, normalize, _createForOfIteratorHelperLoose, ENEMY_STATS;
+
+  return {
+    setters: [function (module) {
+      cclegacy = module.cclegacy;
+    }, function (module) {
+      distance = module.distance;
+      normalize = module.normalize;
+    }, function (module) {
+      _createForOfIteratorHelperLoose = module.createForOfIteratorHelperLoose;
+    }, function (module) {
+      ENEMY_STATS = module.ENEMY_STATS;
+    }],
+    execute: function () {
+      cclegacy._RF.push({}, "d0982lWdNlPnKxSN+Y2aMKj", "enemy-ai-system", undefined);
+
+      var EnemyAiSystem = exports('EnemyAiSystem', /*#__PURE__*/function () {
+        function EnemyAiSystem() {}
+
+        var _proto = EnemyAiSystem.prototype;
+
+        _proto.tick = function tick(enemies, allies, dt) {
+          for (var _iterator = _createForOfIteratorHelperLoose(enemies), _step; !(_step = _iterator()).done;) {
+            var enemy = _step.value;
+            if (!enemy.alive) continue;
+            enemy.attackCooldownLeft = Math.max(0, enemy.attackCooldownLeft - dt);
+            var target = this.pickNearestAliveAlly(enemy, allies);
+
+            if (!target) {
+              enemy.velocity.x = 0;
+              enemy.velocity.y = 0;
+              continue;
+            }
+
+            var cfg = ENEMY_STATS[enemy.enemyType];
+            var dist = distance(enemy.position, target.position);
+
+            if (dist <= cfg.attackRange) {
+              enemy.velocity.x = 0;
+              enemy.velocity.y = 0;
+
+              if (enemy.attackCooldownLeft <= 0) {
+                target.currentHp = Math.max(0, target.currentHp - cfg.attackDamage);
+                target.alive = target.currentHp > 0;
+                enemy.attackCooldownLeft = cfg.attackInterval;
+              }
+            } else {
+              var dir = normalize(enemy.position, target.position);
+              enemy.velocity.x = dir.x * cfg.moveSpeed;
+              enemy.velocity.y = dir.y * cfg.moveSpeed;
+              enemy.position.x += enemy.velocity.x * dt;
+              enemy.position.y += enemy.velocity.y * dt;
+            }
+          }
+        };
+
+        _proto.pickNearestAliveAlly = function pickNearestAliveAlly(enemy, allies) {
+          var _allies$filter$map$so;
+
+          return (_allies$filter$map$so = allies.filter(function (ally) {
+            return ally.alive;
+          }).map(function (ally) {
+            return {
+              ally: ally,
+              dist: distance(enemy.position, ally.position)
+            };
+          }).sort(function (a, b) {
+            return a.dist - b.dist;
+          })[0]) === null || _allies$filter$map$so === void 0 ? void 0 : _allies$filter$map$so.ally;
+        };
+
+        return EnemyAiSystem;
+      }());
+
+      cclegacy._RF.pop();
+    }
+  };
+});
+
+System.register("chunks:///_virtual/squad-battle-ui.ts", ['cc', './_rollupPluginModLoBabelHelpers.js', './battle-scene-controller.ts'], function (exports) {
+  'use strict';
+
+  var cclegacy, _decorator, _inheritsLoose, BattleSceneController;
+
+  return {
+    setters: [function (module) {
+      cclegacy = module.cclegacy;
+      _decorator = module._decorator;
+    }, function (module) {
+      _inheritsLoose = module.inheritsLoose;
+    }, function (module) {
+      BattleSceneController = module.BattleSceneController;
+    }],
+    execute: function () {
+      var _dec, _class;
+
+      cclegacy._RF.push({}, "d0d41OBFvZGHId9SGlyc1i4", "squad-battle-ui", undefined);
+
+      var ccclass = _decorator.ccclass;
+      var SquadBattleUi = exports('SquadBattleUi', (_dec = ccclass('SquadBattleUi'), _dec(_class = /*#__PURE__*/function (_BattleSceneControlle) {
+        _inheritsLoose(SquadBattleUi, _BattleSceneControlle);
+
+        function SquadBattleUi() {
+          return _BattleSceneControlle.apply(this, arguments) || this;
+        }
+
+        return SquadBattleUi;
+      }(BattleSceneController)) || _class));
+
+      cclegacy._RF.pop();
+    }
+  };
+});
+
+System.register("chunks:///_virtual/wave-transition-controller.ts", ['cc', './_rollupPluginModLoBabelHelpers.js'], function (exports) {
+  'use strict';
+
+  var cclegacy, _decorator, Vec3, Tween, tween, Component, _inheritsLoose, _defineProperty, _assertThisInitialized;
+
+  return {
+    setters: [function (module) {
+      cclegacy = module.cclegacy;
+      _decorator = module._decorator;
+      Vec3 = module.Vec3;
+      Tween = module.Tween;
+      tween = module.tween;
+      Component = module.Component;
+    }, function (module) {
+      _inheritsLoose = module.inheritsLoose;
+      _defineProperty = module.defineProperty;
+      _assertThisInitialized = module.assertThisInitialized;
+    }],
+    execute: function () {
+      var _dec, _class, _temp;
+
+      cclegacy._RF.push({}, "d6bc69DMFZOKomYgljOKNnB", "wave-transition-controller", undefined);
+
+      var ccclass = _decorator.ccclass;
+      var WaveTransitionController = exports('WaveTransitionController', (_dec = ccclass('WaveTransitionController'), _dec(_class = (_temp = /*#__PURE__*/function (_Component) {
+        _inheritsLoose(WaveTransitionController, _Component);
+
+        function WaveTransitionController() {
+          var _this;
+
+          for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+            args[_key] = arguments[_key];
+          }
+
+          _this = _Component.call.apply(_Component, [this].concat(args)) || this;
+
+          _defineProperty(_assertThisInitialized(_this), "prepPanelNode", null);
+
+          _defineProperty(_assertThisInitialized(_this), "battlefieldNode", null);
+
+          _defineProperty(_assertThisInitialized(_this), "prevPrepState", null);
+
+          return _this;
+        }
+
+        var _proto = WaveTransitionController.prototype;
+
+        _proto.bind = function bind(prepPanelNode, battlefieldNode) {
+          this.prepPanelNode = prepPanelNode;
+          this.battlefieldNode = battlefieldNode;
+        };
+
+        _proto.sync = function sync(snapshot) {
+          if (!this.prepPanelNode || !this.battlefieldNode) return;
+          var prepState = snapshot.uiState.prepPanel;
+
+          if (prepState !== this.prevPrepState) {
+            this.prevPrepState = prepState;
+
+            if (prepState === 'visible' || prepState === 'rising') {
+              this.prepPanelNode.active = true;
+              this.tweenPrepTo(new Vec3(0, -120, 0));
+            } else if (prepState === 'falling') {
+              this.prepPanelNode.active = true;
+              this.tweenPrepTo(new Vec3(0, -420, 0));
+            } else {
+              this.prepPanelNode.active = false;
+              this.prepPanelNode.setPosition(new Vec3(0, -420, 0));
+            }
+          }
+        };
+
+        _proto.tweenPrepTo = function tweenPrepTo(target) {
+          if (!this.prepPanelNode) return;
+          Tween.stopAllByTarget(this.prepPanelNode);
+          tween(this.prepPanelNode).to(0.35, {
+            position: target
+          }).start();
+        };
+
+        return WaveTransitionController;
+      }(Component), _temp)) || _class));
 
       cclegacy._RF.pop();
     }
@@ -3415,24 +5246,21 @@ System.register("chunks:///_virtual/difficulty-config.ts", ['cc'], function (exp
           name: '新手',
           totalWaves: 10,
           startingGold: 16,
-          refreshCost: 2,
-          crystalHp: 20
+          refreshCost: 2
         },
         normal: {
           id: 'normal',
           name: '普通',
           totalWaves: 30,
           startingGold: 20,
-          refreshCost: 2,
-          crystalHp: 25
+          refreshCost: 2
         },
         hard: {
           id: 'hard',
           name: '困难',
           totalWaves: 60,
           startingGold: 24,
-          refreshCost: 3,
-          crystalHp: 30
+          refreshCost: 3
         }
       });
 
@@ -3441,20 +5269,609 @@ System.register("chunks:///_virtual/difficulty-config.ts", ['cc'], function (exp
   };
 });
 
-System.register("chunks:///_virtual/shop-system.ts", ['./_rollupPluginModLoBabelHelpers.js', 'cc', './unit-config.ts', './random.ts'], function (exports) {
+System.register("chunks:///_virtual/unit-star-sprite-config.ts", ['cc'], function (exports) {
   'use strict';
 
-  var _defineProperty, cclegacy, SHOP_UNIT_POOL, pickN;
+  var cclegacy;
+  return {
+    setters: [function (module) {
+      cclegacy = module.cclegacy;
+    }],
+    execute: function () {
+      cclegacy._RF.push({}, "defe7VdSmFMPI2MJoKP6VfQ", "unit-star-sprite-config", undefined);
+
+      var makeDefaultStarPaths = function makeDefaultStarPaths(unitId) {
+        return {
+          1: "textures/avatars/" + unitId + "/star1",
+          2: "textures/avatars/" + unitId + "/star2",
+          3: "textures/avatars/" + unitId + "/star3"
+        };
+      };
+
+      var UNIT_STAR_SPRITE_PATHS = exports('UNIT_STAR_SPRITE_PATHS', {
+        archer: makeDefaultStarPaths('archer'),
+        shield_guard: makeDefaultStarPaths('shield_guard'),
+        warrior: makeDefaultStarPaths('warrior'),
+        mage: makeDefaultStarPaths('mage'),
+        priest: makeDefaultStarPaths('priest'),
+        cavalry: makeDefaultStarPaths('cavalry'),
+        spearman: makeDefaultStarPaths('spearman'),
+        berserker: makeDefaultStarPaths('berserker'),
+        light_mage: makeDefaultStarPaths('light_mage')
+      });
+      var UNIT_STAR_SPRITE_BASE_FALLBACK = exports('UNIT_STAR_SPRITE_BASE_FALLBACK', {
+        archer: 'textures/avatars/archer',
+        shield_guard: 'textures/avatars/shield_guard',
+        warrior: 'textures/avatars/warrior',
+        mage: 'textures/avatars/mage',
+        priest: 'textures/avatars/priest',
+        cavalry: 'textures/avatars/cavalry',
+        spearman: 'textures/avatars/spearman',
+        berserker: 'textures/avatars/berserker',
+        light_mage: 'textures/avatars/light_mage'
+      });
+
+      cclegacy._RF.pop();
+    }
+  };
+});
+
+System.register("chunks:///_virtual/targeting-system.ts", ['cc', './math.ts'], function (exports) {
+  'use strict';
+
+  var cclegacy, distance;
+  return {
+    setters: [function (module) {
+      cclegacy = module.cclegacy;
+    }, function (module) {
+      distance = module.distance;
+    }],
+    execute: function () {
+      cclegacy._RF.push({}, "e5833C8HO1Fqo9sMIPElqVU", "targeting-system", undefined);
+
+      var TargetingSystem = exports('TargetingSystem', /*#__PURE__*/function () {
+        function TargetingSystem() {}
+
+        var _proto = TargetingSystem.prototype;
+
+        _proto.findNearestEnemyInRange = function findNearestEnemyInRange(unit, enemies, range) {
+          var _enemies$filter$map$f;
+
+          return (_enemies$filter$map$f = enemies.filter(function (enemy) {
+            return enemy.alive;
+          }).map(function (enemy) {
+            return {
+              enemy: enemy,
+              dist: distance(unit.position, enemy.position)
+            };
+          }).filter(function (entry) {
+            return entry.dist <= range;
+          }).sort(function (a, b) {
+            return a.dist - b.dist;
+          })[0]) === null || _enemies$filter$map$f === void 0 ? void 0 : _enemies$filter$map$f.enemy;
+        };
+
+        _proto.findEnemyById = function findEnemyById(enemyId, enemies) {
+          return enemies.find(function (enemy) {
+            return enemy.instanceId === enemyId && enemy.alive;
+          });
+        };
+
+        _proto.findAllyById = function findAllyById(allyId, allies) {
+          return allies.find(function (ally) {
+            return ally.instanceId === allyId && ally.alive;
+          });
+        };
+
+        return TargetingSystem;
+      }());
+
+      cclegacy._RF.pop();
+    }
+  };
+});
+
+System.register("chunks:///_virtual/character-select-controller.ts", ['cc', './_rollupPluginModLoBabelHelpers.js', './unit-config.ts', './sprite-resolvers.ts'], function (exports) {
+  'use strict';
+
+  var cclegacy, _decorator, Layers, UITransform, Sprite, Color, Node, Vec3, Button, Label, Component, _inheritsLoose, _defineProperty, _assertThisInitialized, _asyncToGenerator, UNIT_CONFIG, UnitSpriteResolver;
 
   return {
     setters: [function (module) {
+      cclegacy = module.cclegacy;
+      _decorator = module._decorator;
+      Layers = module.Layers;
+      UITransform = module.UITransform;
+      Sprite = module.Sprite;
+      Color = module.Color;
+      Node = module.Node;
+      Vec3 = module.Vec3;
+      Button = module.Button;
+      Label = module.Label;
+      Component = module.Component;
+    }, function (module) {
+      _inheritsLoose = module.inheritsLoose;
+      _defineProperty = module.defineProperty;
+      _assertThisInitialized = module.assertThisInitialized;
+      _asyncToGenerator = module.asyncToGenerator;
+    }, function (module) {
+      UNIT_CONFIG = module.UNIT_CONFIG;
+    }, function (module) {
+      UnitSpriteResolver = module.UnitSpriteResolver;
+    }],
+    execute: function () {
+      var _dec, _class, _temp;
+
+      cclegacy._RF.push({}, "eb2d5Q5pitJnYnnrR0u4gH2", "character-select-controller", undefined);
+
+      var ccclass = _decorator.ccclass;
+      var PREVIEW_MAX_WIDTH = 220;
+      var PREVIEW_MAX_HEIGHT = 240;
+      var PORTRAIT_ASPECT = {
+        warrior: 2 / 3
+      };
+      var CharacterSelectController = exports('CharacterSelectController', (_dec = ccclass('CharacterSelectController'), _dec(_class = (_temp = /*#__PURE__*/function (_Component) {
+        _inheritsLoose(CharacterSelectController, _Component);
+
+        function CharacterSelectController() {
+          var _this;
+
+          for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+            args[_key] = arguments[_key];
+          }
+
+          _this = _Component.call.apply(_Component, [this].concat(args)) || this;
+
+          _defineProperty(_assertThisInitialized(_this), "onBack", void 0);
+
+          _defineProperty(_assertThisInitialized(_this), "onConfirm", void 0);
+
+          _defineProperty(_assertThisInitialized(_this), "resolver", new UnitSpriteResolver());
+
+          _defineProperty(_assertThisInitialized(_this), "options", []);
+
+          _defineProperty(_assertThisInitialized(_this), "selectedIndex", 0);
+
+          _defineProperty(_assertThisInitialized(_this), "previewSprite", null);
+
+          _defineProperty(_assertThisInitialized(_this), "previewTransform", null);
+
+          _defineProperty(_assertThisInitialized(_this), "titleLabel", null);
+
+          _defineProperty(_assertThisInitialized(_this), "detailLabel", null);
+
+          _defineProperty(_assertThisInitialized(_this), "footerLabel", null);
+
+          return _this;
+        }
+
+        var _proto = CharacterSelectController.prototype;
+
+        _proto.initialize = function initialize() {
+          var _this$node$getCompone,
+              _this2 = this;
+
+          this.node.layer = Layers.Enum.UI_2D;
+          var transform = (_this$node$getCompone = this.node.getComponent(UITransform)) !== null && _this$node$getCompone !== void 0 ? _this$node$getCompone : this.node.addComponent(UITransform);
+          transform.setContentSize(960, 640);
+          var bg = this.node.addComponent(Sprite);
+          bg.color = new Color(9, 18, 32, 255);
+          this.makePanel('Backdrop', 0, 0, 820, 560, new Color(15, 23, 42, 245));
+          this.makeLabel('PageTitle', '选择初始职业', 0, 228, 520, 28, new Color(248, 250, 252, 255));
+          this.makeLabel('PageHint', '左右切换你想带入第一回合的队长职业，确认后会作为起始棋子进入备战区。', 0, 194, 660, 14, new Color(191, 219, 254, 255));
+          var preview = new Node('Preview');
+          preview.layer = Layers.Enum.UI_2D;
+          this.node.addChild(preview);
+          preview.setPosition(new Vec3(0, 34, 0));
+          this.previewTransform = preview.addComponent(UITransform);
+          this.previewTransform.setContentSize(PREVIEW_MAX_WIDTH, PREVIEW_MAX_HEIGHT);
+          this.previewSprite = preview.addComponent(Sprite);
+          this.previewSprite.sizeMode = Sprite.SizeMode.CUSTOM;
+          this.previewSprite.color = new Color(148, 163, 184, 255);
+          this.titleLabel = this.makeLabel('SelectedTitle', '', 0, -126, 520, 24, new Color(251, 191, 36, 255));
+          this.detailLabel = this.makeLabel('SelectedDetail', '', 0, -168, 620, 14, new Color(226, 232, 240, 255));
+          if (this.detailLabel) this.detailLabel.lineHeight = 20;
+          this.footerLabel = this.makeLabel('Footer', '左右切换职业，右下角开始游戏。', 0, -230, 620, 13, new Color(148, 163, 184, 255));
+          this.makeButton('Prev', '◀', -224, 24, 56, 56, new Color(30, 41, 59, 255), function () {
+            return _this2.shiftSelection(-1);
+          });
+          this.makeButton('Next', '▶', 224, 24, 56, 56, new Color(30, 41, 59, 255), function () {
+            return _this2.shiftSelection(1);
+          });
+          this.makeButton('Back', '返回', -278, -248, 140, 42, new Color(71, 85, 105, 255), function () {
+            var _this2$onBack;
+
+            return (_this2$onBack = _this2.onBack) === null || _this2$onBack === void 0 ? void 0 : _this2$onBack.call(_this2);
+          });
+          this.makeButton('Confirm', '开始游戏', 280, -248, 160, 42, new Color(21, 128, 61, 255), function () {
+            return _this2.confirmSelection();
+          });
+        };
+
+        _proto.setOptions = function setOptions(options, selectedUnitId) {
+          this.options = [].concat(options);
+          var foundIndex = selectedUnitId ? this.options.indexOf(selectedUnitId) : -1;
+          this.selectedIndex = foundIndex >= 0 ? foundIndex : 0;
+          void this.renderSelection();
+        };
+
+        _proto.shiftSelection = function shiftSelection(delta) {
+          if (this.options.length === 0) return;
+          this.selectedIndex = (this.selectedIndex + delta + this.options.length) % this.options.length;
+          void this.renderSelection();
+        };
+
+        _proto.confirmSelection = function confirmSelection() {
+          var _this$onConfirm;
+
+          var unitId = this.options[this.selectedIndex];
+          if (!unitId) return;
+          (_this$onConfirm = this.onConfirm) === null || _this$onConfirm === void 0 ? void 0 : _this$onConfirm.call(this, unitId);
+        };
+
+        _proto.renderSelection = /*#__PURE__*/function () {
+          var _renderSelection = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee() {
+            var unitId, cfg, frame;
+            return regeneratorRuntime.wrap(function _callee$(_context) {
+              while (1) {
+                switch (_context.prev = _context.next) {
+                  case 0:
+                    unitId = this.options[this.selectedIndex];
+
+                    if (unitId) {
+                      _context.next = 3;
+                      break;
+                    }
+
+                    return _context.abrupt("return");
+
+                  case 3:
+                    cfg = UNIT_CONFIG[unitId];
+
+                    if (this.titleLabel) {
+                      this.titleLabel.string = cfg.name + " \xB7 " + unitId;
+                    }
+
+                    if (this.detailLabel) {
+                      this.detailLabel.string = "\u804C\u4E1A\u5B9A\u4F4D\uFF1A" + cfg.behaviorRole + "  |  \u751F\u547D " + cfg.maxHp + "  |  \u653B\u51FB " + cfg.baseDamage + "  |  \u79FB\u901F " + cfg.moveSpeed + "\n\u8BE5\u5355\u4F4D\u4F1A\u4F5C\u4E3A\u4F60\u7684\u8D77\u59CB\u961F\u957F\u5B9E\u4F8B\u8FDB\u5165\u7B2C\u4E00\u56DE\u5408\u51C6\u5907\u9636\u6BB5\u3002";
+                    }
+
+                    if (this.footerLabel) {
+                      this.footerLabel.string = "\u5F53\u524D\u9009\u62E9\uFF1A" + cfg.name + "\u3002\u8FDB\u5165\u6E38\u620F\u540E\u5B83\u4F1A\u4EE5\u6807\u51C6\u68CB\u5B50\u8EAB\u4EFD\u8FDB\u5165\u5907\u6218\u533A\u3002";
+                    }
+
+                    if (!this.previewSprite) {
+                      _context.next = 14;
+                      break;
+                    }
+
+                    _context.next = 10;
+                    return this.resolver.resolvePortrait(unitId, 1, false);
+
+                  case 10:
+                    frame = _context.sent;
+                    this.resizePreview(unitId);
+                    this.previewSprite.spriteFrame = frame;
+                    this.previewSprite.color = frame ? new Color(255, 255, 255, 255) : new Color(148, 163, 184, 255);
+
+                  case 14:
+                  case "end":
+                    return _context.stop();
+                }
+              }
+            }, _callee, this);
+          }));
+
+          function renderSelection() {
+            return _renderSelection.apply(this, arguments);
+          }
+
+          return renderSelection;
+        }();
+
+        _proto.resizePreview = function resizePreview(unitId) {
+          var _PORTRAIT_ASPECT$unit;
+
+          if (!this.previewTransform) return;
+          var aspect = (_PORTRAIT_ASPECT$unit = PORTRAIT_ASPECT[unitId]) !== null && _PORTRAIT_ASPECT$unit !== void 0 ? _PORTRAIT_ASPECT$unit : 1;
+          var widthByHeight = PREVIEW_MAX_HEIGHT * aspect;
+
+          if (widthByHeight <= PREVIEW_MAX_WIDTH) {
+            this.previewTransform.setContentSize(widthByHeight, PREVIEW_MAX_HEIGHT);
+            return;
+          }
+
+          this.previewTransform.setContentSize(PREVIEW_MAX_WIDTH, PREVIEW_MAX_WIDTH / aspect);
+        };
+
+        _proto.makePanel = function makePanel(name, x, y, width, height, color) {
+          var node = new Node(name);
+          node.layer = Layers.Enum.UI_2D;
+          this.node.addChild(node);
+          node.setPosition(new Vec3(x, y, 0));
+          node.addComponent(UITransform).setContentSize(width, height);
+          var sprite = node.addComponent(Sprite);
+          sprite.color = color;
+        };
+
+        _proto.makeButton = function makeButton(name, text, x, y, width, height, color, onClick) {
+          var node = new Node(name);
+          node.layer = Layers.Enum.UI_2D;
+          this.node.addChild(node);
+          node.setPosition(new Vec3(x, y, 0));
+          node.addComponent(UITransform).setContentSize(width, height);
+          var sprite = node.addComponent(Sprite);
+          sprite.color = color;
+          node.addComponent(Button);
+          node.on(Button.EventType.CLICK, onClick, this);
+          var labelNode = new Node(name + "Label");
+          labelNode.layer = Layers.Enum.UI_2D;
+          node.addChild(labelNode);
+          labelNode.addComponent(UITransform).setContentSize(width - 10, height - 8);
+          var label = labelNode.addComponent(Label);
+          label.string = text;
+          label.fontSize = 18;
+          label.lineHeight = 22;
+          label.color = new Color(248, 250, 252, 255);
+        };
+
+        _proto.makeLabel = function makeLabel(name, text, x, y, width, fontSize, color) {
+          var node = new Node(name);
+          node.layer = Layers.Enum.UI_2D;
+          this.node.addChild(node);
+          node.setPosition(new Vec3(x, y, 0));
+          node.addComponent(UITransform).setContentSize(width, fontSize + 16);
+          var label = node.addComponent(Label);
+          label.string = text;
+          label.fontSize = fontSize;
+          label.lineHeight = fontSize + 6;
+          label.color = color;
+          return label;
+        };
+
+        return CharacterSelectController;
+      }(Component), _temp)) || _class));
+
+      cclegacy._RF.pop();
+    }
+  };
+});
+
+System.register("chunks:///_virtual/roster-system.ts", ['cc', './_rollupPluginModLoBabelHelpers.js', './squad-ui-layout-config.ts', './id.ts'], function (exports) {
+  'use strict';
+
+  var cclegacy, _extends, _defineProperty, SQUAD_BENCH_SLOTS, SQUAD_DEPLOY_SLOTS, nextId;
+
+  return {
+    setters: [function (module) {
+      cclegacy = module.cclegacy;
+    }, function (module) {
+      _extends = module.extends;
       _defineProperty = module.defineProperty;
     }, function (module) {
+      SQUAD_BENCH_SLOTS = module.SQUAD_BENCH_SLOTS;
+      SQUAD_DEPLOY_SLOTS = module.SQUAD_DEPLOY_SLOTS;
+    }, function (module) {
+      nextId = module.nextId;
+    }],
+    execute: function () {
+      cclegacy._RF.push({}, "ecb73zLkzhLTYh6DV74fKHq", "roster-system", undefined);
+
+      var RosterSystem = exports('RosterSystem', /*#__PURE__*/function () {
+        function RosterSystem() {
+          _defineProperty(this, "bench", []);
+
+          _defineProperty(this, "deployed", []);
+        }
+
+        var _proto = RosterSystem.prototype;
+
+        _proto.reset = function reset() {
+          this.bench = [];
+          this.deployed = [];
+        };
+
+        _proto.setState = function setState(bench, deployed) {
+          this.bench = bench.map(function (u) {
+            return _extends({}, u);
+          });
+          this.deployed = deployed.map(function (u) {
+            return _extends({}, u);
+          });
+        };
+
+        _proto.addToBench = function addToBench(unitId) {
+          return this.addToBenchWithState({
+            unitId: unitId,
+            star: 1
+          });
+        };
+
+        _proto.addToBenchWithState = function addToBenchWithState(template) {
+          var _template$instanceId;
+
+          if (this.bench.length >= SQUAD_BENCH_SLOTS) {
+            return null;
+          }
+
+          var instance = {
+            instanceId: (_template$instanceId = template.instanceId) !== null && _template$instanceId !== void 0 ? _template$instanceId : nextId('roster_unit'),
+            unitId: template.unitId,
+            star: template.star,
+            assignedTaskId: template.assignedTaskId,
+            isCaptain: template.isCaptain
+          };
+          this.bench.push(instance);
+          this.tryMerge(template.unitId, 1);
+          return instance;
+        };
+
+        _proto.deploy = function deploy(instanceId) {
+          if (this.deployed.length >= SQUAD_DEPLOY_SLOTS) return false;
+          var unit = this.bench.find(function (u) {
+            return u.instanceId === instanceId;
+          });
+          if (!unit) return false;
+          this.bench = this.bench.filter(function (u) {
+            return u.instanceId !== instanceId;
+          });
+          this.deployed.push(unit);
+          return true;
+        };
+
+        _proto.recall = function recall(instanceId) {
+          var unit = this.deployed.find(function (u) {
+            return u.instanceId === instanceId;
+          });
+          if (!unit) return false;
+          this.deployed = this.deployed.filter(function (u) {
+            return u.instanceId !== instanceId;
+          });
+          this.bench.push(unit);
+          return true;
+        };
+
+        _proto.removeUnit = function removeUnit(instanceId) {
+          var inBench = this.bench.some(function (u) {
+            return u.instanceId === instanceId;
+          });
+
+          if (inBench) {
+            this.bench = this.bench.filter(function (u) {
+              return u.instanceId !== instanceId;
+            });
+            return true;
+          }
+
+          var inDeployed = this.deployed.some(function (u) {
+            return u.instanceId === instanceId;
+          });
+
+          if (inDeployed) {
+            this.deployed = this.deployed.filter(function (u) {
+              return u.instanceId !== instanceId;
+            });
+            return true;
+          }
+
+          return false;
+        };
+
+        _proto.assignTask = function assignTask(instanceId, taskId) {
+          var unit = this.findByInstanceId(instanceId);
+
+          if (unit) {
+            unit.assignedTaskId = taskId;
+          }
+        };
+
+        _proto.evolveUnit = function evolveUnit(instanceId, targetUnitId) {
+          var unit = this.findByInstanceId(instanceId);
+          if (!unit) return;
+          unit.unitId = targetUnitId;
+          unit.star = 3;
+          unit.assignedTaskId = undefined;
+        };
+
+        _proto.getBench = function getBench() {
+          return this.bench.map(function (u) {
+            return _extends({}, u);
+          });
+        };
+
+        _proto.getDeployed = function getDeployed() {
+          return this.deployed.map(function (u) {
+            return _extends({}, u);
+          });
+        };
+
+        _proto.getDeployCount = function getDeployCount() {
+          return this.deployed.length;
+        };
+
+        _proto.getAllUnits = function getAllUnits() {
+          return [].concat(this.bench, this.deployed).map(function (u) {
+            return _extends({}, u);
+          });
+        };
+
+        _proto.getDeployUnitsForBattle = function getDeployUnitsForBattle() {
+          return this.deployed.slice(0, SQUAD_DEPLOY_SLOTS).map(function (u) {
+            return _extends({}, u);
+          });
+        };
+
+        _proto.findByInstanceId = function findByInstanceId(instanceId) {
+          return [].concat(this.bench, this.deployed).find(function (u) {
+            return u.instanceId === instanceId;
+          });
+        };
+
+        _proto.tryMerge = function tryMerge(unitId, star) {
+          var candidates = this.getMergeCandidates(unitId, star);
+          if (candidates.length < 3) return;
+          var selected = candidates.slice(0, 3);
+          var keep = selected[0];
+          var consumedIds = selected.slice(1).map(function (c) {
+            return c.unit.instanceId;
+          });
+          this.bench = this.bench.filter(function (u) {
+            return !consumedIds.includes(u.instanceId);
+          });
+          this.deployed = this.deployed.filter(function (u) {
+            return !consumedIds.includes(u.instanceId);
+          });
+          keep.unit.star = star + 1;
+
+          if (star === 1) {
+            this.tryMerge(unitId, 2);
+          }
+        };
+
+        _proto.getMergeCandidates = function getMergeCandidates(unitId, star) {
+          var fromBench = this.bench.filter(function (u) {
+            return u.unitId === unitId && u.star === star && !u.assignedTaskId;
+          }).map(function (unit) {
+            return {
+              source: 'bench',
+              unit: unit
+            };
+          });
+          var fromDeployed = this.deployed.filter(function (u) {
+            return u.unitId === unitId && u.star === star && !u.assignedTaskId;
+          }).map(function (unit) {
+            return {
+              source: 'deployed',
+              unit: unit
+            };
+          });
+          return [].concat(fromDeployed, fromBench);
+        };
+
+        return RosterSystem;
+      }());
+
+      cclegacy._RF.pop();
+    }
+  };
+});
+
+System.register("chunks:///_virtual/shop-system.ts", ['cc', './_rollupPluginModLoBabelHelpers.js', './unit-config.ts', './random.ts', './squad-ui-layout-config.ts'], function (exports) {
+  'use strict';
+
+  var cclegacy, _defineProperty, SHOP_UNIT_POOL, pickN, SQUAD_SHOP_SLOTS;
+
+  return {
+    setters: [function (module) {
       cclegacy = module.cclegacy;
+    }, function (module) {
+      _defineProperty = module.defineProperty;
     }, function (module) {
       SHOP_UNIT_POOL = module.SHOP_UNIT_POOL;
     }, function (module) {
       pickN = module.pickN;
+    }, function (module) {
+      SQUAD_SHOP_SLOTS = module.SQUAD_SHOP_SLOTS;
     }],
     execute: function () {
       cclegacy._RF.push({}, "ee9f9o+pp5DxKm5XCeOMkjm", "shop-system", undefined);
@@ -3467,12 +5884,16 @@ System.register("chunks:///_virtual/shop-system.ts", ['./_rollupPluginModLoBabel
         var _proto = ShopSystem.prototype;
 
         _proto.refresh = function refresh() {
-          this.entries = pickN(SHOP_UNIT_POOL, 3);
+          this.entries = pickN(SHOP_UNIT_POOL, SQUAD_SHOP_SLOTS);
           return [].concat(this.entries);
         };
 
         _proto.getEntries = function getEntries() {
           return [].concat(this.entries);
+        };
+
+        _proto.setEntries = function setEntries(entries) {
+          this.entries = [].concat(entries);
         };
 
         _proto.peek = function peek(slotIndex) {
@@ -3501,39 +5922,85 @@ System.register("chunks:///_virtual/shop-system.ts", ['./_rollupPluginModLoBabel
   };
 });
 
-System.register("chunks:///_virtual/main-menu-controller.ts", ['cc'], function (exports) {
+System.register("chunks:///_virtual/command-overlay-controller.ts", ['cc', './_rollupPluginModLoBabelHelpers.js'], function (exports) {
   'use strict';
 
-  var cclegacy;
+  var cclegacy, _decorator, Layers, UITransform, Node, Vec3, Label, Color, Component, _inheritsLoose, _defineProperty, _assertThisInitialized;
+
   return {
     setters: [function (module) {
       cclegacy = module.cclegacy;
+      _decorator = module._decorator;
+      Layers = module.Layers;
+      UITransform = module.UITransform;
+      Node = module.Node;
+      Vec3 = module.Vec3;
+      Label = module.Label;
+      Color = module.Color;
+      Component = module.Component;
+    }, function (module) {
+      _inheritsLoose = module.inheritsLoose;
+      _defineProperty = module.defineProperty;
+      _assertThisInitialized = module.assertThisInitialized;
     }],
     execute: function () {
-      cclegacy._RF.push({}, "ef826U8Zy5LXq+OBSRUaYEh", "main-menu-controller", undefined);
+      var _dec, _class, _temp;
 
-      var MainMenuController = exports('MainMenuController', /*#__PURE__*/function () {
-        function MainMenuController() {}
+      cclegacy._RF.push({}, "fae77DTys1J5bx7Hawlm+dF", "command-overlay-controller", undefined);
 
-        var _proto = MainMenuController.prototype;
+      var ccclass = _decorator.ccclass;
+      var CommandOverlayController = exports('CommandOverlayController', (_dec = ccclass('CommandOverlayController'), _dec(_class = (_temp = /*#__PURE__*/function (_Component) {
+        _inheritsLoose(CommandOverlayController, _Component);
 
-        _proto.onSelectDifficulty = function onSelectDifficulty(cb, difficulty) {
-          cb(difficulty);
+        function CommandOverlayController() {
+          var _this;
+
+          for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+            args[_key] = arguments[_key];
+          }
+
+          _this = _Component.call.apply(_Component, [this].concat(args)) || this;
+
+          _defineProperty(_assertThisInitialized(_this), "noticeLabel", null);
+
+          return _this;
+        }
+
+        var _proto = CommandOverlayController.prototype;
+
+        _proto.initialize = function initialize() {
+          var _this$node$getCompone;
+
+          this.node.layer = Layers.Enum.UI_2D;
+          var transform = (_this$node$getCompone = this.node.getComponent(UITransform)) !== null && _this$node$getCompone !== void 0 ? _this$node$getCompone : this.node.addComponent(UITransform);
+          transform.setContentSize(920, 40);
+          var labelNode = new Node('CommandNotice');
+          labelNode.layer = Layers.Enum.UI_2D;
+          this.node.addChild(labelNode);
+          labelNode.setPosition(new Vec3(-430, 0, 0));
+          labelNode.addComponent(UITransform).setContentSize(860, 30);
+          this.noticeLabel = labelNode.addComponent(Label);
+          this.noticeLabel.fontSize = 12;
+          this.noticeLabel.color = new Color(134, 239, 172, 255);
         };
 
-        return MainMenuController;
-      }());
+        _proto.setNotice = function setNotice(text) {
+          if (this.noticeLabel) this.noticeLabel.string = text;
+        };
+
+        return CommandOverlayController;
+      }(Component), _temp)) || _class));
 
       cclegacy._RF.pop();
     }
   };
 });
 
-System.register("chunks:///_virtual/main", ['./unit-config.ts', './id.ts', './unit-system.ts', './difficulty-config.ts', './divine-task-config.ts', './enemy-config.ts', './battle-system.ts', './random.ts', './divine-task-system.ts', './economy-system.ts', './shop-system.ts', './wave-config.ts', './wave-system.ts', './game-session.ts', './game-controller.ts', './cocos-game-controller.ts', './verify-divine-task-rules.ts', './simulate-run.ts', './types.ts', './main-menu-controller.ts'], function () {
+System.register("chunks:///_virtual/main", ['./math.ts', './squad-battle-config.ts', './collision-system.ts', './art-resource-manifest.ts', './divine-task-config.ts', './unit-config.ts', './random.ts', './divine-task-system.ts', './types.ts', './unit-star-sprite-config.ts', './sprite-resolvers.ts', './battle-hud-controller.ts', './difficulty-config.ts', './economy-system.ts', './squad-ui-layout-config.ts', './shop-system.ts', './id.ts', './attack-system.ts', './enemy-ai-system.ts', './healing-system.ts', './movement-system.ts', './roster-system.ts', './targeting-system.ts', './unit-command-system.ts', './squad-battle-session.ts', './unit-view.ts', './enemy-view.ts', './local-profile-storage.ts', './prep-panel-controller.ts', './battlefield-controller.ts', './types2.ts', './character-select-controller.ts', './command-overlay-controller.ts', './main-menu-controller.ts', './wave-transition-controller.ts', './battle-scene-controller.ts', './squad-battle-ui.ts'], function () {
   'use strict';
 
   return {
-    setters: [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null],
+    setters: [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null],
     execute: function () {}
   };
 });

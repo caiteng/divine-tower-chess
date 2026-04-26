@@ -8,7 +8,8 @@ export class CommandOverlayController extends Component {
 
   public initialize(): void {
     this.node.layer = Layers.Enum.UI_2D;
-    this.node.addComponent(UITransform).setContentSize(920, 40);
+    const transform = this.node.getComponent(UITransform) ?? this.node.addComponent(UITransform);
+    transform.setContentSize(920, 40);
 
     const labelNode = new Node('CommandNotice');
     labelNode.layer = Layers.Enum.UI_2D;
