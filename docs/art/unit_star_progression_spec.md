@@ -11,7 +11,6 @@ Classes:
 - mage
 - priest
 - archer
-- paladin
 - shield_guard
 - cavalry
 - spearman
@@ -42,8 +41,3 @@ Usage rules:
 Repository integration (implemented):
 - star-specific path map config: `assets/scripts/config/unit-star-sprite-config.ts`
 - runtime loading now prefers `unitId + star` sprite path and falls back to unit base avatar path
-
-
-Binary commit note:
-- In page-Codex merge flow, binary assets may be blocked.
-- Keep `assets/art/reference/unit_star_progression.placeholder.txt` tracked in git and add `unit_star_progression.png` from a local git client when available.

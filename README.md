@@ -46,11 +46,11 @@
 
 ## 美术接入规则
 
-- 当前正式职业资源开始转入 `assets/resources/textures/units/<unitId>/`
-- 同一职业的原画插画、战场静态图、连续动作帧必须放在同一个职业目录中
-- 角色选择页优先读取 `portrait`，战场内优先读取 `star1/2/3` 静态表现
-- 当前第一套已落地职业为 `paladin`
-- 详细目录规范见：`assets/art/README.md`
+- 运行时资源放在 `assets/resources/textures/**`，由 Cocos `resources.load` 加载。
+- 源资产归档放在 `assets/art/**`，同一职业的 portrait、星级图、动作帧和神品图必须保存在同一个职业目录。
+- 当前主线职业为 `warrior`、`mage`、`priest`、`archer`、`shield_guard`、`cavalry`、`spearman`；神品职业为 `berserker`、`light_mage`。
+- 角色选择页优先读取 `portrait`，战场内优先读取 `star1/2/3` 和动作帧；缺资源时 resolver 必须保持可用回退。
+- 详细目录规范见：`assets/art/README.md`。
 
 ## 运行与验证
 
@@ -61,5 +61,7 @@ npm test
 
 - `npm test` 会执行：
   - `tsc --noEmit`
-  - `tsx assets/scripts/core/verify-squad-rules.ts`
+  - `tsx tools/verify-squad-rules.ts`
+  - `tsx tools/verify-art-resources.ts`
+- `npm run verify:web` 会运行 Web 端 e2e 检查，输出截图和浏览器档案到 `tmp/web-e2e/`，该目录不入库。
 - 当前状态与下一步：`PLANS.md`

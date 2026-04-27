@@ -1,10 +1,6 @@
-# Merge Recovery (keep Codex final state as source of truth)
+# Merge Recovery
 
-This repository branch has been squashed to a single integration commit:
-
-- `88e7330` (`work` branch)
-
-Use this when your latest target branch has diverged and web merge conflicts are too heavy.
+Use this when a local working branch diverges from the shared mainline and normal merge conflicts are too heavy.
 
 ## Recommended flow
 
@@ -15,13 +11,17 @@ git checkout <target-branch>
 git pull origin <target-branch>
 ```
 
-2. Apply Codex final-state commit with ours-preferred merge strategy:
+2. Create a temporary recovery branch before resolving conflicts:
 
 ```bash
-git cherry-pick -X ours 88e7330
+git checkout -b recovery/<date>
 ```
 
-3. If conflicts still remain in a few files, resolve by keeping the `88e7330` side as final source of truth.
+3. Resolve conflicts by keeping the current project architecture as source of truth:
+
+- Combat logic: `assets/scripts/squad/squad-battle-session.ts` and `assets/scripts/squad/systems/*`
+- Cocos UI: `assets/scripts/ui/battle-scene-controller.ts` and `assets/scripts/ui/controllers/*`
+- Verification tools: `tools/verify-squad-rules.ts`, `tools/verify-art-resources.ts`, `tools/run-web-e2e.js`
 
 4. Run verification:
 
@@ -31,8 +31,5 @@ npm test
 
 ## Notes
 
-- Binary art files are intentionally not included in this page-Codex flow.
-- Add real image via local git client at:
-  - `assets/art/reference/unit_star_progression.png`
-- Keep placeholder text file tracked in repo:
-  - `assets/art/reference/unit_star_progression.placeholder.txt`
+- Do not commit generated `build/`, `temp/`, `local/`, `library/`, `tmp/`, or `node_modules/` content.
+- If Cocos regenerates `.meta` files for real assets under `assets/**`, review and commit those `.meta` changes with the matching assets.

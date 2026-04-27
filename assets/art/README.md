@@ -89,10 +89,13 @@ Current rule:
 
 ## Enemies
 
-- `enemies/slime.png`
-- `enemies/wolf.png`
+- `enemies/grunt.png`
 - `enemies/brute.png`
-- `enemies/boss_1.png`
+- `enemies/boss.png`
+- `enemies/<enemy>_move_01.png` to `enemies/<enemy>_move_05.png`
+- `enemies/<enemy>_attack_01.png` to `enemies/<enemy>_attack_05.png`
+- `enemies/<enemy>_death_fall_01.png` to `enemies/<enemy>_death_fall_05.png`
+- `enemies/<enemy>_corpse_fade_01.png` to `enemies/<enemy>_corpse_fade_05.png`
 
 ## UI
 
