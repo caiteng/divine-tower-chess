@@ -1,4 +1,4 @@
-import { SQUAD_BATTLEFIELD } from '../config/squad-battle-config';
+import { ENEMY_STATS, SQUAD_BATTLEFIELD, SQUAD_UNIT_STATS } from '../config/squad-battle-config';
 import type { EnemyUnitState, SquadUnitState, Vec2 } from '../types';
 import { clamp, distance } from './math';
 
@@ -69,7 +69,7 @@ export class CollisionSystem {
     const totalWeight = a.weight + b.weight;
     const aShare = totalWeight > 0 ? b.weight / totalWeight : 0.5;
     const bShare = totalWeight > 0 ? a.weight / totalWeight : 0.5;
-    const push = overlap * 0.52;
+    const push = overlap + 0.02;
 
     a.position.x -= nx * push * aShare;
     a.position.y -= ny * push * aShare;
@@ -91,14 +91,10 @@ export class CollisionSystem {
   }
 
   private getAllyRadius(ally: SquadUnitState): number {
-    if (ally.role === 'melee') return 26;
-    if (ally.role === 'priest') return 22;
-    return 20;
+    return SQUAD_UNIT_STATS[ally.unitId].collisionRadius;
   }
 
   private getEnemyRadius(enemy: EnemyUnitState): number {
-    if (enemy.enemyType === 'boss') return 34;
-    if (enemy.enemyType === 'brute') return 28;
-    return 20;
+    return ENEMY_STATS[enemy.enemyType].collisionRadius;
   }
 }

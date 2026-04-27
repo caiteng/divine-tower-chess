@@ -32,7 +32,7 @@ export class MainMenuController extends Component {
     this.makeStripe('TopGlow', 0, 210, 760, 140, new Color(20, 184, 166, 72));
     this.makeStripe('BottomGlow', 0, -180, 900, 180, new Color(245, 158, 11, 48));
 
-    this.makeLabel('Title', '神塔战棋', 0, 168, 760, 36, new Color(248, 250, 252, 255));
+    this.makeLabel('Title', '角斗场：试炼之环', 0, 168, 760, 36, new Color(248, 250, 252, 255));
     this.makeLabel('Subtitle', '2D 小队实时指挥战斗原型', 0, 124, 640, 16, new Color(148, 163, 184, 255));
     this.makeLabel('Tagline', '先从主菜单进入，再进入准备阶段和实时指挥战斗。', 0, 88, 640, 14, new Color(191, 219, 254, 255));
 

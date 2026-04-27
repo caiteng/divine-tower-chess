@@ -84,7 +84,8 @@ export class CharacterSelectController extends Component {
       this.titleLabel.string = `${cfg.name} · ${unitId}`;
     }
     if (this.detailLabel) {
-      this.detailLabel.string = `职业定位：${cfg.behaviorRole}  |  生命 ${cfg.maxHp}  |  攻击 ${cfg.baseDamage}  |  移速 ${cfg.moveSpeed}\n该单位会作为你的起始队长实例进入第一回合准备阶段。`;
+      const attackSpeed = cfg.attackInterval > 0 ? (1 / cfg.attackInterval).toFixed(2) : '0.00';
+      this.detailLabel.string = `职业定位：${cfg.behaviorRole}  |  生命 ${cfg.maxHp}  |  护甲 ${cfg.armor}  |  攻击 ${cfg.baseDamage}  |  攻速 ${attackSpeed}/秒  |  穿甲 ${Math.round(cfg.armorPierceRatio * 100)}%\n该单位会作为你的起始队长实例进入第一回合准备阶段。`;
     }
     if (this.footerLabel) {
       this.footerLabel.string = `当前选择：${cfg.name}。进入游戏后它会以标准棋子身份进入备战区。`;

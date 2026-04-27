@@ -15,7 +15,6 @@ $units = @(
   @{ UnitId = 'priest'; Folder = 'assets\art\units\priest'; Base = 'priest_star1.png' },
   @{ UnitId = 'archer'; Folder = 'assets\art\units\archer'; Base = 'archer_star1.png' },
   @{ UnitId = 'shield_guard'; Folder = 'assets\art\units\shield_guard'; Base = 'shield_guard_star1.png' },
-  @{ UnitId = 'cavalry'; Folder = 'assets\art\units\cavalry'; Base = 'cavalry_star1.png' },
   @{ UnitId = 'spearman'; Folder = 'assets\art\units\spearman'; Base = 'spearman_star1.png' },
   @{ UnitId = 'berserker'; Folder = 'assets\art\units\warrior'; Base = 'berserker_divine.png' },
   @{ UnitId = 'light_mage'; Folder = 'assets\art\units\priest'; Base = 'light_mage_divine.png' }

@@ -12,19 +12,24 @@ export interface Vec2 {
 export interface UnitBattleStats {
   maxHp: number;
   attackDamage: number;
+  armor: number;
+  armorPierceRatio: number;
   attackInterval: number;
   moveSpeed: number;
   attackRange: number;
   reactionRange: number;
+  collisionRadius: number;
   healPower?: number;
 }
 
 export interface EnemyBattleStats {
   maxHp: number;
   attackDamage: number;
+  armor: number;
   attackInterval: number;
   moveSpeed: number;
   attackRange: number;
+  collisionRadius: number;
 }
 
 export type UnitCommandType = 'idle' | 'move' | 'focus_enemy' | 'channel_heal';

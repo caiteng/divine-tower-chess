@@ -52,10 +52,6 @@ export const ART_RESOURCE_MANIFEST: ArtResourceManifest = {
       ...unitDir('assets/resources/textures/units/shield_guard', 'shield_guard'),
       portrait: 'shield_guard_portrait.png',
     },
-    cavalry: {
-      ...unitDir('assets/resources/textures/units/cavalry', 'cavalry'),
-      portrait: 'cavalry_portrait.png',
-    },
     spearman: {
       ...unitDir('assets/resources/textures/units/spearman', 'spearman'),
       portrait: 'spearman_portrait.png',

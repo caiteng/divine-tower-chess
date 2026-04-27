@@ -145,7 +145,7 @@ export class SquadBattleSession {
 
     this.tickAllies(dt, killsByUnit, healingByUnit);
     this.enemyAiSystem.tick(this.enemies, this.allies, dt);
-    this.collisionSystem.resolve(this.allies, this.enemies, 3);
+    this.collisionSystem.resolve(this.allies, this.enemies, 4);
 
     this.enemies = this.enemies.filter((enemy) => enemy.alive);
 

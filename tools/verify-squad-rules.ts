@@ -1,9 +1,12 @@
 import { DivineTaskSystem } from '../assets/scripts/systems/divine-task-system';
 import { HealingSystem } from '../assets/scripts/squad/systems/healing-system';
+import { CollisionSystem } from '../assets/scripts/squad/systems/collision-system';
+import { AttackSystem, applyArmor, scaleArmorPierce } from '../assets/scripts/squad/systems/attack-system';
 import { RosterSystem } from '../assets/scripts/squad/systems/roster-system';
 import { SquadBattleSession } from '../assets/scripts/squad/squad-battle-session';
+import { ENEMY_STATS, SQUAD_UNIT_STATS } from '../assets/scripts/squad/config/squad-battle-config';
 import { SQUAD_BENCH_SLOTS } from '../assets/scripts/squad/config/squad-ui-layout-config';
-import type { SquadUnitState } from '../assets/scripts/squad/types';
+import type { EnemyUnitState, SquadUnitState } from '../assets/scripts/squad/types';
 
 function assertRule(cond: boolean, msg: string): void {
   if (!cond) throw new Error(`[verify-squad-rules] ${msg}`);
@@ -131,7 +134,7 @@ function verifyActualHealingOnly(): void {
     role: 'melee',
     position: { x: 0, y: 10 },
     velocity: { x: 0, y: 0 },
-    currentHp: 650,
+    currentHp: SQUAD_UNIT_STATS.shield_guard.maxHp,
     attackCooldownLeft: 0,
     alive: true,
     command: { type: 'idle' },
@@ -155,11 +158,79 @@ function verifySnapshotContract(): void {
   assertRule(Boolean(snap.uiState), 'snapshot should expose uiState for phase-5 UI transitions');
 }
 
+function verifyArmorReducesDamage(): void {
+  const attack = new AttackSystem();
+  const warrior: SquadUnitState = {
+    instanceId: 'warrior',
+    unitId: 'warrior',
+    star: 1,
+    role: 'melee',
+    position: { x: 0, y: 0 },
+    velocity: { x: 0, y: 0 },
+    currentHp: SQUAD_UNIT_STATS.warrior.maxHp,
+    attackCooldownLeft: 0,
+    alive: true,
+    command: { type: 'idle' },
+  };
+  const brute: EnemyUnitState = {
+    instanceId: 'brute',
+    enemyType: 'brute',
+    position: { x: 0, y: 40 },
+    velocity: { x: 0, y: 0 },
+    currentHp: ENEMY_STATS.brute.maxHp,
+    attackCooldownLeft: 0,
+    alive: true,
+  };
+
+  attack.attackIfPossible(warrior, brute);
+  const expectedDamage = applyArmor(
+    SQUAD_UNIT_STATS.warrior.attackDamage,
+    ENEMY_STATS.brute.armor,
+    scaleArmorPierce(SQUAD_UNIT_STATS.warrior.armorPierceRatio, warrior.star),
+  );
+  assertRule(brute.currentHp === ENEMY_STATS.brute.maxHp - expectedDamage, 'ally attacks should account for enemy armor and attacker armor pierce');
+}
+
+function verifyCollisionPreventsOverlap(): void {
+  const collision = new CollisionSystem();
+  const allyA: SquadUnitState = {
+    instanceId: 'ally-a',
+    unitId: 'shield_guard',
+    star: 1,
+    role: 'melee',
+    position: { x: 400, y: 300 },
+    velocity: { x: 0, y: 0 },
+    currentHp: SQUAD_UNIT_STATS.shield_guard.maxHp,
+    attackCooldownLeft: 0,
+    alive: true,
+    command: { type: 'idle' },
+  };
+  const allyB: SquadUnitState = {
+    instanceId: 'ally-b',
+    unitId: 'warrior',
+    star: 1,
+    role: 'melee',
+    position: { x: 400, y: 300 },
+    velocity: { x: 0, y: 0 },
+    currentHp: SQUAD_UNIT_STATS.warrior.maxHp,
+    attackCooldownLeft: 0,
+    alive: true,
+    command: { type: 'idle' },
+  };
+
+  collision.resolve([allyA, allyB], [], 4);
+  const dist = Math.hypot(allyA.position.x - allyB.position.x, allyA.position.y - allyB.position.y);
+  const minDist = SQUAD_UNIT_STATS.shield_guard.collisionRadius + SQUAD_UNIT_STATS.warrior.collisionRadius;
+  assertRule(dist >= minDist, 'same-side units should be separated by collision radius');
+}
+
 verifyTaskEligibility();
 verifyMergeCapsAt3Star();
 verifyActiveDivineTasksAreMergeProtected();
 verifyFailedPurchaseKeepsShopEntry();
 verifyActualHealingOnly();
 verifySnapshotContract();
+verifyArmorReducesDamage();
+verifyCollisionPreventsOverlap();
 
 console.log('Squad rules verified.');

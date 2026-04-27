@@ -1,5 +1,6 @@
-import { ENEMY_STATS } from '../config/squad-battle-config';
+import { ENEMY_STATS, SQUAD_UNIT_STATS } from '../config/squad-battle-config';
 import type { EnemyUnitState, SquadUnitState } from '../types';
+import { applyArmor } from './attack-system';
 import { distance, normalize } from './math';
 
 export class EnemyAiSystem {
@@ -21,7 +22,8 @@ export class EnemyAiSystem {
         enemy.velocity.x = 0;
         enemy.velocity.y = 0;
         if (enemy.attackCooldownLeft <= 0) {
-          target.currentHp = Math.max(0, target.currentHp - cfg.attackDamage);
+          const targetArmor = SQUAD_UNIT_STATS[target.unitId].armor;
+          target.currentHp = Math.max(0, target.currentHp - applyArmor(cfg.attackDamage, targetArmor));
           target.alive = target.currentHp > 0;
           enemy.attackCooldownLeft = cfg.attackInterval;
         }

@@ -6,7 +6,6 @@ export type UnitId =
   | 'warrior'
   | 'mage'
   | 'priest'
-  | 'cavalry'
   | 'spearman'
   | 'berserker'
   | 'light_mage';
@@ -26,6 +25,8 @@ export interface UnitConfig {
   isDivine?: boolean;
   cost: number;
   baseDamage: number;
+  armor: number;
+  armorPierceRatio: number;
   attackInterval: number;
   maxHp: number;
   detectionRange: number;

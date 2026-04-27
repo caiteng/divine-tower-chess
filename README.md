@@ -1,8 +1,8 @@
-# divine-tower-chess
+# 角斗场：试炼之环
 
 ## 项目定义
 
-`divine-tower-chess` 是一个基于 Cocos Creator + TypeScript 的可玩项目。当前唯一方向是 **Battleheart 风格 2D 小队实时命令战斗** + 轻成长（商店、金币、3 合 1 升星、3 星实例级神品任务）。
+《角斗场：试炼之环》是一个基于 Cocos Creator + TypeScript 的可玩项目。当前唯一方向是 **Battleheart 风格 2D 小队实时命令战斗** + 轻成长（商店、金币、3 合 1 升星、3 星实例级神品任务）。
 
 ## 当前真实主链
 
@@ -48,7 +48,7 @@
 
 - 运行时资源放在 `assets/resources/textures/**`，由 Cocos `resources.load` 加载。
 - 源资产归档放在 `assets/art/**`，同一职业的 portrait、星级图、动作帧和神品图必须保存在同一个职业目录。
-- 当前主线职业为 `warrior`、`mage`、`priest`、`archer`、`shield_guard`、`cavalry`、`spearman`；神品职业为 `berserker`、`light_mage`。
+- 当前主线基础职业为 `warrior` 战士、`shield_guard` 盾卫、`archer` 猎人、`mage` 法师、`priest` 牧师、`spearman` 枪兵；神品职业为 `berserker` 狂战士、`light_mage` 圣谕者。
 - 角色选择页优先读取 `portrait`，战场内优先读取 `star1/2/3` 和动作帧；缺资源时 resolver 必须保持可用回退。
 - 详细目录规范见：`assets/art/README.md`。
 
