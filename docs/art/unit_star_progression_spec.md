@@ -1,10 +1,7 @@
 # Unit Star Progression Spec
 
-Reference image:
-- assets/art/reference/unit_star_progression.png
-
 Goal:
-Use this image as the visual reference for first-pass unit portraits / in-battle placeholder sprites.
+Define the visual progression rules for first-pass unit portraits / in-battle placeholder sprites.
 
 Classes:
 - warrior

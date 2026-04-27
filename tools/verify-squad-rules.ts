@@ -2,9 +2,10 @@ import { DivineTaskSystem } from '../assets/scripts/systems/divine-task-system';
 import { HealingSystem } from '../assets/scripts/squad/systems/healing-system';
 import { CollisionSystem } from '../assets/scripts/squad/systems/collision-system';
 import { AttackSystem, applyArmor, scaleArmorPierce } from '../assets/scripts/squad/systems/attack-system';
+import { EnemyAiSystem } from '../assets/scripts/squad/systems/enemy-ai-system';
 import { RosterSystem } from '../assets/scripts/squad/systems/roster-system';
 import { SquadBattleSession } from '../assets/scripts/squad/squad-battle-session';
-import { ENEMY_STATS, SQUAD_UNIT_STATS } from '../assets/scripts/squad/config/squad-battle-config';
+import { ENEMY_STATS, getScaledUnitMaxHp, SQUAD_UNIT_STATS } from '../assets/scripts/squad/config/squad-battle-config';
 import { SQUAD_BENCH_SLOTS } from '../assets/scripts/squad/config/squad-ui-layout-config';
 import type { EnemyUnitState, SquadUnitState } from '../assets/scripts/squad/types';
 
@@ -140,9 +141,42 @@ function verifyActualHealingOnly(): void {
     command: { type: 'idle' },
   };
 
-  const result = healing.healIfPossible(priest, ally);
+  const result = healing.healIfPossible(priest, ally, SQUAD_UNIT_STATS.shield_guard.maxHp);
   assertRule(result.casted, 'full-hp target should still keep healing cast cadence');
   assertRule(result.actualHeal === 0, 'full-hp healing must not increase divine healing progress');
+}
+
+function verifyHealingUsesScaledMaxHp(): void {
+  const healing = new HealingSystem();
+  const priest: SquadUnitState = {
+    instanceId: 'priest',
+    unitId: 'priest',
+    star: 2,
+    role: 'priest',
+    position: { x: 0, y: 0 },
+    velocity: { x: 0, y: 0 },
+    currentHp: getScaledUnitMaxHp('priest', 2),
+    attackCooldownLeft: 0,
+    alive: true,
+    command: { type: 'channel_heal', targetAllyId: 'tank' },
+  };
+  const scaledMaxHp = getScaledUnitMaxHp('shield_guard', 3);
+  const ally: SquadUnitState = {
+    instanceId: 'tank',
+    unitId: 'shield_guard',
+    star: 3,
+    role: 'melee',
+    position: { x: 0, y: 10 },
+    velocity: { x: 0, y: 0 },
+    currentHp: SQUAD_UNIT_STATS.shield_guard.maxHp + 10,
+    attackCooldownLeft: 0,
+    alive: true,
+    command: { type: 'idle' },
+  };
+
+  const result = healing.healIfPossible(priest, ally, scaledMaxHp);
+  assertRule(result.actualHeal > 0, 'healing should restore 2-star/3-star units above their 1-star base max hp');
+  assertRule(ally.currentHp <= scaledMaxHp, 'healing should still cap at scaled max hp');
 }
 
 function verifySnapshotContract(): void {
@@ -156,6 +190,10 @@ function verifySnapshotContract(): void {
   assertRule(Array.isArray(snap.deployed), 'snapshot should expose deployed');
   assertRule(typeof snap.currentWave === 'number', 'snapshot should expose currentWave');
   assertRule(Boolean(snap.uiState), 'snapshot should expose uiState for phase-5 UI transitions');
+  assertRule(snap.totalWaves === 10, 'beginner run should expose 10 total waves');
+  session.startNewRun('endless');
+  const endlessSnap = session.getSnapshot();
+  assertRule(endlessSnap.isEndless && endlessSnap.totalWaves === 0, 'endless run should expose endless snapshot state');
 }
 
 function verifyArmorReducesDamage(): void {
@@ -224,13 +262,166 @@ function verifyCollisionPreventsOverlap(): void {
   assertRule(dist >= minDist, 'same-side units should be separated by collision radius');
 }
 
+function verifyMageSplashDamage(): void {
+  const attack = new AttackSystem();
+  const mage: SquadUnitState = {
+    instanceId: 'mage',
+    unitId: 'mage',
+    star: 1,
+    role: 'ranged',
+    position: { x: 0, y: 0 },
+    velocity: { x: 0, y: 0 },
+    currentHp: SQUAD_UNIT_STATS.mage.maxHp,
+    attackCooldownLeft: 0,
+    alive: true,
+    command: { type: 'idle' },
+  };
+  const primary: EnemyUnitState = {
+    instanceId: 'primary',
+    enemyType: 'grunt',
+    position: { x: 0, y: 80 },
+    velocity: { x: 0, y: 0 },
+    currentHp: ENEMY_STATS.grunt.maxHp,
+    attackCooldownLeft: 0,
+    alive: true,
+  };
+  const nearby: EnemyUnitState = {
+    instanceId: 'nearby',
+    enemyType: 'grunt',
+    position: { x: 35, y: 90 },
+    velocity: { x: 0, y: 0 },
+    currentHp: ENEMY_STATS.grunt.maxHp,
+    attackCooldownLeft: 0,
+    alive: true,
+  };
+
+  attack.attackIfPossible(mage, primary, [primary, nearby]);
+  assertRule(primary.currentHp < ENEMY_STATS.grunt.maxHp, 'mage should damage primary target');
+  assertRule(nearby.currentHp < ENEMY_STATS.grunt.maxHp, 'mage should splash damage nearby enemies');
+}
+
+function verifyAttackEffectsAreEmitted(): void {
+  const attack = new AttackSystem();
+  const archer: SquadUnitState = {
+    instanceId: 'archer',
+    unitId: 'archer',
+    star: 1,
+    role: 'ranged',
+    position: { x: 0, y: 0 },
+    velocity: { x: 0, y: 0 },
+    currentHp: SQUAD_UNIT_STATS.archer.maxHp,
+    attackCooldownLeft: 0,
+    alive: true,
+    command: { type: 'idle' },
+  };
+  const enemy: EnemyUnitState = {
+    instanceId: 'grunt',
+    enemyType: 'grunt',
+    position: { x: 0, y: 80 },
+    velocity: { x: 0, y: 0 },
+    currentHp: ENEMY_STATS.grunt.maxHp,
+    attackCooldownLeft: 0,
+    alive: true,
+  };
+
+  const result = attack.attackIfPossible(archer, enemy, [enemy]);
+  assertRule(result.effects.some((effect) => effect.kind === 'projectile'), 'ranged attacks should emit projectile effects');
+  assertRule(result.effects.some((effect) => effect.kind === 'damage' && (effect.value ?? 0) > 0), 'attacks should emit damage floating text effects');
+}
+
+function verifyShieldGuardTauntPriority(): void {
+  const enemyAi = new EnemyAiSystem();
+  const warrior: SquadUnitState = {
+    instanceId: 'warrior',
+    unitId: 'warrior',
+    star: 1,
+    role: 'melee',
+    position: { x: 30, y: 0 },
+    velocity: { x: 0, y: 0 },
+    currentHp: SQUAD_UNIT_STATS.warrior.maxHp,
+    attackCooldownLeft: 0,
+    alive: true,
+    command: { type: 'idle' },
+  };
+  const shield: SquadUnitState = {
+    instanceId: 'shield',
+    unitId: 'shield_guard',
+    star: 1,
+    role: 'melee',
+    position: { x: 40, y: 0 },
+    velocity: { x: 0, y: 0 },
+    currentHp: SQUAD_UNIT_STATS.shield_guard.maxHp,
+    attackCooldownLeft: 0,
+    alive: true,
+    command: { type: 'idle' },
+  };
+  const enemy: EnemyUnitState = {
+    instanceId: 'grunt',
+    enemyType: 'grunt',
+    position: { x: 0, y: 0 },
+    velocity: { x: 0, y: 0 },
+    currentHp: ENEMY_STATS.grunt.maxHp,
+    attackCooldownLeft: 0,
+    alive: true,
+  };
+
+  enemyAi.tick([enemy], [warrior, shield], 0.1);
+  assertRule(shield.currentHp < SQUAD_UNIT_STATS.shield_guard.maxHp, 'shield guard taunt should make it preferred over a slightly closer warrior');
+  assertRule(warrior.currentHp === SQUAD_UNIT_STATS.warrior.maxHp, 'non-taunting ally should not be targeted in this taunt scenario');
+}
+
+function verifyWaveRewardLoop(): void {
+  const session = new SquadBattleSession();
+  session.loadFromSaveData({
+    difficulty: 'endless',
+    phase: 'battle',
+    waveNumber: 1,
+    gold: 10,
+    shop: ['warrior', 'mage', 'priest'],
+    bench: [],
+    deployed: [{ instanceId: 'warrior-1', unitId: 'warrior', star: 1 }],
+    divineTasks: [],
+    pendingBattleStart: false,
+    uiState: {
+      prepPanel: 'hidden',
+      battlefieldLighting: 'bright',
+      transitionProgress: 1,
+      nextWaveReady: true,
+    },
+    allies: [{
+      instanceId: 'warrior-1',
+      unitId: 'warrior',
+      star: 1,
+      role: 'melee',
+      position: { x: 0, y: 0 },
+      velocity: { x: 0, y: 0 },
+      currentHp: SQUAD_UNIT_STATS.warrior.maxHp,
+      attackCooldownLeft: 0,
+      alive: true,
+      command: { type: 'idle' },
+    }],
+    enemies: [],
+  });
+  const beforeGold = session.getSnapshot().gold;
+  session.tick(0.1);
+  const after = session.getSnapshot();
+  assertRule(after.phase === 'prep', 'endless run should return to prep after cleared generated wave');
+  assertRule(after.waveNumber === 2, 'endless run should advance wave number instead of victory');
+  assertRule(after.gold > beforeGold, 'clearing a wave should grant gold');
+}
+
 verifyTaskEligibility();
 verifyMergeCapsAt3Star();
 verifyActiveDivineTasksAreMergeProtected();
 verifyFailedPurchaseKeepsShopEntry();
 verifyActualHealingOnly();
+verifyHealingUsesScaledMaxHp();
 verifySnapshotContract();
 verifyArmorReducesDamage();
+verifyMageSplashDamage();
+verifyAttackEffectsAreEmitted();
+verifyShieldGuardTauntPriority();
 verifyCollisionPreventsOverlap();
+verifyWaveRewardLoop();
 
 console.log('Squad rules verified.');

@@ -11,15 +11,23 @@ export const DIFFICULTY_CONFIG: Record<DifficultyId, DifficultyConfig> = {
   normal: {
     id: 'normal',
     name: '普通',
-    totalWaves: 30,
+    totalWaves: 20,
     startingGold: 20,
     refreshCost: 2,
   },
   hard: {
     id: 'hard',
     name: '困难',
-    totalWaves: 60,
+    totalWaves: 30,
     startingGold: 24,
     refreshCost: 3,
+  },
+  endless: {
+    id: 'endless',
+    name: '无尽',
+    totalWaves: 0,
+    isEndless: true,
+    startingGold: 20,
+    refreshCost: 2,
   },
 };

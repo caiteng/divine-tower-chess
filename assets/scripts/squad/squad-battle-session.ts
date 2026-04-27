@@ -5,7 +5,7 @@ import { DivineTaskSystem } from '../systems/divine-task-system';
 import { EconomySystem } from '../systems/economy-system';
 import { ShopSystem } from '../systems/shop-system';
 import { nextId, syncIdSeedFromIds } from '../utils/id';
-import { DEFAULT_WAVES, ENEMY_STATS, SQUAD_BATTLEFIELD, SQUAD_ROLE_MAP, SQUAD_UNIT_STATS } from './config/squad-battle-config';
+import { createWavePlan, createWavePlans, ENEMY_STATS, getScaledUnitMaxHp, SQUAD_BATTLEFIELD, SQUAD_ROLE_MAP, SQUAD_UNIT_STATS } from './config/squad-battle-config';
 import { SQUAD_BENCH_SLOTS, SQUAD_DEPLOY_SLOTS, SQUAD_SHOP_SLOTS } from './config/squad-ui-layout-config';
 import type { WaveTransitionUiState } from './config/squad-ui-layout-config';
 import { AttackSystem } from './systems/attack-system';
@@ -16,7 +16,7 @@ import { MovementSystem } from './systems/movement-system';
 import { RosterSystem } from './systems/roster-system';
 import { TargetingSystem } from './systems/targeting-system';
 import { UnitCommandSystem } from './systems/unit-command-system';
-import type { BattleOutcome, EnemyUnitState, SquadBattlePhase, SquadBattleSaveData, SquadBattleSnapshot, SquadUnitState, Vec2, WaveSpawnPlan } from './types';
+import type { BattleEffectState, BattleOutcome, EnemyUnitState, SquadBattlePhase, SquadBattleSaveData, SquadBattleSnapshot, SquadUnitState, Vec2, WaveSpawnPlan } from './types';
 
 export class SquadBattleSession {
   public onVictory?: () => void;
@@ -38,9 +38,10 @@ export class SquadBattleSession {
   private phase: SquadBattlePhase = 'prep';
   private difficulty: DifficultyId = 'beginner';
   private waveNumber = 1;
-  private readonly waves: WaveSpawnPlan[];
+  private waves: WaveSpawnPlan[];
   private allies: SquadUnitState[] = [];
   private enemies: EnemyUnitState[] = [];
+  private battleEffects: BattleEffectState[] = [];
   private pendingBattleStart = false;
   private uiState: WaveTransitionUiState = {
     prepPanel: 'visible',
@@ -49,7 +50,7 @@ export class SquadBattleSession {
     nextWaveReady: true,
   };
 
-  public constructor(waves: WaveSpawnPlan[] = DEFAULT_WAVES) {
+  public constructor(waves: WaveSpawnPlan[] = createWavePlans(DIFFICULTY_CONFIG.beginner.totalWaves)) {
     this.waves = waves;
   }
 
@@ -58,8 +59,12 @@ export class SquadBattleSession {
     this.difficulty = difficulty;
     this.selectedStarterUnitId = starterUnitId;
     this.waveNumber = 1;
+    this.waves = DIFFICULTY_CONFIG[difficulty].isEndless
+      ? []
+      : createWavePlans(DIFFICULTY_CONFIG[difficulty].totalWaves);
     this.allies = [];
     this.enemies = [];
+    this.battleEffects = [];
     this.roster.reset();
     this.divine = new DivineTaskSystem();
     this.economy.setStartingGold(DIFFICULTY_CONFIG[difficulty].startingGold);
@@ -142,9 +147,11 @@ export class SquadBattleSession {
 
     const killsByUnit: Record<string, number> = {};
     const healingByUnit: Record<string, number> = {};
+    this.tickBattleEffects(dt);
+    this.tickAllyHurtTimers(dt);
 
     this.tickAllies(dt, killsByUnit, healingByUnit);
-    this.enemyAiSystem.tick(this.enemies, this.allies, dt);
+    this.addBattleEffects(this.enemyAiSystem.tick(this.enemies, this.allies, dt));
     this.collisionSystem.resolve(this.allies, this.enemies, 4);
 
     this.enemies = this.enemies.filter((enemy) => enemy.alive);
@@ -171,7 +178,9 @@ export class SquadBattleSession {
     }
 
     if (this.enemies.length === 0) {
-      if (this.waveNumber >= this.waves.length) {
+      this.economy.earn(this.calculateWaveReward(this.waveNumber));
+
+      if (!this.isEndlessRun() && this.waveNumber >= this.getTotalWaves()) {
         this.phase = 'victory';
         this.onVictory?.();
         return { advancedWave: false, changedPhase: before !== this.phase };
@@ -255,8 +264,10 @@ export class SquadBattleSession {
   public getSnapshot(): SquadBattleSnapshot {
     return {
       phase: this.phase,
+      difficulty: this.difficulty,
+      isEndless: this.isEndlessRun(),
       waveNumber: this.waveNumber,
-      totalWaves: this.waves.length,
+      totalWaves: this.getTotalWaves(),
       currentWave: this.waveNumber,
       gold: this.economy.getGold(),
       shop: this.shop.getEntries(),
@@ -276,6 +287,7 @@ export class SquadBattleSession {
       selectedUnitId: this.commandSystem.getSelectedUnitId(),
       allies: this.allies.map((u) => ({ ...u, position: { ...u.position }, velocity: { ...u.velocity }, command: { ...u.command } })),
       enemies: this.enemies.map((e) => ({ ...e, position: { ...e.position }, velocity: { ...e.velocity } })),
+      battleEffects: this.battleEffects.map((effect) => ({ ...effect, from: effect.from ? { ...effect.from } : undefined, to: { ...effect.to } })),
     };
   }
 
@@ -301,6 +313,9 @@ export class SquadBattleSession {
     if (!data) return false;
     this.phase = data.phase;
     this.difficulty = data.difficulty;
+    this.waves = DIFFICULTY_CONFIG[this.difficulty].isEndless
+      ? []
+      : createWavePlans(DIFFICULTY_CONFIG[this.difficulty].totalWaves);
     this.selectedStarterUnitId = data.selectedStarterUnitId;
     this.waveNumber = data.waveNumber;
     this.pendingBattleStart = data.pendingBattleStart;
@@ -312,6 +327,7 @@ export class SquadBattleSession {
     this.divine.setAllProgress(data.divineTasks.map((progress) => ({ ...progress })));
     this.allies = data.allies.map((u) => ({ ...u, position: { ...u.position }, velocity: { ...u.velocity }, command: { ...u.command } }));
     this.enemies = data.enemies.map((e) => ({ ...e, position: { ...e.position }, velocity: { ...e.velocity } }));
+    this.battleEffects = [];
     this.commandSystem.clearSelection();
 
     syncIdSeedFromIds([
@@ -365,10 +381,11 @@ export class SquadBattleSession {
         }
       } else {
         this.movementSystem.stop(ally);
-        const attackResult = this.attackSystem.attackIfPossible(ally, commandTarget);
-        if (attackResult.killed) {
-          killsByUnit[ally.instanceId] = (killsByUnit[ally.instanceId] ?? 0) + 1;
+        const attackResult = this.attackSystem.attackIfPossible(ally, commandTarget, this.enemies);
+        if (attackResult.kills > 0) {
+          killsByUnit[ally.instanceId] = (killsByUnit[ally.instanceId] ?? 0) + attackResult.kills;
         }
+        this.addBattleEffects(attackResult.effects);
       }
     }
   }
@@ -391,13 +408,18 @@ export class SquadBattleSession {
     }
 
     this.movementSystem.stop(priest);
-    const healResult = this.healingSystem.healIfPossible(priest, target);
+    const healResult = this.healingSystem.healIfPossible(priest, target, this.getScaledStats(target.unitId, target.star).maxHp);
+    this.addBattleEffects([
+      { kind: 'heal_beam', from: { ...priest.position }, to: { ...target.position }, ttl: 0.2 },
+      ...(healResult.actualHeal > 0 ? [{ kind: 'heal' as const, to: { ...target.position }, value: healResult.actualHeal, ttl: 0.75 }] : []),
+    ]);
     return healResult.actualHeal;
   }
 
   private resetBattleStateForNextWave(): void {
     this.enemies = [];
     this.allies = [];
+    this.battleEffects = [];
     this.commandSystem.clearSelection();
   }
 
@@ -441,9 +463,10 @@ export class SquadBattleSession {
         y: SQUAD_BATTLEFIELD.centerLineY + (idx - Math.floor(deploy.length / 2)) * SQUAD_BATTLEFIELD.allySpawnGapY,
       },
       velocity: { x: 0, y: 0 },
-      currentHp: this.getScaledStats(unit.unitId, unit.star).maxHp,
-      attackCooldownLeft: 0,
-      alive: true,
+        currentHp: this.getScaledStats(unit.unitId, unit.star).maxHp,
+        attackCooldownLeft: 0,
+        hurtTimeLeft: 0,
+        alive: true,
       assignedTaskId: unit.assignedTaskId,
       command: { type: 'idle' },
     }));
@@ -451,15 +474,14 @@ export class SquadBattleSession {
 
   private getScaledStats(unitId: UnitId, star: 1 | 2 | 3) {
     const base = SQUAD_UNIT_STATS[unitId];
-    const hpMultiplier = 1 + (star - 1) * 0.7;
     return {
       ...base,
-      maxHp: Math.round(base.maxHp * hpMultiplier),
+      maxHp: getScaledUnitMaxHp(unitId, star),
     };
   }
 
   private spawnWave(waveNumber: number): void {
-    const wave = this.waves[waveNumber - 1];
+    const wave = this.waves[waveNumber - 1] ?? createWavePlan(waveNumber);
     if (!wave) {
       this.enemies = [];
       return;
@@ -485,6 +507,9 @@ export class SquadBattleSession {
           attackCooldownLeft: 0,
           alive: true,
         });
+        if (entry.enemyType === 'boss') {
+          this.addBattleEffects([{ kind: 'boss_enter', to: { x, y }, label: `Boss ${waveNumber}`, ttl: 1.6 }]);
+        }
       }
     }
 
@@ -495,5 +520,45 @@ export class SquadBattleSession {
     if (this.allies.length === 0) return false;
     const leftCount = this.allies.filter((ally) => ally.position.x < SQUAD_BATTLEFIELD.centerLineX - 120).length;
     return leftCount >= Math.ceil(this.allies.length * 0.7);
+  }
+
+  private getTotalWaves(): number {
+    return this.isEndlessRun() ? 0 : this.waves.length;
+  }
+
+  private isEndlessRun(): boolean {
+    return Boolean(DIFFICULTY_CONFIG[this.difficulty].isEndless);
+  }
+
+  private calculateWaveReward(waveNumber: number): number {
+    const aliveAllies = this.allies.filter((ally) => ally.alive).length;
+    const deployedCount = Math.max(1, this.roster.getDeployCount());
+    const perfectBonus = aliveAllies >= deployedCount ? 2 : 0;
+    const bossWaveBonus = createWavePlan(waveNumber).enemies.some((entry) => entry.enemyType === 'boss') ? 4 : 0;
+    return 4 + waveNumber + perfectBonus + bossWaveBonus;
+  }
+
+  private tickBattleEffects(dt: number): void {
+    this.battleEffects = this.battleEffects
+      .map((effect) => ({ ...effect, age: effect.age + dt }))
+      .filter((effect) => effect.age < effect.ttl);
+  }
+
+  private tickAllyHurtTimers(dt: number): void {
+    for (const ally of this.allies) {
+      ally.hurtTimeLeft = Math.max(0, (ally.hurtTimeLeft ?? 0) - dt);
+    }
+  }
+
+  private addBattleEffects(effects: Omit<BattleEffectState, 'id' | 'age'>[]): void {
+    for (const effect of effects) {
+      this.battleEffects.push({
+        ...effect,
+        id: nextId('effect'),
+        age: 0,
+        to: { ...effect.to },
+        from: effect.from ? { ...effect.from } : undefined,
+      });
+    }
   }
 }

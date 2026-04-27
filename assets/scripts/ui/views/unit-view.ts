@@ -15,6 +15,8 @@ export class UnitView extends Component {
   private hpBar: ProgressBar | null = null;
   private hpFill: Sprite | null = null;
   private selectedRing: Node | null = null;
+  private wasAlive = true;
+  private deathStartedAt = 0;
 
   public onClick?: () => void;
 
@@ -91,7 +93,13 @@ export class UnitView extends Component {
   public render(state: SquadUnitState, maxHp: number, selected: boolean, spriteFrame: SpriteFrame | null, animationFrames: SpriteFrame[] = []): void {
     if (!this.sprite || !this.label || !this.hpBar || !this.commandLabel) return;
     const moving = state.alive && (Math.hypot(state.velocity.x, state.velocity.y) > 1 || state.command.type === 'move');
-    this.sprite.spriteFrame = moving ? spriteFrame : this.pickFrame(spriteFrame, animationFrames);
+    if (!state.alive && this.wasAlive) {
+      this.deathStartedAt = Date.now();
+    } else if (state.alive) {
+      this.deathStartedAt = 0;
+    }
+    this.wasAlive = state.alive;
+    this.sprite.spriteFrame = this.pickFrame(spriteFrame, animationFrames, state.alive);
     this.applyPose(state, moving);
     this.sprite.color = spriteFrame
       ? new Color(255, 255, 255, 255)
@@ -114,8 +122,13 @@ export class UnitView extends Component {
     return state.assignedTaskId ? '神品' : '';
   }
 
-  private pickFrame(spriteFrame: SpriteFrame | null, animationFrames: SpriteFrame[]): SpriteFrame | null {
+  private pickFrame(spriteFrame: SpriteFrame | null, animationFrames: SpriteFrame[], alive: boolean): SpriteFrame | null {
     if (animationFrames.length === 0) return spriteFrame;
+    if (!alive) {
+      const elapsed = Math.max(0, Date.now() - this.deathStartedAt);
+      const index = Math.min(animationFrames.length - 1, Math.floor(elapsed / UNIT_FRAME_MS));
+      return animationFrames[index] ?? spriteFrame;
+    }
     const index = Math.floor(Date.now() / UNIT_FRAME_MS) % animationFrames.length;
     return animationFrames[index] ?? spriteFrame;
   }
@@ -128,9 +141,15 @@ export class UnitView extends Component {
     this.spriteNode.angle = 0;
 
     if (!state.alive) {
-      this.spriteNode.setPosition(new Vec3(6, -12, 0));
-      this.spriteNode.setScale(new Vec3(0.95, 0.95, 1));
-      this.spriteNode.angle = 72;
+      this.spriteNode.setPosition(new Vec3(0, -10, 0));
+      this.spriteNode.setScale(new Vec3(1, 1, 1));
+      return;
+    }
+
+    if ((state.hurtTimeLeft ?? 0) > 0) {
+      const pulse = Math.sin((Date.now() % 180) / 180 * Math.PI);
+      this.spriteNode.setPosition(new Vec3(-3 * pulse, 0, 0));
+      this.spriteNode.setScale(new Vec3(1 + pulse * 0.012, 1, 1));
       return;
     }
 

@@ -1,4 +1,4 @@
-export type DifficultyId = 'beginner' | 'normal' | 'hard';
+export type DifficultyId = 'beginner' | 'normal' | 'hard' | 'endless';
 
 export type UnitId =
   | 'archer'
@@ -43,6 +43,7 @@ export interface DifficultyConfig {
   id: DifficultyId;
   name: string;
   totalWaves: number;
+  isEndless?: boolean;
   startingGold: number;
   refreshCost: number;
 }

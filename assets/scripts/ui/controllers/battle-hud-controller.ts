@@ -28,7 +28,8 @@ export class BattleHudController extends Component {
 
   public render(snapshot: SquadBattleSnapshot, selected: string | undefined, notice: string): void {
     if (!this.topLabel || !this.goldLabel || !this.statusLabel || !this.taskLabel || !this.noticeLabel) return;
-    this.topLabel.string = `阶段 ${snapshot.phase} · 波次 ${snapshot.currentWave}/${snapshot.totalWaves} · 上阵 ${snapshot.deployed.length}/${snapshot.slotConfig.deployed} · 备战 ${snapshot.bench.length}/${snapshot.slotConfig.bench}`;
+    const waveText = snapshot.isEndless ? `${snapshot.currentWave}/∞` : `${snapshot.currentWave}/${snapshot.totalWaves}`;
+    this.topLabel.string = `阶段 ${snapshot.phase} · 波次 ${waveText} · 上阵 ${snapshot.deployed.length}/${snapshot.slotConfig.deployed} · 备战 ${snapshot.bench.length}/${snapshot.slotConfig.bench}`;
     this.goldLabel.string = `${snapshot.gold}`;
     this.statusLabel.string = `当前选择：${selected ?? '未选择'} · ${snapshot.phase === 'prep' ? '准备阶段可调整阵容' : '战斗阶段可持续下达命令'}`;
     this.taskLabel.string = snapshot.divineTasks.length > 0

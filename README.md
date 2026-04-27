@@ -9,7 +9,7 @@
 - 逻辑主链（唯一）：`assets/scripts/squad/*`
 - 会话入口（唯一）：`assets/scripts/squad/squad-battle-session.ts`
 - 正式 Cocos 场景编排入口：`assets/scripts/ui/battle-scene-controller.ts`
-- 默认打开流程：`主菜单 -> 开始 -> 准备阶段/战斗阶段`
+- 默认打开流程：`主菜单 -> 难度选择 -> 职业选择 -> 准备阶段/战斗阶段`
 
 ## 当前 UI 架构
 
@@ -34,6 +34,11 @@
 - 牧师无攻击，只能被命令后持续治疗
 - 无命令时远程不主动前压；近战仅近距离有限反应
 - 波间保留准备面板上滑/下沉与战场暗亮过渡
+- 难度支持新手、普通、困难、无尽；过波会发放金币奖励并自动刷新商店
+- 法师攻击为溅射伤害；牧师治疗上限使用星级放大后的真实最大生命
+- 战斗目标确定为小队生存制：敌人目标是击倒我方小队，不加入水晶防守目标
+- 盾卫带有目标吸引权重，敌人会更倾向攻击盾卫
+- 战斗反馈包含命中飘字、远程弹道、牧师治疗线和 Boss 入场提示
 
 ## 资源接入接口
 
@@ -47,10 +52,10 @@
 ## 美术接入规则
 
 - 运行时资源放在 `assets/resources/textures/**`，由 Cocos `resources.load` 加载。
-- 源资产归档放在 `assets/art/**`，同一职业的 portrait、星级图、动作帧和神品图必须保存在同一个职业目录。
 - 当前主线基础职业为 `warrior` 战士、`shield_guard` 盾卫、`archer` 猎人、`mage` 法师、`priest` 牧师、`spearman` 枪兵；神品职业为 `berserker` 狂战士、`light_mage` 圣谕者。
 - 角色选择页优先读取 `portrait`，战场内优先读取 `star1/2/3` 和动作帧；缺资源时 resolver 必须保持可用回退。
-- 详细目录规范见：`assets/art/README.md`。
+- 不保留未接入运行时的参考图、sheet 或临时生成素材；后续升级美术直接替换 `assets/resources/textures/**` 下对应职业目录并更新 manifest。
+- 详细目录规范见：`PLANS.md`。
 
 ## 运行与验证
 

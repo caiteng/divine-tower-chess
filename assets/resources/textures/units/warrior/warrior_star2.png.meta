@@ -2,7 +2,7 @@
   "ver": "1.0.22",
   "importer": "image",
   "imported": true,
-  "uuid": "566ba877-af19-4e57-beb9-f2be257b6e7a",
+  "uuid": "3b505119-de72-4b63-a45c-8beccca44e3b",
   "files": [
     ".png",
     ".json"
@@ -10,7 +10,7 @@
   "subMetas": {
     "6c48a": {
       "importer": "texture",
-      "uuid": "566ba877-af19-4e57-beb9-f2be257b6e7a@6c48a",
+      "uuid": "3b505119-de72-4b63-a45c-8beccca44e3b@6c48a",
       "displayName": "warrior_star2",
       "id": "6c48a",
       "name": "texture",
@@ -22,7 +22,7 @@
         "mipfilter": "none",
         "anisotropy": 0,
         "isUuid": true,
-        "imageUuidOrDatabaseUri": "566ba877-af19-4e57-beb9-f2be257b6e7a"
+        "imageUuidOrDatabaseUri": "3b505119-de72-4b63-a45c-8beccca44e3b"
       },
       "ver": "1.0.21",
       "imported": true,
@@ -35,6 +35,6 @@
   "userData": {
     "hasAlpha": true,
     "type": "texture",
-    "redirect": "566ba877-af19-4e57-beb9-f2be257b6e7a@6c48a"
+    "redirect": "3b505119-de72-4b63-a45c-8beccca44e3b@6c48a"
   }
 }

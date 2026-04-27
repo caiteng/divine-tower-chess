@@ -1,7 +1,7 @@
 import { _decorator, Canvas, Component, director, Layers, Node, UITransform, Vec3 } from 'cc';
 import { SHOP_UNIT_POOL, UNIT_CONFIG } from '../config/unit-config';
 import { LocalProfileStorage } from '../core/local-profile-storage';
-import type { UnitId } from '../models/types';
+import type { DifficultyId, UnitId } from '../models/types';
 import { SquadBattleSession } from '../squad/squad-battle-session';
 import type { SavedAchievements, SavedAudioSettings, SquadBattleSnapshot, SquadUnitState } from '../squad/types';
 import { BattlefieldController } from './controllers/battlefield-controller';
@@ -27,6 +27,7 @@ export class BattleSceneController extends Component {
   private settings: SavedAudioSettings = { master: 80, music: 70, sfx: 80 };
   private achievements: SavedAchievements = { firstClear: false };
   private selectedStarterUnitId: UnitId = SHOP_UNIT_POOL[0];
+  private selectedDifficulty: DifficultyId = 'beginner';
 
   private selectedUnitId: string | undefined;
   private transientNotice: { message: string; until: number } | null = null;
@@ -76,11 +77,15 @@ export class BattleSceneController extends Component {
     this.menuController.initialize();
     this.menuController.onStart = () => this.startFromMainMenu();
     this.menuController.onLoadRequested = () => this.loadFromMenu();
+    this.menuController.onDifficultySelected = (difficulty) => {
+      this.selectedDifficulty = difficulty;
+      this.menuController?.setSelectedDifficulty(difficulty);
+    };
     this.menuController.onSettingAdjusted = (key, nextValue) => this.updateSetting(key, nextValue);
     this.menuController.setSettings(this.settings);
     this.menuController.setAchievements(this.achievements);
     this.menuController.setHasRunSave(this.storage.hasRunSave());
-    this.menuController.setFooterText('当前版本：先从开始界面进入，再进入准备阶段。');
+    this.menuController.setSelectedDifficulty(this.selectedDifficulty);
 
     const selectNode = new Node('CharacterSelect');
     selectNode.layer = Layers.Enum.UI_2D;
@@ -180,7 +185,7 @@ export class BattleSceneController extends Component {
 
   private startBattleRunWithStarter(unitId: UnitId): void {
     this.selectedStarterUnitId = unitId;
-    this.session.startNewRun('beginner', unitId);
+    this.session.startNewRun(this.selectedDifficulty, unitId);
     this.mode = 'battle';
     this.selectedUnitId = undefined;
     this.moveMarker = null;
@@ -214,6 +219,7 @@ export class BattleSceneController extends Component {
     this.moveMarker = null;
     this.transientNotice = null;
     this.selectedStarterUnitId = save.selectedStarterUnitId ?? this.selectedStarterUnitId;
+    this.selectedDifficulty = save.difficulty;
     this.ensureSceneGraph();
     if (this.menuController) {
       this.menuController.hidePanel();

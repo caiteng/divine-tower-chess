@@ -211,16 +211,30 @@ const unitFrame = (entry: UnitArtEntry, unitId: UnitId, clip: string, index: num
   return `${entry.directory}/${unitId}_${clip}_${String(index).padStart(2, '0')}.png`;
 };
 
+const resourceToFilePath = (resourcePath: string): string => {
+  return resourcePath.startsWith('textures/')
+    ? `assets/resources/${resourcePath}.png`
+    : resourcePath;
+};
+
 const checkUnit = (unitId: UnitId, entry: UnitArtEntry): void => {
   checkDirectory(entry.directory);
 
   for (const star of [1, 2, 3] as const) {
+    const explicitStar = entry.starSprites?.[star];
+    if (explicitStar) checkFile(resourceToFilePath(explicitStar));
     const filename = entry.stars?.[star];
     if (filename) checkFile(`${entry.directory}/${filename}`);
   }
 
-  if (entry.portrait) checkFile(`${entry.directory}/${entry.portrait}`);
+  if (entry.portrait) checkFile(resourceToFilePath(entry.portrait.startsWith('textures/') ? entry.portrait : `${entry.directory}/${entry.portrait}`));
   if (entry.divineOverride) checkFile(`${entry.directory}/${entry.divineOverride}`);
+
+  for (const frames of [entry.idleFrames, entry.moveFrames, entry.attackFrames, entry.hurtFrames, entry.deathFrames]) {
+    for (const frame of frames ?? []) checkFile(resourceToFilePath(frame));
+  }
+
+  if (entry.idleFrames || entry.moveFrames || entry.attackFrames || entry.hurtFrames || entry.deathFrames) return;
 
   for (const clip of clips) {
     for (let index = 1; index <= 5; index += 1) {

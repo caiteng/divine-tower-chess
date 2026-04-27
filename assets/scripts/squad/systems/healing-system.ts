@@ -3,7 +3,7 @@ import type { SquadUnitState } from '../types';
 import { distance } from './math';
 
 export class HealingSystem {
-  public healIfPossible(priest: SquadUnitState, ally: SquadUnitState): { casted: boolean; actualHeal: number } {
+  public healIfPossible(priest: SquadUnitState, ally: SquadUnitState, allyMaxHp: number): { casted: boolean; actualHeal: number } {
     if (!priest.alive || !ally.alive) return { casted: false, actualHeal: 0 };
     const cfg = SQUAD_UNIT_STATS[priest.unitId];
     const scaledHeal = (cfg.healPower ?? 0) * priest.star;
@@ -15,9 +15,8 @@ export class HealingSystem {
     }
 
     // 满血也保持治疗动作：这里仍触发冷却并维持 channel 语义。
-    const maxHp = SQUAD_UNIT_STATS[ally.unitId].maxHp;
     const before = ally.currentHp;
-    ally.currentHp = Math.min(maxHp, ally.currentHp + scaledHeal);
+    ally.currentHp = Math.min(allyMaxHp, ally.currentHp + scaledHeal);
     const actualHeal = Math.max(0, ally.currentHp - before);
     priest.attackCooldownLeft = cfg.attackInterval;
     return { casted: true, actualHeal };

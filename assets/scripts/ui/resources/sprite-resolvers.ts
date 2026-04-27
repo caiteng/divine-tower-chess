@@ -7,16 +7,15 @@ import type { EnemyId, UnitId } from '../../models/types';
 const loadedFrames = new Map<string, Promise<SpriteFrame | null>>();
 const loadedFrameSets = new Map<string, Promise<SpriteFrame[]>>();
 
-export type UnitAnimationClip = 'move' | 'attack' | 'death_fall' | 'corpse_fade';
+export type UnitAnimationClip = 'idle' | 'move' | 'attack' | 'hurt' | 'death_fall' | 'corpse_fade';
 export type EnemyAnimationClip = UnitAnimationClip;
 
 const asResourcePath = (rawPath: string): string | null => {
   if (rawPath.startsWith('assets/resources/')) {
     return rawPath.replace(/^assets\/resources\//, '').replace(/\.(png|jpg|jpeg)$/i, '');
   }
-  if (rawPath.startsWith('assets/art/backgrounds/')) {
-    const file = rawPath.split('/').pop()?.replace(/\.(png|jpg|jpeg)$/i, '');
-    return file ? `textures/backgrounds/${file}` : null;
+  if (rawPath.startsWith('textures/')) {
+    return rawPath.replace(/\.(png|jpg|jpeg)$/i, '');
   }
   return null;
 };
@@ -72,6 +71,15 @@ const loadFrameSet = (manifestPaths: string[]): Promise<SpriteFrame[]> => {
   return pending;
 };
 
+const framePathsByClip = (entry: { idleFrames?: string[]; moveFrames?: string[]; attackFrames?: string[]; hurtFrames?: string[]; deathFrames?: string[] }, clip: UnitAnimationClip): string[] | undefined => {
+  if (clip === 'idle') return entry.idleFrames;
+  if (clip === 'move') return entry.moveFrames;
+  if (clip === 'attack') return entry.attackFrames;
+  if (clip === 'hurt') return entry.hurtFrames;
+  if (clip === 'death_fall') return entry.deathFrames;
+  return undefined;
+};
+
 const loadFirstFrameSet = async (candidateSets: string[][]): Promise<SpriteFrame[]> => {
   for (const paths of candidateSets) {
     const frames = await loadFrameSet(paths);
@@ -84,6 +92,11 @@ export class UnitSpriteResolver {
   public async resolve(unitId: UnitId, star: StarLevel, divineState: boolean): Promise<SpriteFrame | null> {
     const entry = ART_RESOURCE_MANIFEST.units[unitId];
     if (!entry) return null;
+    const starSprite = divineState ? undefined : entry.starSprites?.[star];
+    if (starSprite) {
+      const frame = await loadFrame(starSprite);
+      if (frame) return frame;
+    }
     const filename = divineState ? entry.divineOverride ?? entry.stars?.[star] : entry.stars?.[star] ?? entry.divineOverride;
     const path = filename ? `${entry.directory}/${filename}` : undefined;
     const primary = await loadFrame(path);
@@ -100,7 +113,7 @@ export class UnitSpriteResolver {
     const entry = ART_RESOURCE_MANIFEST.units[unitId];
     if (!entry) return this.resolve(unitId, star, divineState);
 
-    const portraitPath = entry.portrait ? `${entry.directory}/${entry.portrait}` : undefined;
+    const portraitPath = entry.portrait?.startsWith('textures/') ? entry.portrait : entry.portrait ? `${entry.directory}/${entry.portrait}` : undefined;
     const portraitFrame = await loadFrame(portraitPath);
     if (portraitFrame) return portraitFrame;
 
@@ -116,7 +129,10 @@ export class UnitSpriteResolver {
     if (!entry) return [];
 
     const baseId = divineState ? unitId : unitId;
-    const clipNames = [clip];
+    const explicitFrames = framePathsByClip(entry, clip);
+    if (explicitFrames) return loadFrameSet(explicitFrames);
+
+    const clipNames = clip === 'idle' ? ['idle', 'move'] : clip === 'hurt' ? ['hurt', 'attack'] : [clip];
     const candidates = clipNames.map((clipName) => (
       Array.from({ length: 5 }, (_, index) => `${entry.directory}/${baseId}_${clipName}_${String(index + 1).padStart(2, '0')}.png`)
     ));
@@ -133,8 +149,11 @@ export class EnemySpriteResolver {
   public async resolveAnimation(enemyType: EnemyId, clip: EnemyAnimationClip): Promise<SpriteFrame[]> {
     const staticPath = ART_RESOURCE_MANIFEST.enemies[enemyType];
     const directory = staticPath.split('/').slice(0, -1).join('/');
-    const frames = Array.from({ length: 5 }, (_, index) => `${directory}/${enemyType}_${clip}_${String(index + 1).padStart(2, '0')}.png`);
-    return loadFrameSet(frames);
+    const clipNames = clip === 'idle' ? ['idle', 'move'] : clip === 'hurt' ? ['hurt', 'attack'] : [clip];
+    const candidates = clipNames.map((clipName) => (
+      Array.from({ length: 5 }, (_, index) => `${directory}/${enemyType}_${clipName}_${String(index + 1).padStart(2, '0')}.png`)
+    ));
+    return loadFirstFrameSet(candidates);
   }
 }
 

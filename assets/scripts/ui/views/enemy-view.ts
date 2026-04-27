@@ -74,7 +74,7 @@ export class EnemyView extends Component {
     if (!this.sprite || !this.label || !this.hpBar) return;
     const moving = state.alive && Math.hypot(state.velocity.x, state.velocity.y) > 1;
     this.resizeForEnemy(state.enemyType);
-    this.sprite.spriteFrame = moving ? spriteFrame : this.pickFrame(spriteFrame, animationFrames);
+    this.sprite.spriteFrame = this.pickFrame(spriteFrame, animationFrames);
     this.applyPose(state, moving);
     this.sprite.color = spriteFrame
       ? new Color(255, 255, 255, 255)

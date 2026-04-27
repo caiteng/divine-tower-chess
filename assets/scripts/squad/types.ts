@@ -19,6 +19,8 @@ export interface UnitBattleStats {
   attackRange: number;
   reactionRange: number;
   collisionRadius: number;
+  splashRadius?: number;
+  splashDamageRatio?: number;
   healPower?: number;
 }
 
@@ -51,6 +53,7 @@ export interface SquadUnitState {
   velocity: Vec2;
   currentHp: number;
   attackCooldownLeft: number;
+  hurtTimeLeft?: number;
   alive: boolean;
   assignedTaskId?: string;
   command: UnitCommand;
@@ -64,6 +67,19 @@ export interface EnemyUnitState {
   currentHp: number;
   attackCooldownLeft: number;
   alive: boolean;
+}
+
+export type BattleEffectKind = 'damage' | 'heal' | 'death' | 'projectile' | 'heal_beam' | 'boss_enter';
+
+export interface BattleEffectState {
+  id: string;
+  kind: BattleEffectKind;
+  age: number;
+  ttl: number;
+  from?: Vec2;
+  to: Vec2;
+  value?: number;
+  label?: string;
 }
 
 export interface WaveSpawnPlan {
@@ -118,6 +134,8 @@ export interface SquadBattleSaveData {
 
 export interface SquadBattleSnapshot {
   phase: SquadBattlePhase;
+  difficulty: DifficultyId;
+  isEndless: boolean;
   waveNumber: number;
   totalWaves: number;
   currentWave: number;
@@ -140,6 +158,7 @@ export interface SquadBattleSnapshot {
   selectedUnitId?: string;
   allies: SquadUnitState[];
   enemies: EnemyUnitState[];
+  battleEffects: BattleEffectState[];
 }
 
 export interface BattleOutcome {

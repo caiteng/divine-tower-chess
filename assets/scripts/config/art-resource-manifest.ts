@@ -6,14 +6,19 @@ export interface UnitArtEntry {
   unitId: UnitId;
   directory: string;
   stars?: Partial<Record<StarLevel, string>>;
+  starSprites?: Partial<Record<StarLevel, string>>;
   divineOverride?: string;
   portrait?: string;
+  idleFrames?: string[];
+  moveFrames?: string[];
+  attackFrames?: string[];
+  hurtFrames?: string[];
+  deathFrames?: string[];
 }
 
 export interface ArtResourceManifest {
   units: Record<UnitId, UnitArtEntry>;
   enemies: Record<EnemyId, string>;
-  optionalEnemies: string[];
   uiIcons: string[];
   backgrounds: string[];
 }
@@ -32,8 +37,47 @@ export const ART_RESOURCE_MANIFEST: ArtResourceManifest = {
   units: {
     warrior: {
       ...unitDir('assets/resources/textures/units/warrior', 'warrior'),
-      divineOverride: 'berserker_divine.png',
-      portrait: 'warrior_portrait.png',
+      starSprites: {
+        1: 'textures/units/warrior/warrior_star1',
+        2: 'textures/units/warrior/warrior_star2',
+        3: 'textures/units/warrior/warrior_star3',
+      },
+      portrait: 'textures/units/warrior/portrait',
+      idleFrames: [
+        'textures/units/warrior/idle_01',
+        'textures/units/warrior/idle_02',
+        'textures/units/warrior/idle_03',
+        'textures/units/warrior/idle_04',
+      ],
+      moveFrames: [
+        'textures/units/warrior/move_01',
+        'textures/units/warrior/move_02',
+        'textures/units/warrior/move_03',
+        'textures/units/warrior/move_04',
+        'textures/units/warrior/move_05',
+        'textures/units/warrior/move_06',
+      ],
+      attackFrames: [
+        'textures/units/warrior/attack_01',
+        'textures/units/warrior/attack_02',
+        'textures/units/warrior/attack_03',
+        'textures/units/warrior/attack_04',
+        'textures/units/warrior/attack_05',
+        'textures/units/warrior/attack_06',
+      ],
+      hurtFrames: [
+        'textures/units/warrior/hurt_01',
+        'textures/units/warrior/hurt_02',
+        'textures/units/warrior/hurt_03',
+      ],
+      deathFrames: [
+        'textures/units/warrior/death_01',
+        'textures/units/warrior/death_02',
+        'textures/units/warrior/death_03',
+        'textures/units/warrior/death_04',
+        'textures/units/warrior/death_05',
+        'textures/units/warrior/death_06',
+      ],
     },
     mage: {
       ...unitDir('assets/resources/textures/units/mage', 'mage'),
@@ -41,7 +85,6 @@ export const ART_RESOURCE_MANIFEST: ArtResourceManifest = {
     },
     priest: {
       ...unitDir('assets/resources/textures/units/priest', 'priest'),
-      divineOverride: 'light_mage_divine.png',
       portrait: 'priest_portrait.png',
     },
     archer: {
@@ -58,12 +101,12 @@ export const ART_RESOURCE_MANIFEST: ArtResourceManifest = {
     },
     berserker: {
       unitId: 'berserker',
-      directory: 'assets/resources/textures/units/warrior',
+      directory: 'assets/resources/textures/units/berserker',
       divineOverride: 'berserker_divine.png',
     },
     light_mage: {
       unitId: 'light_mage',
-      directory: 'assets/resources/textures/units/priest',
+      directory: 'assets/resources/textures/units/light_mage',
       divineOverride: 'light_mage_divine.png',
     },
   },
@@ -72,19 +115,11 @@ export const ART_RESOURCE_MANIFEST: ArtResourceManifest = {
     brute: 'assets/resources/textures/enemies/brute.png',
     boss: 'assets/resources/textures/enemies/boss.png',
   },
-  optionalEnemies: [
-    'assets/art/enemies/boss_1.png',
-  ],
   uiIcons: [
     'assets/resources/textures/ui/gold.png',
-    'assets/art/ui/icons/refresh.png',
-    'assets/art/ui/icons/sell.png',
-    'assets/art/ui/icons/start_wave.png',
-    'assets/art/ui/icons/star_1.png',
-    'assets/art/ui/icons/star_2.png',
-    'assets/art/ui/icons/star_3.png',
   ],
   backgrounds: [
-    'assets/art/backgrounds/battlefield_01.png',
+    'assets/resources/textures/backgrounds/menu_arena_01.png',
+    'assets/resources/textures/backgrounds/battlefield_01.png',
   ],
 };
