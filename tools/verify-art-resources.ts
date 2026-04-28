@@ -230,11 +230,11 @@ const checkUnit = (unitId: UnitId, entry: UnitArtEntry): void => {
   if (entry.portrait) checkFile(resourceToFilePath(entry.portrait.startsWith('textures/') ? entry.portrait : `${entry.directory}/${entry.portrait}`));
   if (entry.divineOverride) checkFile(`${entry.directory}/${entry.divineOverride}`);
 
-  for (const frames of [entry.idleFrames, entry.moveFrames, entry.attackFrames, entry.hurtFrames, entry.deathFrames]) {
+  for (const frames of [entry.idleFrames, entry.idleHeavyFrames, entry.moveFrames, entry.attackFrames, entry.blockFrames, entry.hurtFrames, entry.deathFrames]) {
     for (const frame of frames ?? []) checkFile(resourceToFilePath(frame));
   }
 
-  if (entry.idleFrames || entry.moveFrames || entry.attackFrames || entry.hurtFrames || entry.deathFrames) return;
+  if (entry.idleFrames || entry.idleHeavyFrames || entry.moveFrames || entry.attackFrames || entry.blockFrames || entry.hurtFrames || entry.deathFrames) return;
 
   for (const clip of clips) {
     for (let index = 1; index <= 5; index += 1) {

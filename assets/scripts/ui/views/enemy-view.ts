@@ -10,9 +10,9 @@ const ENEMY_NAMES: Record<string, string> = {
 };
 const ENEMY_FRAME_MS = 170;
 const ENEMY_SIZE: Record<EnemyUnitState['enemyType'], number> = {
-  grunt: 88,
-  brute: 100,
-  boss: 128,
+  grunt: 106,
+  brute: 120,
+  boss: 152,
 };
 
 @ccclass('EnemyView')
@@ -22,17 +22,18 @@ export class EnemyView extends Component {
   private label: Label | null = null;
   private hpBar: ProgressBar | null = null;
   private hpFill: Sprite | null = null;
+  private facingScaleX = 1;
 
   public onClick?: () => void;
 
   public setup(): void {
     this.node.layer = Layers.Enum.UI_2D;
-    this.node.addComponent(UITransform).setContentSize(88, 88);
+    this.node.addComponent(UITransform).setContentSize(ENEMY_SIZE.grunt, ENEMY_SIZE.grunt);
 
     this.spriteNode = new Node('Sprite');
     this.spriteNode.layer = Layers.Enum.UI_2D;
     this.node.addChild(this.spriteNode);
-    this.spriteNode.addComponent(UITransform).setContentSize(88, 88);
+    this.spriteNode.addComponent(UITransform).setContentSize(ENEMY_SIZE.grunt, ENEMY_SIZE.grunt);
     this.sprite = this.spriteNode.addComponent(Sprite);
     this.sprite.sizeMode = Sprite.SizeMode.CUSTOM;
     this.sprite.color = new Color(248, 113, 113, 255);
@@ -40,7 +41,7 @@ export class EnemyView extends Component {
     const labelNode = new Node('Label');
     labelNode.layer = Layers.Enum.UI_2D;
     this.node.addChild(labelNode);
-    labelNode.setPosition(new Vec3(0, 54, 0));
+    labelNode.setPosition(new Vec3(0, 64, 0));
     labelNode.addComponent(UITransform).setContentSize(100, 20);
     this.label = labelNode.addComponent(Label);
     this.label.fontSize = 11;
@@ -49,7 +50,7 @@ export class EnemyView extends Component {
     const hpNode = new Node('Hp');
     hpNode.layer = Layers.Enum.UI_2D;
     this.node.addChild(hpNode);
-    hpNode.setPosition(new Vec3(0, -54, 0));
+    hpNode.setPosition(new Vec3(0, -64, 0));
     hpNode.addComponent(UITransform).setContentSize(76, 7);
     const hpBg = hpNode.addComponent(Sprite);
     hpBg.color = new Color(69, 10, 10, 255);
@@ -75,6 +76,7 @@ export class EnemyView extends Component {
     const moving = state.alive && Math.hypot(state.velocity.x, state.velocity.y) > 1;
     this.resizeForEnemy(state.enemyType);
     this.sprite.spriteFrame = this.pickFrame(spriteFrame, animationFrames);
+    this.updateFacing(state);
     this.applyPose(state, moving);
     this.sprite.color = spriteFrame
       ? new Color(255, 255, 255, 255)
@@ -99,12 +101,12 @@ export class EnemyView extends Component {
     if (!this.spriteNode) return;
 
     this.spriteNode.setPosition(new Vec3(0, 0, 0));
-    this.spriteNode.setScale(new Vec3(1, 1, 1));
+    this.spriteNode.setScale(new Vec3(this.facingScaleX, 1, 1));
     this.spriteNode.angle = 0;
 
     if (!state.alive) {
       this.spriteNode.setPosition(new Vec3(6, -12, 0));
-      this.spriteNode.setScale(new Vec3(0.95, 0.95, 1));
+      this.spriteNode.setScale(new Vec3(this.facingScaleX * 0.95, 0.95, 1));
       this.spriteNode.angle = 72;
       return;
     }
@@ -115,7 +117,7 @@ export class EnemyView extends Component {
       const stride = Math.sin(cycle * Math.PI * 4);
       const lift = Math.abs(stride);
       this.spriteNode.setPosition(new Vec3(step * 2, lift * 3.5, 0));
-      this.spriteNode.setScale(new Vec3(1 + lift * 0.02, 1 - lift * 0.016, 1));
+      this.spriteNode.setScale(new Vec3(this.facingScaleX * (1 + lift * 0.02), 1 - lift * 0.016, 1));
       this.spriteNode.angle = step * 3;
       return;
     }
@@ -123,8 +125,19 @@ export class EnemyView extends Component {
     if (state.attackCooldownLeft > 0) {
       const pulse = Math.sin((Date.now() % 360) / 360 * Math.PI);
       this.spriteNode.setPosition(new Vec3(-pulse * 3, 0, 0));
-      this.spriteNode.setScale(new Vec3(1 + pulse * 0.025, 1 + pulse * 0.015, 1));
+      this.spriteNode.setScale(new Vec3(this.facingScaleX * (1 + pulse * 0.025), 1 + pulse * 0.015, 1));
       this.spriteNode.angle = pulse * 2;
+    }
+  }
+
+  private updateFacing(state: EnemyUnitState): void {
+    if (!state.alive) return;
+    if (state.velocity.x > 1) {
+      this.facingScaleX = -1;
+      return;
+    }
+    if (state.velocity.x < -1) {
+      this.facingScaleX = 1;
     }
   }
 }

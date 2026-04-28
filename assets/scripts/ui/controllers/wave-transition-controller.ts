@@ -2,6 +2,8 @@ import { _decorator, Component, Node, Tween, tween, Vec3 } from 'cc';
 import type { SquadBattleSnapshot } from '../../squad/types';
 
 const { ccclass } = _decorator;
+const PREP_VISIBLE_POSITION = new Vec3(0, -20, 0);
+const PREP_HIDDEN_POSITION = new Vec3(0, -640, 0);
 
 @ccclass('WaveTransitionController')
 export class WaveTransitionController extends Component {
@@ -21,13 +23,13 @@ export class WaveTransitionController extends Component {
       this.prevPrepState = prepState;
       if (prepState === 'visible' || prepState === 'rising') {
         this.prepPanelNode.active = true;
-        this.tweenPrepTo(new Vec3(0, -120, 0));
+        this.tweenPrepTo(PREP_VISIBLE_POSITION);
       } else if (prepState === 'falling') {
         this.prepPanelNode.active = true;
-        this.tweenPrepTo(new Vec3(0, -420, 0));
+        this.tweenPrepTo(PREP_HIDDEN_POSITION);
       } else {
         this.prepPanelNode.active = false;
-        this.prepPanelNode.setPosition(new Vec3(0, -420, 0));
+        this.prepPanelNode.setPosition(PREP_HIDDEN_POSITION);
       }
     }
   }

@@ -15,6 +15,7 @@ export interface UnitBattleStats {
   armor: number;
   armorPierceRatio: number;
   attackInterval: number;
+  attackWindupTime?: number;
   moveSpeed: number;
   attackRange: number;
   reactionRange: number;
@@ -53,6 +54,11 @@ export interface SquadUnitState {
   velocity: Vec2;
   currentHp: number;
   attackCooldownLeft: number;
+  attackWindupLeft?: number;
+  attackReleaseTimeLeft?: number;
+  skillAnimationTimeLeft?: number;
+  pendingAttackTargetId?: string;
+  skillCooldowns?: Record<string, number>;
   hurtTimeLeft?: number;
   alive: boolean;
   assignedTaskId?: string;
@@ -69,7 +75,7 @@ export interface EnemyUnitState {
   alive: boolean;
 }
 
-export type BattleEffectKind = 'damage' | 'heal' | 'death' | 'projectile' | 'heal_beam' | 'boss_enter';
+export type BattleEffectKind = 'damage' | 'heal' | 'death' | 'projectile' | 'heal_beam' | 'boss_enter' | 'archer_lockon' | 'archer_charge' | 'archer_hit';
 
 export interface BattleEffectState {
   id: string;
@@ -80,6 +86,7 @@ export interface BattleEffectState {
   to: Vec2;
   value?: number;
   label?: string;
+  variant?: 'archer_normal' | 'archer_precision';
 }
 
 export interface WaveSpawnPlan {

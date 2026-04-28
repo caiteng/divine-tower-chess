@@ -2,8 +2,8 @@ import { _decorator, Button, Color, Component, Graphics, Label, Layers, Node, Pr
 import type { SquadUnitState } from '../../squad/types';
 
 const { ccclass } = _decorator;
-const UNIT_SIZE = 96;
-const UNIT_HP_WIDTH = 82;
+const UNIT_SIZE = 116;
+const UNIT_HP_WIDTH = 96;
 const UNIT_FRAME_MS = 170;
 
 @ccclass('UnitView')
@@ -17,6 +17,7 @@ export class UnitView extends Component {
   private selectedRing: Node | null = null;
   private wasAlive = true;
   private deathStartedAt = 0;
+  private facingScaleX = 1;
 
   public onClick?: () => void;
 
@@ -35,7 +36,7 @@ export class UnitView extends Component {
     const labelNode = new Node('Label');
     labelNode.layer = Layers.Enum.UI_2D;
     this.node.addChild(labelNode);
-    labelNode.setPosition(new Vec3(0, 56, 0));
+    labelNode.setPosition(new Vec3(0, 66, 0));
     labelNode.addComponent(UITransform).setContentSize(140, 22);
     this.label = labelNode.addComponent(Label);
     this.label.fontSize = 12;
@@ -45,7 +46,7 @@ export class UnitView extends Component {
     const commandNode = new Node('Command');
     commandNode.layer = Layers.Enum.UI_2D;
     this.node.addChild(commandNode);
-    commandNode.setPosition(new Vec3(0, 42, 0));
+    commandNode.setPosition(new Vec3(0, 50, 0));
     commandNode.addComponent(UITransform).setContentSize(120, 18);
     this.commandLabel = commandNode.addComponent(Label);
     this.commandLabel.fontSize = 10;
@@ -55,7 +56,7 @@ export class UnitView extends Component {
     const hpNode = new Node('Hp');
     hpNode.layer = Layers.Enum.UI_2D;
     this.node.addChild(hpNode);
-    hpNode.setPosition(new Vec3(0, -56, 0));
+    hpNode.setPosition(new Vec3(0, -66, 0));
     hpNode.addComponent(UITransform).setContentSize(UNIT_HP_WIDTH, 8);
     const hpBg = hpNode.addComponent(Sprite);
     hpBg.color = new Color(30, 41, 59, 255);
@@ -75,13 +76,13 @@ export class UnitView extends Component {
     this.selectedRing = new Node('Selected');
     this.selectedRing.layer = Layers.Enum.UI_2D;
     this.node.addChild(this.selectedRing);
-    this.selectedRing.setPosition(new Vec3(0, -34, 0));
+    this.selectedRing.setPosition(new Vec3(0, -40, 0));
     this.selectedRing.addComponent(UITransform).setContentSize(UNIT_SIZE + 12, UNIT_SIZE + 12);
     const ring = this.selectedRing.addComponent(Graphics);
     ring.fillColor = new Color(251, 191, 36, 110);
     ring.strokeColor = new Color(254, 240, 138, 235);
     ring.lineWidth = 4;
-    ring.circle(0, 0, 34);
+    ring.circle(0, 0, 42);
     ring.fill();
     ring.stroke();
     this.selectedRing.active = false;
@@ -100,6 +101,7 @@ export class UnitView extends Component {
     }
     this.wasAlive = state.alive;
     this.sprite.spriteFrame = this.pickFrame(spriteFrame, animationFrames, state.alive);
+    this.updateFacing(state);
     this.applyPose(state, moving);
     this.sprite.color = spriteFrame
       ? new Color(255, 255, 255, 255)
@@ -137,19 +139,19 @@ export class UnitView extends Component {
     if (!this.spriteNode) return;
 
     this.spriteNode.setPosition(new Vec3(0, 0, 0));
-    this.spriteNode.setScale(new Vec3(1, 1, 1));
+    this.spriteNode.setScale(new Vec3(this.facingScaleX, 1, 1));
     this.spriteNode.angle = 0;
 
     if (!state.alive) {
       this.spriteNode.setPosition(new Vec3(0, -10, 0));
-      this.spriteNode.setScale(new Vec3(1, 1, 1));
+      this.spriteNode.setScale(new Vec3(this.facingScaleX, 1, 1));
       return;
     }
 
     if ((state.hurtTimeLeft ?? 0) > 0) {
       const pulse = Math.sin((Date.now() % 180) / 180 * Math.PI);
       this.spriteNode.setPosition(new Vec3(-3 * pulse, 0, 0));
-      this.spriteNode.setScale(new Vec3(1 + pulse * 0.012, 1, 1));
+      this.spriteNode.setScale(new Vec3(this.facingScaleX * (1 + pulse * 0.012), 1, 1));
       return;
     }
 
@@ -159,16 +161,32 @@ export class UnitView extends Component {
       const stride = Math.sin(cycle * Math.PI * 4);
       const lift = Math.abs(stride);
       this.spriteNode.setPosition(new Vec3(step * 2.2, lift * 4, 0));
-      this.spriteNode.setScale(new Vec3(1 + lift * 0.025, 1 - lift * 0.018, 1));
+      this.spriteNode.setScale(new Vec3(this.facingScaleX * (1 + lift * 0.025), 1 - lift * 0.018, 1));
       this.spriteNode.angle = step * 3.2;
       return;
     }
 
-    if (state.attackCooldownLeft > 0 || state.command.type === 'focus_enemy' || state.command.type === 'channel_heal') {
+    if ((state.attackWindupLeft ?? 0) > 0 || (state.attackReleaseTimeLeft ?? 0) > 0 || state.command.type === 'focus_enemy' || state.command.type === 'channel_heal') {
       const pulse = Math.sin((Date.now() % 360) / 360 * Math.PI);
       this.spriteNode.setPosition(new Vec3(pulse * 3, 0, 0));
-      this.spriteNode.setScale(new Vec3(1 + pulse * 0.025, 1 + pulse * 0.015, 1));
+      this.spriteNode.setScale(new Vec3(this.facingScaleX * (1 + pulse * 0.025), 1 + pulse * 0.015, 1));
       this.spriteNode.angle = -pulse * 2;
+    }
+  }
+
+  private updateFacing(state: SquadUnitState): void {
+    if (!state.alive) return;
+    if (state.velocity.x > 1) {
+      this.facingScaleX = 1;
+      return;
+    }
+    if (state.velocity.x < -1) {
+      this.facingScaleX = -1;
+      return;
+    }
+    if (state.command.type === 'move' && state.command.position) {
+      const deltaX = state.command.position.x - state.position.x;
+      if (Math.abs(deltaX) > 2) this.facingScaleX = deltaX > 0 ? 1 : -1;
     }
   }
 }

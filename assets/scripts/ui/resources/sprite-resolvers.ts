@@ -7,7 +7,7 @@ import type { EnemyId, UnitId } from '../../models/types';
 const loadedFrames = new Map<string, Promise<SpriteFrame | null>>();
 const loadedFrameSets = new Map<string, Promise<SpriteFrame[]>>();
 
-export type UnitAnimationClip = 'idle' | 'move' | 'attack' | 'hurt' | 'death_fall' | 'corpse_fade';
+export type UnitAnimationClip = 'idle' | 'idleHeavy' | 'move' | 'attack' | 'block' | 'hurt' | 'death_fall' | 'corpse_fade';
 export type EnemyAnimationClip = UnitAnimationClip;
 
 const asResourcePath = (rawPath: string): string | null => {
@@ -71,10 +71,20 @@ const loadFrameSet = (manifestPaths: string[]): Promise<SpriteFrame[]> => {
   return pending;
 };
 
-const framePathsByClip = (entry: { idleFrames?: string[]; moveFrames?: string[]; attackFrames?: string[]; hurtFrames?: string[]; deathFrames?: string[] }, clip: UnitAnimationClip): string[] | undefined => {
+const framePathsByClip = (entry: {
+  idleFrames?: string[];
+  idleHeavyFrames?: string[];
+  moveFrames?: string[];
+  attackFrames?: string[];
+  blockFrames?: string[];
+  hurtFrames?: string[];
+  deathFrames?: string[];
+}, clip: UnitAnimationClip): string[] | undefined => {
   if (clip === 'idle') return entry.idleFrames;
+  if (clip === 'idleHeavy') return entry.idleHeavyFrames;
   if (clip === 'move') return entry.moveFrames;
   if (clip === 'attack') return entry.attackFrames;
+  if (clip === 'block') return entry.blockFrames;
   if (clip === 'hurt') return entry.hurtFrames;
   if (clip === 'death_fall') return entry.deathFrames;
   return undefined;
@@ -132,7 +142,7 @@ export class UnitSpriteResolver {
     const explicitFrames = framePathsByClip(entry, clip);
     if (explicitFrames) return loadFrameSet(explicitFrames);
 
-    const clipNames = clip === 'idle' ? ['idle', 'move'] : clip === 'hurt' ? ['hurt', 'attack'] : [clip];
+    const clipNames = clip === 'idle' ? ['idle', 'move'] : clip === 'idleHeavy' ? ['idle_heavy', 'idle', 'move'] : clip === 'block' ? ['block', 'hurt', 'attack'] : clip === 'hurt' ? ['hurt', 'attack'] : [clip];
     const candidates = clipNames.map((clipName) => (
       Array.from({ length: 5 }, (_, index) => `${entry.directory}/${baseId}_${clipName}_${String(index + 1).padStart(2, '0')}.png`)
     ));

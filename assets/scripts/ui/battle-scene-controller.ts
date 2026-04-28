@@ -16,6 +16,11 @@ const { ccclass } = _decorator;
 
 type SceneMode = 'menu' | 'select' | 'battle';
 
+const BATTLEFIELD_WIDTH = 920;
+const BATTLEFIELD_HEIGHT = 540;
+const PREP_PANEL_WIDTH = 920;
+const PREP_PANEL_HEIGHT = 560;
+
 @ccclass('BattleSceneController')
 export class BattleSceneController extends Component {
   private readonly session = new SquadBattleSession();
@@ -113,8 +118,8 @@ export class BattleSceneController extends Component {
 
     const battleNode = new Node('Battlefield');
     battleNode.layer = Layers.Enum.UI_2D;
-    battleNode.addComponent(UITransform).setContentSize(920, 400);
-    battleNode.setPosition(new Vec3(0, 108, 0));
+    battleNode.addComponent(UITransform).setContentSize(BATTLEFIELD_WIDTH, BATTLEFIELD_HEIGHT);
+    battleNode.setPosition(new Vec3(0, -24, 0));
     root.addChild(battleNode);
 
     const hudNode = new Node('Hud');
@@ -125,14 +130,14 @@ export class BattleSceneController extends Component {
 
     const prepNode = new Node('PrepPanel');
     prepNode.layer = Layers.Enum.UI_2D;
-    prepNode.addComponent(UITransform).setContentSize(920, 240);
-    prepNode.setPosition(new Vec3(0, -120, 0));
+    prepNode.addComponent(UITransform).setContentSize(PREP_PANEL_WIDTH, PREP_PANEL_HEIGHT);
+    prepNode.setPosition(new Vec3(0, -20, 0));
     root.addChild(prepNode);
 
     const cmdNode = new Node('CommandOverlay');
     cmdNode.layer = Layers.Enum.UI_2D;
-    cmdNode.addComponent(UITransform).setContentSize(920, 40);
-    cmdNode.setPosition(new Vec3(0, 164, 0));
+    cmdNode.addComponent(UITransform).setContentSize(920, 72);
+    cmdNode.setPosition(new Vec3(0, -284, 0));
     root.addChild(cmdNode);
 
     this.hudController = hudNode.addComponent(BattleHudController);
@@ -141,6 +146,7 @@ export class BattleSceneController extends Component {
     this.prepController = prepNode.addComponent(PrepPanelController);
     this.prepController.initialize();
     this.prepController.onBuy = (index) => this.onBuy(index);
+    this.prepController.onSelectUnit = (id) => this.onPrepSelectUnit(id);
     this.prepController.onDeploy = (id) => this.onDeploy(id);
     this.prepController.onRecall = (id) => this.onRecall(id);
     this.prepController.onSell = () => this.onSell();
@@ -158,6 +164,7 @@ export class BattleSceneController extends Component {
 
     this.commandOverlayController = cmdNode.addComponent(CommandOverlayController);
     this.commandOverlayController.initialize();
+    this.commandOverlayController.onSkill = (skillId) => this.onCastSkill(skillId);
   }
 
   private startFromMainMenu(): void {
@@ -242,7 +249,7 @@ export class BattleSceneController extends Component {
     this.prepController?.render(snap, selectedLabel, this.selectedUnitId);
     this.fieldController?.render(snap, this.selectedUnitId, this.moveMarker);
     this.transitionController?.sync(snap);
-    this.commandOverlayController?.setNotice(notice);
+    this.commandOverlayController?.render(snap, this.selectedUnitId, notice);
   }
 
   private syncSelection(snap: SquadBattleSnapshot): void {
@@ -297,6 +304,13 @@ export class BattleSceneController extends Component {
     if (bought) this.persistRun();
   }
 
+  private onPrepSelectUnit(instanceId: string): void {
+    const snap = this.session.getSnapshot();
+    const unit = [...snap.deployed, ...snap.bench].find((entry) => entry.instanceId === instanceId);
+    this.selectedUnitId = instanceId;
+    this.pushNotice(`已选中：${unit?.unitId ?? instanceId.slice(-4)}${unit ? `★${unit.star}` : ''}`, 1200);
+  }
+
   private onDeploy(instanceId: string): void {
     const snap = this.session.getSnapshot();
     const unit = snap.bench.find((u) => u.instanceId === instanceId);
@@ -348,6 +362,17 @@ export class BattleSceneController extends Component {
     const started = this.session.startNextWaveFromPrep();
     this.pushNotice(started ? '已开始下一波。' : '开始失败：至少需要 1 名已上阵单位，且当前必须处于准备阶段。');
     if (started) this.persistRun();
+  }
+
+  private onCastSkill(skillId: string): void {
+    if (!this.selectedUnitId) {
+      this.pushNotice('技能失败：请先选择一个战场单位。');
+      return;
+    }
+    this.session.selectUnit(this.selectedUnitId);
+    const result = this.session.castSelectedSkill(skillId);
+    this.pushNotice(result.casted ? '技能已触发。' : result.reason ?? '技能触发失败。', 1400);
+    if (result.casted) this.persistRun();
   }
 
   private findCanvasNode(root: Node): Node | null {

@@ -262,6 +262,102 @@ function verifyCollisionPreventsOverlap(): void {
   assertRule(dist >= minDist, 'same-side units should be separated by collision radius');
 }
 
+function verifyEnemiesHoldContactOutsideShieldGuardRadius(): void {
+  const enemyAi = new EnemyAiSystem();
+  const collision = new CollisionSystem();
+  const shield: SquadUnitState = {
+    instanceId: 'shield',
+    unitId: 'shield_guard',
+    star: 1,
+    role: 'melee',
+    position: { x: 500, y: 350 },
+    velocity: { x: 0, y: 0 },
+    currentHp: SQUAD_UNIT_STATS.shield_guard.maxHp,
+    attackCooldownLeft: 99,
+    alive: true,
+    command: { type: 'idle' },
+  };
+  const enemies: EnemyUnitState[] = [
+    {
+      instanceId: 'grunt-a',
+      enemyType: 'grunt',
+      position: { x: 620, y: 350 },
+      velocity: { x: 0, y: 0 },
+      currentHp: ENEMY_STATS.grunt.maxHp,
+      attackCooldownLeft: 99,
+      alive: true,
+    },
+    {
+      instanceId: 'grunt-b',
+      enemyType: 'grunt',
+      position: { x: 626, y: 354 },
+      velocity: { x: 0, y: 0 },
+      currentHp: ENEMY_STATS.grunt.maxHp,
+      attackCooldownLeft: 99,
+      alive: true,
+    },
+    {
+      instanceId: 'grunt-c',
+      enemyType: 'grunt',
+      position: { x: 626, y: 346 },
+      velocity: { x: 0, y: 0 },
+      currentHp: ENEMY_STATS.grunt.maxHp,
+      attackCooldownLeft: 99,
+      alive: true,
+    },
+  ];
+
+  for (let i = 0; i < 80; i += 1) {
+    enemyAi.tick(enemies, [shield], 0.05);
+    collision.resolve([shield], enemies, 4);
+  }
+
+  const minShieldDistance = SQUAD_UNIT_STATS.shield_guard.collisionRadius + ENEMY_STATS.grunt.collisionRadius;
+  for (const enemy of enemies) {
+    const shieldDistance = Math.hypot(enemy.position.x - shield.position.x, enemy.position.y - shield.position.y);
+    assertRule(shieldDistance >= minShieldDistance, 'enemies should hold contact outside shield guard collision radius');
+    assertRule(Math.hypot(enemy.velocity.x, enemy.velocity.y) < 0.001, 'enemies in contact band should stop pushing into shield guard');
+  }
+}
+
+function verifyEnemyBodyBlockingSteersRearEnemy(): void {
+  const enemyAi = new EnemyAiSystem();
+  const shield: SquadUnitState = {
+    instanceId: 'shield',
+    unitId: 'shield_guard',
+    star: 1,
+    role: 'melee',
+    position: { x: 500, y: 350 },
+    velocity: { x: 0, y: 0 },
+    currentHp: SQUAD_UNIT_STATS.shield_guard.maxHp,
+    attackCooldownLeft: 99,
+    alive: true,
+    command: { type: 'idle' },
+  };
+  const front: EnemyUnitState = {
+    instanceId: 'front',
+    enemyType: 'grunt',
+    position: { x: 620, y: 350 },
+    velocity: { x: 0, y: 0 },
+    currentHp: ENEMY_STATS.grunt.maxHp,
+    attackCooldownLeft: 99,
+    alive: true,
+  };
+  const rear: EnemyUnitState = {
+    instanceId: 'rear',
+    enemyType: 'grunt',
+    position: { x: 660, y: 350 },
+    velocity: { x: 0, y: 0 },
+    currentHp: ENEMY_STATS.grunt.maxHp,
+    attackCooldownLeft: 99,
+    alive: true,
+  };
+
+  enemyAi.tick([front, rear], [shield], 0.1);
+  assertRule(Math.abs(rear.velocity.y) > 0.001, 'rear enemy should steer sideways when a nearer enemy blocks its lane');
+  assertRule(rear.velocity.x < 0, 'rear enemy should still generally advance toward target while avoiding blocker');
+}
+
 function verifyMageSplashDamage(): void {
   const attack = new AttackSystem();
   const mage: SquadUnitState = {
@@ -327,6 +423,181 @@ function verifyAttackEffectsAreEmitted(): void {
   const result = attack.attackIfPossible(archer, enemy, [enemy]);
   assertRule(result.effects.some((effect) => effect.kind === 'projectile'), 'ranged attacks should emit projectile effects');
   assertRule(result.effects.some((effect) => effect.kind === 'damage' && (effect.value ?? 0) > 0), 'attacks should emit damage floating text effects');
+  assertRule(archer.attackCooldownLeft === SQUAD_UNIT_STATS.archer.attackInterval, 'ranged attacks should start full attack cooldown after release');
+  assertRule((archer.attackReleaseTimeLeft ?? 0) > 0, 'ranged attacks should expose a short release feedback window separate from cooldown');
+}
+
+function verifyRangedCanMoveAfterProjectileRelease(): void {
+  const session = new SquadBattleSession();
+  session.loadFromSaveData({
+    difficulty: 'beginner',
+    phase: 'battle',
+    waveNumber: 1,
+    gold: 10,
+    shop: ['warrior', 'mage', 'priest'],
+    bench: [],
+    deployed: [{ instanceId: 'archer-1', unitId: 'archer', star: 1 }],
+    divineTasks: [],
+    pendingBattleStart: false,
+    uiState: {
+      prepPanel: 'hidden',
+      battlefieldLighting: 'bright',
+      transitionProgress: 1,
+      nextWaveReady: true,
+    },
+    allies: [{
+      instanceId: 'archer-1',
+      unitId: 'archer',
+      star: 1,
+      role: 'ranged',
+      position: { x: 100, y: 100 },
+      velocity: { x: 0, y: 0 },
+      currentHp: SQUAD_UNIT_STATS.archer.maxHp,
+      attackCooldownLeft: 0,
+      attackReleaseTimeLeft: 0,
+      skillCooldowns: {},
+      alive: true,
+      command: { type: 'focus_enemy', targetEnemyId: 'grunt-1' },
+    }],
+    enemies: [{
+      instanceId: 'grunt-1',
+      enemyType: 'grunt',
+      position: { x: 260, y: 100 },
+      velocity: { x: 0, y: 0 },
+      currentHp: ENEMY_STATS.grunt.maxHp,
+      attackCooldownLeft: 99,
+      alive: true,
+    }],
+  });
+
+  session.selectUnit('archer-1');
+  session.tick(0.05);
+  const duringWindup = session.getSnapshot();
+  const windingArcher = duringWindup.allies.find((ally) => ally.instanceId === 'archer-1');
+  assertRule(!duringWindup.battleEffects.some((effect) => effect.kind === 'projectile'), 'ranged attack should not release projectile before windup completes');
+  assertRule((windingArcher?.attackWindupLeft ?? 0) > 0, 'ranged attack should expose cancellable windup before release');
+
+  session.tick(SQUAD_UNIT_STATS.archer.attackWindupTime ?? 0.3);
+  const afterRelease = session.getSnapshot();
+  const releasedArcher = afterRelease.allies.find((ally) => ally.instanceId === 'archer-1');
+  assertRule(afterRelease.battleEffects.some((effect) => effect.kind === 'projectile'), 'ranged attack should release projectile after windup');
+  assertRule((releasedArcher?.attackCooldownLeft ?? 0) > 0, 'ranged unit should remain on attack cooldown after projectile release');
+
+  const beforeMoveX = releasedArcher?.position.x ?? 0;
+  session.commandMoveToGround({ x: 40, y: 100 });
+  session.tick(0.1);
+  const movingArcher = session.getSnapshot().allies.find((ally) => ally.instanceId === 'archer-1');
+  assertRule((movingArcher?.position.x ?? beforeMoveX) < beforeMoveX, 'ranged unit should move immediately after projectile release while attack is on cooldown');
+  assertRule((movingArcher?.attackCooldownLeft ?? 0) > 0, 'movement cancel should not reset or remove attack cooldown');
+}
+
+function verifyMovementCancelsRangedWindupBeforeRelease(): void {
+  const session = new SquadBattleSession();
+  session.loadFromSaveData({
+    difficulty: 'beginner',
+    phase: 'battle',
+    waveNumber: 1,
+    gold: 10,
+    shop: ['warrior', 'mage', 'priest'],
+    bench: [],
+    deployed: [{ instanceId: 'archer-1', unitId: 'archer', star: 1 }],
+    divineTasks: [],
+    pendingBattleStart: false,
+    uiState: {
+      prepPanel: 'hidden',
+      battlefieldLighting: 'bright',
+      transitionProgress: 1,
+      nextWaveReady: true,
+    },
+    allies: [{
+      instanceId: 'archer-1',
+      unitId: 'archer',
+      star: 1,
+      role: 'ranged',
+      position: { x: 100, y: 100 },
+      velocity: { x: 0, y: 0 },
+      currentHp: SQUAD_UNIT_STATS.archer.maxHp,
+      attackCooldownLeft: 0,
+      attackWindupLeft: 0,
+      attackReleaseTimeLeft: 0,
+      skillCooldowns: {},
+      alive: true,
+      command: { type: 'focus_enemy', targetEnemyId: 'grunt-1' },
+    }],
+    enemies: [{
+      instanceId: 'grunt-1',
+      enemyType: 'grunt',
+      position: { x: 260, y: 100 },
+      velocity: { x: 0, y: 0 },
+      currentHp: ENEMY_STATS.grunt.maxHp,
+      attackCooldownLeft: 99,
+      alive: true,
+    }],
+  });
+
+  session.selectUnit('archer-1');
+  session.tick(0.05);
+  session.commandMoveToGround({ x: 40, y: 100 });
+  session.tick(SQUAD_UNIT_STATS.archer.attackWindupTime ?? 0.3);
+  const afterCancel = session.getSnapshot();
+  const archer = afterCancel.allies.find((ally) => ally.instanceId === 'archer-1');
+  const target = afterCancel.enemies.find((enemy) => enemy.instanceId === 'grunt-1');
+  assertRule(!afterCancel.battleEffects.some((effect) => effect.kind === 'projectile'), 'moving before release should cancel ranged windup and not create projectile');
+  assertRule((archer?.attackCooldownLeft ?? 0) === 0, 'cancelled windup should not start attack cooldown');
+  assertRule((target?.currentHp ?? 0) === ENEMY_STATS.grunt.maxHp, 'cancelled windup should not damage target');
+}
+
+function verifyLockedSkillCast(): void {
+  const session = new SquadBattleSession();
+  session.loadFromSaveData({
+    difficulty: 'beginner',
+    phase: 'battle',
+    waveNumber: 1,
+    gold: 10,
+    shop: ['warrior', 'mage', 'priest'],
+    bench: [],
+    deployed: [{ instanceId: 'archer-1', unitId: 'archer', star: 2 }],
+    divineTasks: [],
+    pendingBattleStart: false,
+    uiState: {
+      prepPanel: 'hidden',
+      battlefieldLighting: 'bright',
+      transitionProgress: 1,
+      nextWaveReady: true,
+    },
+    allies: [{
+      instanceId: 'archer-1',
+      unitId: 'archer',
+      star: 2,
+      role: 'ranged',
+      position: { x: 100, y: 100 },
+      velocity: { x: 0, y: 0 },
+      currentHp: SQUAD_UNIT_STATS.archer.maxHp,
+      attackCooldownLeft: 0,
+      skillCooldowns: {},
+      alive: true,
+      command: { type: 'idle' },
+    }],
+    enemies: [{
+      instanceId: 'grunt-1',
+      enemyType: 'grunt',
+      position: { x: 260, y: 100 },
+      velocity: { x: 0, y: 0 },
+      currentHp: ENEMY_STATS.grunt.maxHp,
+      attackCooldownLeft: 0,
+      alive: true,
+    }],
+  });
+
+  session.selectUnit('archer-1');
+  const result = session.castSelectedSkill('archer_snipe');
+  const after = session.getSnapshot();
+  const archer = after.allies.find((ally) => ally.instanceId === 'archer-1');
+  const target = after.enemies.find((enemy) => enemy.instanceId === 'grunt-1');
+  assertRule(result.casted, '2-star archer should cast locked snipe skill');
+  assertRule((archer?.skillCooldowns?.archer_snipe ?? 0) > 0, 'skill cast should start cooldown');
+  assertRule((target?.currentHp ?? 0) < ENEMY_STATS.grunt.maxHp, 'snipe should damage locked target');
+  assertRule(after.battleEffects.some((effect) => effect.kind === 'projectile'), 'snipe should emit projectile feedback');
 }
 
 function verifyShieldGuardTauntPriority(): void {
@@ -336,7 +607,7 @@ function verifyShieldGuardTauntPriority(): void {
     unitId: 'warrior',
     star: 1,
     role: 'melee',
-    position: { x: 30, y: 0 },
+    position: { x: 60, y: 0 },
     velocity: { x: 0, y: 0 },
     currentHp: SQUAD_UNIT_STATS.warrior.maxHp,
     attackCooldownLeft: 0,
@@ -348,7 +619,7 @@ function verifyShieldGuardTauntPriority(): void {
     unitId: 'shield_guard',
     star: 1,
     role: 'melee',
-    position: { x: 40, y: 0 },
+    position: { x: 72, y: 0 },
     velocity: { x: 0, y: 0 },
     currentHp: SQUAD_UNIT_STATS.shield_guard.maxHp,
     attackCooldownLeft: 0,
@@ -420,8 +691,13 @@ verifySnapshotContract();
 verifyArmorReducesDamage();
 verifyMageSplashDamage();
 verifyAttackEffectsAreEmitted();
+verifyRangedCanMoveAfterProjectileRelease();
+verifyMovementCancelsRangedWindupBeforeRelease();
+verifyLockedSkillCast();
 verifyShieldGuardTauntPriority();
 verifyCollisionPreventsOverlap();
+verifyEnemiesHoldContactOutsideShieldGuardRadius();
+verifyEnemyBodyBlockingSteersRearEnemy();
 verifyWaveRewardLoop();
 
 console.log('Squad rules verified.');

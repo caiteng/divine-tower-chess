@@ -11,8 +11,16 @@ const makeDefaultStarPaths = (unitId: UnitId): Record<StarLevel, string> => ({
 });
 
 export const UNIT_STAR_SPRITE_PATHS: UnitStarSpritePathConfig = {
-  archer: makeDefaultStarPaths('archer'),
-  shield_guard: makeDefaultStarPaths('shield_guard'),
+  archer: {
+    1: 'textures/units/archer/archer_star1',
+    2: 'textures/units/archer/archer_star2',
+    3: 'textures/units/archer/archer_star3',
+  },
+  shield_guard: {
+    1: 'textures/units/shield_guard/shield_guard_star1',
+    2: 'textures/units/shield_guard/shield_guard_star2',
+    3: 'textures/units/shield_guard/shield_guard_star3',
+  },
   warrior: {
     1: 'textures/units/warrior/warrior_star1',
     2: 'textures/units/warrior/warrior_star2',
@@ -26,8 +34,8 @@ export const UNIT_STAR_SPRITE_PATHS: UnitStarSpritePathConfig = {
 };
 
 export const UNIT_STAR_SPRITE_BASE_FALLBACK: Record<UnitId, string> = {
-  archer: 'textures/avatars/archer',
-  shield_guard: 'textures/avatars/shield_guard',
+  archer: 'textures/units/archer/portrait',
+  shield_guard: 'textures/units/shield_guard/portrait',
   warrior: 'textures/units/warrior/portrait',
   mage: 'textures/avatars/mage',
   priest: 'textures/avatars/priest',

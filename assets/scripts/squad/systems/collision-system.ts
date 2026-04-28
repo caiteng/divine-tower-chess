@@ -17,7 +17,7 @@ export class CollisionSystem {
       this.resolveGroupCollisions(aliveAllies.map((ally) => ({
         position: ally.position,
         radius: this.getAllyRadius(ally),
-        weight: ally.role === 'melee' ? 0.85 : 1,
+        weight: this.getAllyWeight(ally),
       })));
 
       this.resolveGroupCollisions(aliveEnemies.map((enemy) => ({
@@ -46,7 +46,7 @@ export class CollisionSystem {
           {
             position: ally.position,
             radius: this.getAllyRadius(ally),
-            weight: ally.role === 'melee' ? 0.82 : 1,
+            weight: this.getAllyWeight(ally),
           },
           {
             position: enemy.position,
@@ -92,6 +92,12 @@ export class CollisionSystem {
 
   private getAllyRadius(ally: SquadUnitState): number {
     return SQUAD_UNIT_STATS[ally.unitId].collisionRadius;
+  }
+
+  private getAllyWeight(ally: SquadUnitState): number {
+    if (ally.unitId === 'shield_guard') return 2.2;
+    if (ally.role === 'melee') return 0.78;
+    return 1;
   }
 
   private getEnemyRadius(enemy: EnemyUnitState): number {

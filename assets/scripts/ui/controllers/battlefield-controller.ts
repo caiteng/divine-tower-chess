@@ -9,6 +9,10 @@ import { EnemyView } from '../views/enemy-view';
 import { UnitView } from '../views/unit-view';
 
 const { ccclass } = _decorator;
+const FIELD_WIDTH = 920;
+const FIELD_HEIGHT = 540;
+const FIELD_BG_WIDTH = 908;
+const FIELD_BG_HEIGHT = 516;
 
 @ccclass('BattlefieldController')
 export class BattlefieldController extends Component {
@@ -33,13 +37,13 @@ export class BattlefieldController extends Component {
   public initialize(): void {
     this.node.layer = Layers.Enum.UI_2D;
     const transform = this.node.getComponent(UITransform) ?? this.node.addComponent(UITransform);
-    transform.setContentSize(920, 390);
+    transform.setContentSize(FIELD_WIDTH, FIELD_HEIGHT);
 
     const bg = new Node('BattleBg');
     bg.layer = Layers.Enum.UI_2D;
     this.node.addChild(bg);
-    bg.addComponent(UITransform).setContentSize(888, 348);
-    bg.setPosition(new Vec3(0, 20, 0));
+    bg.addComponent(UITransform).setContentSize(FIELD_BG_WIDTH, FIELD_BG_HEIGHT);
+    bg.setPosition(new Vec3(0, 0, 0));
     const bgSprite = bg.addComponent(Sprite);
     bgSprite.sizeMode = Sprite.SizeMode.CUSTOM;
     bgSprite.color = new Color(31, 79, 91, 255);
@@ -48,8 +52,8 @@ export class BattlefieldController extends Component {
     const dimNode = new Node('Dimmer');
     dimNode.layer = Layers.Enum.UI_2D;
     this.node.addChild(dimNode);
-    dimNode.addComponent(UITransform).setContentSize(888, 348);
-    dimNode.setPosition(new Vec3(0, 20, 0));
+    dimNode.addComponent(UITransform).setContentSize(FIELD_BG_WIDTH, FIELD_BG_HEIGHT);
+    dimNode.setPosition(new Vec3(0, 0, 0));
     const dimSprite = dimNode.addComponent(Sprite);
     dimSprite.color = new Color(2, 6, 23, 255);
     this.dimmer = dimNode.addComponent(UIOpacity);
@@ -59,21 +63,21 @@ export class BattlefieldController extends Component {
     ground.layer = Layers.Enum.UI_2D;
     this.node.addChild(ground);
     const groundTransform = ground.addComponent(UITransform);
-    groundTransform.setContentSize(888, 348);
-    ground.setPosition(new Vec3(0, 20, 0));
+    groundTransform.setContentSize(FIELD_BG_WIDTH, FIELD_BG_HEIGHT);
+    ground.setPosition(new Vec3(0, 0, 0));
     ground.on(Node.EventType.TOUCH_END, (...args: unknown[]) => {
       const event = args[0] as { getUILocation: () => { x: number; y: number } };
       const uiPoint = event.getUILocation();
       const local = groundTransform.convertToNodeSpaceAR(new Vec3(uiPoint.x, uiPoint.y, 0));
-      const worldX = ((local.x / 888) + 0.5) * 1200;
-      const worldY = (0.5 - (local.y / 348)) * 700;
+      const worldX = ((local.x / FIELD_BG_WIDTH) + 0.5) * 1200;
+      const worldY = (0.5 - (local.y / FIELD_BG_HEIGHT)) * 700;
       this.onGroundClick?.(Math.max(0, Math.min(1200, worldX)), Math.max(0, Math.min(700, worldY)));
     }, this);
 
     this.commandLayer = new Node('CommandLayer');
     this.commandLayer.layer = Layers.Enum.UI_2D;
     this.node.addChild(this.commandLayer);
-    this.commandLayer.addComponent(UITransform).setContentSize(888, 348);
+    this.commandLayer.addComponent(UITransform).setContentSize(FIELD_BG_WIDTH, FIELD_BG_HEIGHT);
 
     this.allyLayer = new Node('Allies');
     this.allyLayer.layer = Layers.Enum.UI_2D;
@@ -95,7 +99,7 @@ export class BattlefieldController extends Component {
     title.layer = Layers.Enum.UI_2D;
     this.node.addChild(title);
     title.addComponent(UITransform).setContentSize(500, 24);
-    title.setPosition(new Vec3(-180, 198, 0));
+    title.setPosition(new Vec3(-180, 258, 0));
     const label = title.addComponent(Label);
     label.fontSize = 14;
     label.string = '战场：点己方单位后，可点地面移动、点敌人集火、牧师点友军持续治疗';
@@ -238,9 +242,14 @@ export class BattlefieldController extends Component {
 
   private getUnitAnimationClip(unit: SquadUnitState): UnitAnimationClip {
     if (!unit.alive) return 'death_fall';
-    if ((unit.hurtTimeLeft ?? 0) > 0) return 'hurt';
-    if (unit.attackCooldownLeft > 0 || unit.command.type === 'channel_heal') return 'attack';
-    if (Math.hypot(unit.velocity.x, unit.velocity.y) > 1 || unit.command.type === 'move') return 'move';
+    const speed = Math.hypot(unit.velocity.x, unit.velocity.y);
+    if ((unit.hurtTimeLeft ?? 0) > 0) {
+      if (unit.unitId === 'shield_guard' && speed <= 1) return 'block';
+      return 'hurt';
+    }
+    if (speed > 1 || unit.command.type === 'move') return 'move';
+    if ((unit.attackWindupLeft ?? 0) > 0 || (unit.attackReleaseTimeLeft ?? 0) > 0 || unit.command.type === 'channel_heal') return 'attack';
+    if (unit.unitId === 'shield_guard' && unit.command.type === 'focus_enemy') return 'idleHeavy';
     return 'idle';
   }
 
@@ -258,7 +267,7 @@ export class BattlefieldController extends Component {
 
     const lineNode = new Node(`CmdLine-${text}`);
     this.commandLayer.addChild(lineNode);
-    lineNode.addComponent(UITransform).setContentSize(888, 348);
+    lineNode.addComponent(UITransform).setContentSize(FIELD_BG_WIDTH, FIELD_BG_HEIGHT);
     const graphics = lineNode.addComponent(Graphics);
     graphics.lineWidth = 3;
     graphics.strokeColor = color;
@@ -392,7 +401,7 @@ export class BattlefieldController extends Component {
     const toPos = this.worldToUi(to.x, to.y);
     const lineNode = new Node('EffectLine');
     this.commandLayer.addChild(lineNode);
-    lineNode.addComponent(UITransform).setContentSize(888, 348);
+    lineNode.addComponent(UITransform).setContentSize(FIELD_BG_WIDTH, FIELD_BG_HEIGHT);
     const graphics = lineNode.addComponent(Graphics);
     graphics.lineWidth = width;
     graphics.strokeColor = color;
@@ -450,8 +459,8 @@ export class BattlefieldController extends Component {
 
   private worldToUi(worldX: number, worldY: number): { x: number; y: number } {
     return {
-      x: (worldX / 1200 - 0.5) * 888,
-      y: (0.5 - worldY / 700) * 348 + 20,
+      x: (worldX / 1200 - 0.5) * FIELD_BG_WIDTH,
+      y: (0.5 - worldY / 700) * FIELD_BG_HEIGHT,
     };
   }
 

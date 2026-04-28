@@ -3,6 +3,7 @@ import type { BattleEffectState, EnemyUnitState, SquadUnitState } from '../types
 import { distance } from './math';
 
 const clampPierce = (pierceRatio: number): number => Math.max(0, Math.min(0.9, pierceRatio));
+const ATTACK_RELEASE_FEEDBACK_TIME = 0.22;
 
 export function scaleArmorPierce(basePierceRatio: number, star: 1 | 2 | 3): number {
   return clampPierce(basePierceRatio + (star - 1) * 0.12);
@@ -28,11 +29,14 @@ export class AttackSystem {
 
     const effects: Omit<BattleEffectState, 'id' | 'age'>[] = [];
     if (attacker.role === 'ranged') {
-      effects.push({ kind: 'projectile', from: { ...attacker.position }, to: { ...target.position }, ttl: 0.22 });
+      effects.push({ kind: 'projectile', from: { ...attacker.position }, to: { ...target.position }, ttl: 0.22, variant: attacker.unitId === 'archer' ? 'archer_normal' : undefined });
     }
 
     const primary = this.applyDamage(target, scaledDamage, scaleArmorPierce(cfg.armorPierceRatio, attacker.star));
     effects.push({ kind: 'damage', to: { ...target.position }, value: primary.damage, ttl: 0.75 });
+    if (attacker.unitId === 'archer') {
+      effects.push({ kind: 'archer_hit', to: { ...target.position }, ttl: 0.32, variant: 'archer_normal' });
+    }
     const killedPrimary = primary.killed;
     if (killedPrimary) {
       effects.push({ kind: 'death', to: { ...target.position }, ttl: 0.62 });
@@ -51,6 +55,7 @@ export class AttackSystem {
       }
     }
     attacker.attackCooldownLeft = cfg.attackInterval;
+    attacker.attackReleaseTimeLeft = ATTACK_RELEASE_FEEDBACK_TIME;
     return { attacked: true, killed: killedPrimary, kills, effects };
   }
 

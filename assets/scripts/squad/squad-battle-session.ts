@@ -14,6 +14,7 @@ import { HealingSystem } from './systems/healing-system';
 import { CollisionSystem } from './systems/collision-system';
 import { MovementSystem } from './systems/movement-system';
 import { RosterSystem } from './systems/roster-system';
+import { SkillSystem } from './systems/skill-system';
 import { TargetingSystem } from './systems/targeting-system';
 import { UnitCommandSystem } from './systems/unit-command-system';
 import type { BattleEffectState, BattleOutcome, EnemyUnitState, SquadBattlePhase, SquadBattleSaveData, SquadBattleSnapshot, SquadUnitState, Vec2, WaveSpawnPlan } from './types';
@@ -26,6 +27,7 @@ export class SquadBattleSession {
   private readonly targetingSystem = new TargetingSystem();
   private readonly attackSystem = new AttackSystem();
   private readonly healingSystem = new HealingSystem();
+  private readonly skillSystem = new SkillSystem();
   private readonly enemyAiSystem = new EnemyAiSystem();
   private readonly collisionSystem = new CollisionSystem();
   private selectedStarterUnitId: UnitId | undefined;
@@ -149,6 +151,7 @@ export class SquadBattleSession {
     const healingByUnit: Record<string, number> = {};
     this.tickBattleEffects(dt);
     this.tickAllyHurtTimers(dt);
+    this.skillSystem.tickCooldowns(this.allies, dt);
 
     this.tickAllies(dt, killsByUnit, healingByUnit);
     this.addBattleEffects(this.enemyAiSystem.tick(this.enemies, this.allies, dt));
@@ -250,6 +253,25 @@ export class SquadBattleSession {
     return this.commandSystem.issueChannelHealAlly(allyInstanceId, this.allies);
   }
 
+  public castSelectedSkill(skillId: string): { casted: boolean; reason?: string } {
+    if (this.phase !== 'battle') return { casted: false, reason: '技能只能在战斗阶段使用。' };
+    const selectedUnitId = this.commandSystem.getSelectedUnitId();
+    const caster = selectedUnitId
+      ? this.allies.find((ally) => ally.instanceId === selectedUnitId && ally.alive)
+      : undefined;
+    if (!caster) return { casted: false, reason: '请先选择一个战场单位。' };
+
+    const result = this.skillSystem.cast(skillId, caster, this.enemies);
+    if (!result.casted) return { casted: false, reason: result.reason };
+
+    this.addBattleEffects(result.effects);
+    if (result.kills > 0) {
+      this.divine.addMetric(caster.instanceId, 'kills', result.kills);
+    }
+    this.enemies = this.enemies.filter((enemy) => enemy.alive);
+    return { casted: true };
+  }
+
   public sellUnit(instanceId: string): boolean {
     if (this.phase !== 'prep') return false;
     const snap = this.getSnapshot();
@@ -285,7 +307,7 @@ export class SquadBattleSession {
       },
       uiState: { ...this.uiState },
       selectedUnitId: this.commandSystem.getSelectedUnitId(),
-      allies: this.allies.map((u) => ({ ...u, position: { ...u.position }, velocity: { ...u.velocity }, command: { ...u.command } })),
+      allies: this.allies.map((u) => ({ ...u, position: { ...u.position }, velocity: { ...u.velocity }, command: { ...u.command }, skillCooldowns: { ...(u.skillCooldowns ?? {}) } })),
       enemies: this.enemies.map((e) => ({ ...e, position: { ...e.position }, velocity: { ...e.velocity } })),
       battleEffects: this.battleEffects.map((effect) => ({ ...effect, from: effect.from ? { ...effect.from } : undefined, to: { ...effect.to } })),
     };
@@ -304,7 +326,7 @@ export class SquadBattleSession {
       selectedStarterUnitId: this.selectedStarterUnitId,
       pendingBattleStart: this.pendingBattleStart,
       uiState: { ...this.uiState },
-      allies: this.allies.map((u) => ({ ...u, position: { ...u.position }, velocity: { ...u.velocity }, command: { ...u.command } })),
+      allies: this.allies.map((u) => ({ ...u, position: { ...u.position }, velocity: { ...u.velocity }, command: { ...u.command }, skillCooldowns: { ...(u.skillCooldowns ?? {}) } })),
       enemies: this.enemies.map((e) => ({ ...e, position: { ...e.position }, velocity: { ...e.velocity } })),
     };
   }
@@ -325,7 +347,7 @@ export class SquadBattleSession {
     this.roster.setState(data.bench, data.deployed);
     this.divine = new DivineTaskSystem();
     this.divine.setAllProgress(data.divineTasks.map((progress) => ({ ...progress })));
-    this.allies = data.allies.map((u) => ({ ...u, position: { ...u.position }, velocity: { ...u.velocity }, command: { ...u.command } }));
+    this.allies = data.allies.map((u) => ({ ...u, position: { ...u.position }, velocity: { ...u.velocity }, command: { ...u.command }, skillCooldowns: { ...(u.skillCooldowns ?? {}) } }));
     this.enemies = data.enemies.map((e) => ({ ...e, position: { ...e.position }, velocity: { ...e.velocity } }));
     this.battleEffects = [];
     this.commandSystem.clearSelection();
@@ -343,6 +365,8 @@ export class SquadBattleSession {
     for (const ally of this.allies) {
       if (!ally.alive) continue;
       ally.attackCooldownLeft = Math.max(0, ally.attackCooldownLeft - dt);
+      ally.attackWindupLeft = Math.max(0, (ally.attackWindupLeft ?? 0) - dt);
+      ally.attackReleaseTimeLeft = Math.max(0, (ally.attackReleaseTimeLeft ?? 0) - dt);
       const cfg = this.getScaledStats(ally.unitId, ally.star);
 
       if (ally.role === 'priest') {
@@ -354,7 +378,17 @@ export class SquadBattleSession {
       }
 
       if (ally.command.type === 'move' && ally.command.position) {
+        this.cancelPendingAttack(ally);
         this.movementSystem.moveTowards(ally, ally.command.position, cfg.moveSpeed, dt);
+        continue;
+      }
+
+      if ((ally.attackWindupLeft ?? 0) > 0 || ally.pendingAttackTargetId) {
+        this.movementSystem.stop(ally);
+        if ((ally.attackWindupLeft ?? 0) <= 0 && ally.pendingAttackTargetId) {
+          const pendingTarget = this.targetingSystem.findEnemyById(ally.pendingAttackTargetId, this.enemies);
+          this.releasePendingAttack(ally, pendingTarget, killsByUnit);
+        }
         continue;
       }
 
@@ -381,13 +415,35 @@ export class SquadBattleSession {
         }
       } else {
         this.movementSystem.stop(ally);
-        const attackResult = this.attackSystem.attackIfPossible(ally, commandTarget, this.enemies);
-        if (attackResult.kills > 0) {
-          killsByUnit[ally.instanceId] = (killsByUnit[ally.instanceId] ?? 0) + attackResult.kills;
-        }
-        this.addBattleEffects(attackResult.effects);
+        this.startAttackWindup(ally, commandTarget);
       }
     }
+  }
+
+  private startAttackWindup(ally: SquadUnitState, target: EnemyUnitState): void {
+    if (ally.attackCooldownLeft > 0) return;
+    const windup = this.getScaledStats(ally.unitId, ally.star).attackWindupTime ?? 0.2;
+    ally.attackWindupLeft = Math.max(0, windup);
+    ally.pendingAttackTargetId = target.instanceId;
+    if (ally.attackWindupLeft <= 0) {
+      this.releasePendingAttack(ally, target, {});
+    }
+  }
+
+  private releasePendingAttack(ally: SquadUnitState, target: EnemyUnitState | undefined, killsByUnit: Record<string, number>): void {
+    ally.attackWindupLeft = 0;
+    ally.pendingAttackTargetId = undefined;
+    if (!target || !target.alive) return;
+    const attackResult = this.attackSystem.attackIfPossible(ally, target, this.enemies);
+    if (attackResult.kills > 0) {
+      killsByUnit[ally.instanceId] = (killsByUnit[ally.instanceId] ?? 0) + attackResult.kills;
+    }
+    this.addBattleEffects(attackResult.effects);
+  }
+
+  private cancelPendingAttack(ally: SquadUnitState): void {
+    ally.attackWindupLeft = 0;
+    ally.pendingAttackTargetId = undefined;
   }
 
   private tickPriest(priest: SquadUnitState, dt: number): number {
@@ -465,6 +521,10 @@ export class SquadBattleSession {
       velocity: { x: 0, y: 0 },
         currentHp: this.getScaledStats(unit.unitId, unit.star).maxHp,
         attackCooldownLeft: 0,
+        attackWindupLeft: 0,
+        attackReleaseTimeLeft: 0,
+        pendingAttackTargetId: undefined,
+        skillCooldowns: {},
         hurtTimeLeft: 0,
         alive: true,
       assignedTaskId: unit.assignedTaskId,

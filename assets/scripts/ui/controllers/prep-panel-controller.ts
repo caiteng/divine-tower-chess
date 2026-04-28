@@ -1,6 +1,7 @@
 import { _decorator, Button, Color, Component, Graphics, Label, Layers, Node, Sprite, SpriteFrame, UITransform, Vec3 } from 'cc';
 import { SHOP_UNIT_POOL, UNIT_CONFIG } from '../../config/unit-config';
 import type { UnitId } from '../../models/types';
+import { getScaledUnitMaxHp, SQUAD_UNIT_STATS } from '../../squad/config/squad-battle-config';
 import type { RosterUnitState, SquadBattleSnapshot } from '../../squad/types';
 import { UiIconResolver, UnitSpriteResolver } from '../resources/sprite-resolvers';
 
@@ -9,6 +10,8 @@ const SHOP_CARD_WIDTH = 132;
 const SHOP_CARD_HEIGHT = 76;
 const ROSTER_CARD_WIDTH = 92;
 const ROSTER_CARD_HEIGHT = 66;
+const PREP_PANEL_WIDTH = 920;
+const PREP_PANEL_HEIGHT = 560;
 
 @ccclass('PrepPanelController')
 export class PrepPanelController extends Component {
@@ -18,6 +21,7 @@ export class PrepPanelController extends Component {
   private goldFrame: SpriteFrame | null = null;
 
   public onBuy?: (index: number) => void;
+  public onSelectUnit?: (id: string) => void;
   public onDeploy?: (id: string) => void;
   public onRecall?: (id: string) => void;
   public onSell?: () => void;
@@ -29,10 +33,10 @@ export class PrepPanelController extends Component {
   public initialize(): void {
     this.node.layer = Layers.Enum.UI_2D;
     const transform = this.node.getComponent(UITransform) ?? this.node.addComponent(UITransform);
-    transform.setContentSize(920, 240);
-    this.paintRect(this.node, 920, 240, new Color(15, 23, 42, 235));
+    transform.setContentSize(PREP_PANEL_WIDTH, PREP_PANEL_HEIGHT);
+    this.paintRect(this.node, PREP_PANEL_WIDTH, PREP_PANEL_HEIGHT, new Color(15, 23, 42, 245));
 
-    this.infoLabel = this.makeLabel('Info', -430, 100, 840, 14, new Color(251, 191, 36, 255));
+    this.infoLabel = this.makeLabel('Info', -430, 250, 840, 14, new Color(251, 191, 36, 255));
     for (const unitId of SHOP_UNIT_POOL) {
       void this.unitResolver.resolveAvatar(unitId).then((frame) => {
         if (frame) this.avatarFrames.set(unitId, frame);
@@ -45,11 +49,11 @@ export class PrepPanelController extends Component {
 
   public render(snapshot: SquadBattleSnapshot, selectedLabel: string, selectedUnitId?: string): void {
     this.node.removeAllChildren();
-    this.infoLabel = this.makeLabel('Info', -430, 100, 680, 14, new Color(251, 191, 36, 255));
+    this.infoLabel = this.makeLabel('Info', -430, 250, 680, 14, new Color(251, 191, 36, 255));
     this.infoLabel.string = `准备阶段 · 当前选择：${selectedLabel}`;
     this.makeGoldReadout(snapshot.gold);
 
-    this.makeLabel('ShopTitle', -430, 72, 140, 13, new Color(226, 232, 240, 255)).string = '商店（3）';
+    this.makeLabel('ShopTitle', -430, 206, 140, 13, new Color(226, 232, 240, 255)).string = '商店（3）';
     snapshot.shop.forEach((unitId, index) => {
       this.makeUnitCard({
         name: `Buy-${index}`,
@@ -57,7 +61,7 @@ export class PrepPanelController extends Component {
         star: 1,
         text: `${this.getUnitName(unitId)}\n购买`,
         x: -300 + index * 156,
-        y: 42,
+        y: 168,
         width: SHOP_CARD_WIDTH,
         height: SHOP_CARD_HEIGHT,
         selected: false,
@@ -66,44 +70,65 @@ export class PrepPanelController extends Component {
       });
     });
 
-    this.makeLabel('DeployTitle', -430, 20, 140, 13, new Color(226, 232, 240, 255)).string = '上阵区（5）';
+    this.makeLabel('DeployTitle', -430, 76, 140, 13, new Color(226, 232, 240, 255)).string = '上阵区（5）';
     for (let i = 0; i < snapshot.slotConfig.deployed; i += 1) {
       const unit = snapshot.deployed[i];
+      const x = -372 + i * 116;
       if (unit) {
         this.makeUnitCard({
-          name: `Recall-${unit.instanceId}`,
+          name: `Deployed-${unit.instanceId}`,
           unitId: unit.unitId,
           star: unit.star,
-          text: `${unit.isCaptain ? '♛ ' : ''}${this.getUnitName(unit.unitId)}★${unit.star}${unit.assignedTaskId ? ' ✦' : ''}\n撤回`,
-          x: -320 + i * 130,
-          y: -8,
-          width: 122,
+          text: `${unit.isCaptain ? '♛ ' : ''}${this.getUnitName(unit.unitId)}★${unit.star}${unit.assignedTaskId ? ' ✦' : ''}\n已上阵`,
+          x,
+          y: 34,
+          width: 104,
           height: 68,
           selected: unit.instanceId === selectedUnitId,
           color: new Color(30, 41, 59, 255),
-          onClick: () => this.onRecall?.(unit.instanceId),
+          onClick: () => this.onSelectUnit?.(unit.instanceId),
         });
       } else {
-        this.makeButton(`DeployEmpty-${i}`, '空位', -320 + i * 130, -8, 122, 68, new Color(51, 65, 85, 160));
+        this.makeButton(`DeployEmpty-${i}`, '空位', x, 34, 104, 68, new Color(51, 65, 85, 160));
       }
     }
 
-    this.makeLabel('BenchTitle', -430, -52, 140, 13, new Color(226, 232, 240, 255)).string = '备战区（8）';
+    this.makeLabel('BenchTitle', -430, -72, 140, 13, new Color(226, 232, 240, 255)).string = '备战区（8）';
     for (let i = 0; i < snapshot.slotConfig.bench; i += 1) {
       const unit = snapshot.bench[i];
-      const x = -382 + i * 96;
-      const y = -82;
+      const col = i % 4;
+      const row = Math.floor(i / 4);
+      const x = -376 + col * 106;
+      const y = -110 - row * 74;
       if (unit) {
-        this.makeRosterCard(unit, x, y, unit.instanceId === selectedUnitId, () => this.onDeploy?.(unit.instanceId));
+        this.makeRosterCard(unit, x, y, unit.instanceId === selectedUnitId, () => this.onSelectUnit?.(unit.instanceId));
       } else {
         this.makeButton(`BenchEmpty-${i}`, '空位', x, y, ROSTER_CARD_WIDTH, ROSTER_CARD_HEIGHT, new Color(51, 65, 85, 160));
       }
     }
 
-    this.makeButton('Sell', '卖出选中', 330, 52, 160, 34, new Color(127, 29, 29, 255), () => this.onSell?.());
-    this.makeButton('Refresh', '刷新商店', 330, 8, 160, 34, new Color(37, 99, 235, 255), () => this.onRefresh?.());
-    this.makeButton('Start', '开始下一波', 330, -36, 160, 34, new Color(21, 128, 61, 255), () => this.onStartWave?.());
-    this.makeLabel('Hint', -430, -116, 860, 12, new Color(191, 219, 254, 255)).string = this.buildHint(snapshot, selectedUnitId);
+    const selectedRosterUnit = this.findSelectedRosterUnit(snapshot, selectedUnitId);
+    const selectedInBench = Boolean(selectedRosterUnit && snapshot.bench.some((unit) => unit.instanceId === selectedRosterUnit.instanceId));
+    const selectedInDeployed = Boolean(selectedRosterUnit && snapshot.deployed.some((unit) => unit.instanceId === selectedRosterUnit.instanceId));
+    this.makeButton(
+      'RosterAction',
+      selectedInBench ? '上阵选中' : selectedInDeployed ? '下阵选中' : '选择单位',
+      374,
+      168,
+      160,
+      34,
+      selectedRosterUnit ? new Color(21, 128, 61, 255) : new Color(71, 85, 105, 210),
+      selectedInBench
+        ? () => this.onDeploy?.(selectedRosterUnit!.instanceId)
+        : selectedInDeployed
+          ? () => this.onRecall?.(selectedRosterUnit!.instanceId)
+          : undefined,
+    );
+    this.makeButton('Sell', '卖出选中', 374, 120, 160, 34, selectedRosterUnit ? new Color(127, 29, 29, 255) : new Color(71, 85, 105, 210), selectedRosterUnit ? () => this.onSell?.() : undefined);
+    this.makeButton('Refresh', '刷新商店', 374, 72, 160, 34, new Color(37, 99, 235, 255), () => this.onRefresh?.());
+    this.makeButton('Start', '开始下一波', 374, 24, 160, 34, new Color(21, 128, 61, 255), () => this.onStartWave?.());
+    this.makeSelectedInfoPanel(snapshot, selectedRosterUnit);
+    this.makeLabel('Hint', -430, -254, 860, 12, new Color(191, 219, 254, 255)).string = this.buildHint(snapshot, selectedUnitId);
   }
 
   private buildHint(snapshot: SquadBattleSnapshot, selectedUnitId?: string): string {
@@ -137,11 +162,80 @@ export class PrepPanelController extends Component {
     return UNIT_CONFIG[unitId]?.name ?? unitId;
   }
 
+  private findSelectedRosterUnit(snapshot: SquadBattleSnapshot, selectedUnitId?: string): RosterUnitState | undefined {
+    if (!selectedUnitId) return undefined;
+    return [...snapshot.deployed, ...snapshot.bench].find((unit) => unit.instanceId === selectedUnitId);
+  }
+
+  private makeSelectedInfoPanel(snapshot: SquadBattleSnapshot, unit: RosterUnitState | undefined): void {
+    const panel = new Node('SelectedInfoPanel');
+    panel.layer = Layers.Enum.UI_2D;
+    this.node.addChild(panel);
+    panel.setPosition(new Vec3(322, -106, 0));
+    panel.addComponent(UITransform).setContentSize(220, 220);
+    this.paintRect(panel, 220, 220, new Color(15, 23, 42, 240), new Color(148, 163, 184, 100));
+
+    if (!unit) {
+      const empty = this.makeLabel('SelectedInfoEmpty', 0, 44, 190, 13, new Color(203, 213, 225, 255), panel);
+      empty.string = '选中一个上阵区或备战区单位';
+      const hint = this.makeLabel('SelectedInfoHint', 0, 10, 190, 11, new Color(148, 163, 184, 255), panel);
+      hint.string = '这里会显示头像、属性和神品任务进度';
+      return;
+    }
+
+    const avatarNode = new Node('SelectedAvatar');
+    avatarNode.layer = Layers.Enum.UI_2D;
+    panel.addChild(avatarNode);
+    avatarNode.setPosition(new Vec3(-72, 64, 0));
+    avatarNode.addComponent(UITransform).setContentSize(58, 58);
+    const avatar = avatarNode.addComponent(Sprite);
+    avatar.sizeMode = Sprite.SizeMode.CUSTOM;
+    avatar.color = new Color(148, 163, 184, 255);
+    const cachedFrame = this.avatarFrames.get(unit.unitId);
+    if (cachedFrame) {
+      avatar.spriteFrame = cachedFrame;
+      avatar.color = new Color(255, 255, 255, 255);
+    } else {
+      void this.unitResolver.resolveAvatar(unit.unitId).then((frame) => {
+        if (!frame || !avatar.node.parent) return;
+        this.avatarFrames.set(unit.unitId, frame);
+        avatar.spriteFrame = frame;
+        avatar.color = new Color(255, 255, 255, 255);
+      });
+    }
+
+    const title = this.makeLabel('SelectedTitle', -28, 82, 140, 13, new Color(248, 250, 252, 255), panel);
+    title.string = `${unit.isCaptain ? '♛ ' : ''}${this.getUnitName(unit.unitId)} ★${unit.star}`;
+    const idLabel = this.makeLabel('SelectedId', -28, 58, 140, 10, new Color(148, 163, 184, 255), panel);
+    idLabel.string = `实例 ${unit.instanceId.slice(-6)}${unit.assignedTaskId ? '  ✦' : ''}`;
+
+    const stats = SQUAD_UNIT_STATS[unit.unitId];
+    const maxHp = getScaledUnitMaxHp(unit.unitId, unit.star);
+    const damage = Math.round(stats.attackDamage * (1 + (unit.star - 1) * 0.8));
+    const pierce = Math.round((stats.armorPierceRatio + (unit.star - 1) * 0.12) * 100);
+    const rows = [
+      `生命 ${maxHp}    护甲 ${stats.armor}`,
+      `攻击 ${damage}    攻速 ${stats.attackInterval.toFixed(2)}s`,
+      `射程 ${stats.attackRange}    移速 ${stats.moveSpeed}`,
+      `穿甲 ${pierce}%    体积 ${stats.collisionRadius}`,
+    ];
+    rows.forEach((text, index) => {
+      const row = this.makeLabel(`SelectedStat-${index}`, -98, 24 - index * 22, 190, 11, new Color(226, 232, 240, 255), panel);
+      row.string = text;
+    });
+
+    const task = snapshot.divineTasks.find((entry) => entry.unitInstanceId === unit.instanceId);
+    const taskLabel = this.makeLabel('SelectedTask', -98, -78, 194, 11, task ? new Color(251, 191, 36, 255) : new Color(148, 163, 184, 255), panel);
+    taskLabel.string = task
+      ? `神品任务 ${task.divineTaskId ?? '-'} · ${Math.floor(task.divineProgress ?? 0)}`
+      : '神品任务：无';
+  }
+
   private makeGoldReadout(gold: number): void {
     const node = new Node('GoldReadout');
     node.layer = Layers.Enum.UI_2D;
     this.node.addChild(node);
-    node.setPosition(new Vec3(302, 100, 0));
+    node.setPosition(new Vec3(302, 250, 0));
     node.addComponent(UITransform).setContentSize(150, 28);
 
     const iconNode = new Node('GoldIcon');
@@ -173,7 +267,7 @@ export class PrepPanelController extends Component {
       name: `Deploy-${unit.instanceId}`,
       unitId: unit.unitId,
       star: unit.star,
-      text: `${unit.isCaptain ? '♛ ' : ''}${this.getUnitName(unit.unitId)}★${unit.star}${unit.assignedTaskId ? ' ✦' : ''}\n上阵`,
+      text: `${unit.isCaptain ? '♛ ' : ''}${this.getUnitName(unit.unitId)}★${unit.star}${unit.assignedTaskId ? ' ✦' : ''}\n备战`,
       x,
       y,
       width: ROSTER_CARD_WIDTH,
