@@ -408,7 +408,9 @@ export class SquadBattleSession {
 
       const dist = Math.hypot(commandTarget.position.x - ally.position.x, commandTarget.position.y - ally.position.y);
       if (dist > cfg.attackRange) {
-        if (ally.command.type === 'focus_enemy' || ally.role === 'melee') {
+        const hasNearbyCombat = this.hasNearbyCombatEnemy(ally, cfg.attackRange + 25);
+        const canIdleApproach = ally.role === 'melee' && !hasNearbyCombat && dist <= cfg.reactionRange;
+        if (ally.command.type === 'focus_enemy' || canIdleApproach) {
           this.movementSystem.moveTowards(ally, commandTarget.position, cfg.moveSpeed, dt, cfg.attackRange * 0.9);
         } else {
           this.movementSystem.stop(ally);
@@ -418,6 +420,13 @@ export class SquadBattleSession {
         this.startAttackWindup(ally, commandTarget);
       }
     }
+  }
+
+  private hasNearbyCombatEnemy(ally: SquadUnitState, range: number): boolean {
+    return this.enemies.some((enemy) => (
+      enemy.alive
+      && Math.hypot(enemy.position.x - ally.position.x, enemy.position.y - ally.position.y) <= range
+    ));
   }
 
   private startAttackWindup(ally: SquadUnitState, target: EnemyUnitState): void {

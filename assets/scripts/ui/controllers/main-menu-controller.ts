@@ -1,5 +1,4 @@
 import { _decorator, Button, Color, Component, Label, Layers, Node, Sprite, UITransform, Vec3 } from 'cc';
-import type { DifficultyId } from '../../models/types';
 import type { SavedAchievements, SavedAudioSettings } from '../../squad/types';
 import { BackgroundResolver } from '../resources/sprite-resolvers';
 
@@ -11,7 +10,6 @@ type MenuPanelId = 'settings' | 'credits' | 'achievements';
 export class MainMenuController extends Component {
   public onStart?: () => void;
   public onLoadRequested?: () => void;
-  public onDifficultySelected?: (difficulty: DifficultyId) => void;
   public onSettingAdjusted?: (key: keyof SavedAudioSettings, nextValue: number) => void;
 
   private panelNode: Node | null = null;
@@ -23,7 +21,6 @@ export class MainMenuController extends Component {
   private settings: SavedAudioSettings = { master: 80, music: 70, sfx: 80 };
   private achievements: SavedAchievements = { firstClear: false };
   private hasRunSave = false;
-  private selectedDifficulty: DifficultyId = 'beginner';
   private readonly backgroundResolver = new BackgroundResolver();
 
   public initialize(): void {
@@ -39,19 +36,14 @@ export class MainMenuController extends Component {
     this.makeStripe('TopShade', 0, 210, 960, 180, new Color(2, 6, 23, 118));
     this.makeStripe('BottomShade', 0, -174, 960, 260, new Color(2, 6, 23, 150));
 
-    this.makeLabel('Title', '角斗场：试炼之环', 0, 168, 760, 36, new Color(248, 250, 252, 255));
-    this.makeLabel('Subtitle', '2D 小队实时指挥战斗原型', 0, 124, 640, 16, new Color(148, 163, 184, 255));
-    this.makeLabel('Tagline', '先从主菜单进入，再进入准备阶段和实时指挥战斗。', 0, 88, 640, 14, new Color(191, 219, 254, 255));
+    this.makeLabel('Title', '角斗场：试炼之环', 0, 176, 760, 36, new Color(248, 250, 252, 255));
+    this.makeLabel('Subtitle', '2D 小队实时指挥战斗原型', 0, 132, 640, 16, new Color(148, 163, 184, 255));
+    this.makeLabel('Tagline', '点击开始后选择难度和初始职业，再进入准备阶段与实时指挥战斗。', 0, 96, 700, 14, new Color(191, 219, 254, 255));
 
-    this.makeDifficultyButton('BeginnerDifficulty', '新手', -204, 52, 'beginner');
-    this.makeDifficultyButton('NormalDifficulty', '普通', -68, 52, 'normal');
-    this.makeDifficultyButton('HardDifficulty', '困难', 68, 52, 'hard');
-    this.makeDifficultyButton('EndlessDifficulty', '无尽', 204, 52, 'endless');
-
-    this.makeMenuButton('StartButton', '开始', 0, -12, new Color(21, 128, 61, 255), () => this.onStart?.());
-    this.makeMenuButton('LoadButton', '载入', 0, -78, new Color(37, 99, 235, 255), () => this.onLoadRequested?.());
-    this.makeMenuButton('SettingsButton', '设置', 0, -144, new Color(71, 85, 105, 255), () => this.showPanel('settings'));
-    this.makeMenuButton('CreditsButton', '鸣谢', 0, -210, new Color(120, 53, 15, 255), () => this.showPanel('credits'));
+    this.makeMenuButton('StartButton', '开始', 0, 28, new Color(21, 128, 61, 255), () => this.onStart?.());
+    this.makeMenuButton('LoadButton', '载入', 0, -30, new Color(37, 99, 235, 255), () => this.onLoadRequested?.());
+    this.makeMenuButton('SettingsButton', '设置', 0, -88, new Color(71, 85, 105, 255), () => this.showPanel('settings'));
+    this.makeMenuButton('CreditsButton', '鸣谢', 0, -146, new Color(120, 53, 15, 255), () => this.showPanel('credits'));
     this.makePanelButton(this.node, 'AchievementsButton', '成就', 332, 246, 120, 40, new Color(76, 29, 149, 255), () => this.showPanel('achievements'));
 
     this.footerLabel = this.makeLabel('Footer', '当前版本：可玩原型，主循环已接通。', 0, -276, 720, 13, new Color(226, 232, 240, 255));
@@ -83,11 +75,6 @@ export class MainMenuController extends Component {
   public setHasRunSave(hasSave: boolean): void {
     this.hasRunSave = hasSave;
     this.syncLoadButtonState();
-  }
-
-  public setSelectedDifficulty(difficulty: DifficultyId): void {
-    this.selectedDifficulty = difficulty;
-    this.setFooterText(`当前难度：${this.getDifficultyName(difficulty)}。点击开始选择初始职业。`);
   }
 
   public showPanel(panel: MenuPanelId): void {
@@ -223,21 +210,6 @@ export class MainMenuController extends Component {
     if (!frame || !bg.node.parent) return;
     bg.spriteFrame = frame;
     bg.color = new Color(255, 255, 255, 255);
-  }
-
-  private makeDifficultyButton(name: string, text: string, x: number, y: number, difficulty: DifficultyId): void {
-    this.makePanelButton(this.node, name, text, x, y, 108, 34, new Color(30, 64, 175, 255), () => {
-      this.selectedDifficulty = difficulty;
-      this.onDifficultySelected?.(difficulty);
-      this.setFooterText(`当前难度：${this.getDifficultyName(difficulty)}。点击开始选择初始职业。`);
-    });
-  }
-
-  private getDifficultyName(difficulty: DifficultyId): string {
-    if (difficulty === 'beginner') return '新手';
-    if (difficulty === 'normal') return '普通';
-    if (difficulty === 'hard') return '困难';
-    return '无尽';
   }
 
   private makePanelButton(parent: Node, name: string, text: string, x: number, y: number, width: number, height: number, color: Color, onClick: () => void): void {

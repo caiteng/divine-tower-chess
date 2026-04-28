@@ -38,8 +38,8 @@ export class RosterSystem {
       isCaptain: template.isCaptain,
     };
     this.bench.push(instance);
-    this.tryMerge(template.unitId, 1);
-    return instance;
+    const mergedUnit = this.tryMerge(template.unitId, 1);
+    return this.findByInstanceId(instance.instanceId) ?? mergedUnit ?? null;
   }
 
   public deploy(instanceId: string): boolean {
@@ -112,9 +112,9 @@ export class RosterSystem {
     return [...this.bench, ...this.deployed].find((u) => u.instanceId === instanceId);
   }
 
-  private tryMerge(unitId: UnitId, star: 1 | 2): void {
+  private tryMerge(unitId: UnitId, star: 1 | 2): RosterUnitState | undefined {
     const candidates = this.getMergeCandidates(unitId, star);
-    if (candidates.length < 3) return;
+    if (candidates.length < 3) return undefined;
 
     const selected = candidates.slice(0, 3);
     const keep = selected[0];
@@ -125,8 +125,9 @@ export class RosterSystem {
 
     keep.unit.star = (star + 1) as 2 | 3;
     if (star === 1) {
-      this.tryMerge(unitId, 2);
+      return this.tryMerge(unitId, 2) ?? keep.unit;
     }
+    return keep.unit;
   }
 
   private getMergeCandidates(unitId: UnitId, star: 1 | 2): MergeCandidate[] {

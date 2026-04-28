@@ -4,8 +4,10 @@ import { CollisionSystem } from '../assets/scripts/squad/systems/collision-syste
 import { AttackSystem, applyArmor, scaleArmorPierce } from '../assets/scripts/squad/systems/attack-system';
 import { EnemyAiSystem } from '../assets/scripts/squad/systems/enemy-ai-system';
 import { RosterSystem } from '../assets/scripts/squad/systems/roster-system';
+import { MovementSystem } from '../assets/scripts/squad/systems/movement-system';
+import { UnitCommandSystem } from '../assets/scripts/squad/systems/unit-command-system';
 import { SquadBattleSession } from '../assets/scripts/squad/squad-battle-session';
-import { ENEMY_STATS, getScaledUnitMaxHp, SQUAD_UNIT_STATS } from '../assets/scripts/squad/config/squad-battle-config';
+import { ENEMY_STATS, getScaledUnitMaxHp, SQUAD_BATTLEFIELD, SQUAD_UNIT_STATS } from '../assets/scripts/squad/config/squad-battle-config';
 import { SQUAD_BENCH_SLOTS } from '../assets/scripts/squad/config/squad-ui-layout-config';
 import type { EnemyUnitState, SquadUnitState } from '../assets/scripts/squad/types';
 
@@ -44,6 +46,19 @@ function verifyMergeCapsAt3Star(): void {
 
   const stars = roster.getAllUnits().map((u) => u.star).sort();
   assertRule(stars.includes(3), 'existing 3-star must remain and not be consumed by normal merge');
+}
+
+function verifyMergedPurchaseReturnsLiveUnit(): void {
+  const roster = new RosterSystem();
+
+  roster.addToBenchWithState({ instanceId: 'merge-a', unitId: 'warrior', star: 1 });
+  roster.addToBenchWithState({ instanceId: 'merge-b', unitId: 'warrior', star: 1 });
+  const returned = roster.addToBenchWithState({ instanceId: 'merge-c', unitId: 'warrior', star: 1 });
+  const all = roster.getAllUnits();
+
+  assertRule(all.length === 1, 'three same 1-star units should collapse to one roster instance');
+  assertRule(returned?.instanceId === all[0].instanceId, 'addToBenchWithState should return the surviving merged unit');
+  assertRule(returned?.star === 2, 'returned merged unit should expose its new star level');
 }
 
 function verifyActiveDivineTasksAreMergeProtected(): void {
@@ -270,7 +285,7 @@ function verifyEnemiesHoldContactOutsideShieldGuardRadius(): void {
     unitId: 'shield_guard',
     star: 1,
     role: 'melee',
-    position: { x: 500, y: 350 },
+    position: { x: 500, y: SQUAD_BATTLEFIELD.centerLineY },
     velocity: { x: 0, y: 0 },
     currentHp: SQUAD_UNIT_STATS.shield_guard.maxHp,
     attackCooldownLeft: 99,
@@ -281,7 +296,7 @@ function verifyEnemiesHoldContactOutsideShieldGuardRadius(): void {
     {
       instanceId: 'grunt-a',
       enemyType: 'grunt',
-      position: { x: 620, y: 350 },
+      position: { x: 620, y: SQUAD_BATTLEFIELD.centerLineY },
       velocity: { x: 0, y: 0 },
       currentHp: ENEMY_STATS.grunt.maxHp,
       attackCooldownLeft: 99,
@@ -290,7 +305,7 @@ function verifyEnemiesHoldContactOutsideShieldGuardRadius(): void {
     {
       instanceId: 'grunt-b',
       enemyType: 'grunt',
-      position: { x: 626, y: 354 },
+      position: { x: 626, y: SQUAD_BATTLEFIELD.centerLineY + 4 },
       velocity: { x: 0, y: 0 },
       currentHp: ENEMY_STATS.grunt.maxHp,
       attackCooldownLeft: 99,
@@ -299,7 +314,7 @@ function verifyEnemiesHoldContactOutsideShieldGuardRadius(): void {
     {
       instanceId: 'grunt-c',
       enemyType: 'grunt',
-      position: { x: 626, y: 346 },
+      position: { x: 626, y: SQUAD_BATTLEFIELD.centerLineY - 4 },
       velocity: { x: 0, y: 0 },
       currentHp: ENEMY_STATS.grunt.maxHp,
       attackCooldownLeft: 99,
@@ -327,7 +342,7 @@ function verifyEnemyBodyBlockingSteersRearEnemy(): void {
     unitId: 'shield_guard',
     star: 1,
     role: 'melee',
-    position: { x: 500, y: 350 },
+    position: { x: 500, y: SQUAD_BATTLEFIELD.centerLineY },
     velocity: { x: 0, y: 0 },
     currentHp: SQUAD_UNIT_STATS.shield_guard.maxHp,
     attackCooldownLeft: 99,
@@ -337,7 +352,7 @@ function verifyEnemyBodyBlockingSteersRearEnemy(): void {
   const front: EnemyUnitState = {
     instanceId: 'front',
     enemyType: 'grunt',
-    position: { x: 620, y: 350 },
+    position: { x: 620, y: SQUAD_BATTLEFIELD.centerLineY },
     velocity: { x: 0, y: 0 },
     currentHp: ENEMY_STATS.grunt.maxHp,
     attackCooldownLeft: 99,
@@ -346,7 +361,7 @@ function verifyEnemyBodyBlockingSteersRearEnemy(): void {
   const rear: EnemyUnitState = {
     instanceId: 'rear',
     enemyType: 'grunt',
-    position: { x: 660, y: 350 },
+    position: { x: 660, y: SQUAD_BATTLEFIELD.centerLineY },
     velocity: { x: 0, y: 0 },
     currentHp: ENEMY_STATS.grunt.maxHp,
     attackCooldownLeft: 99,
@@ -681,8 +696,128 @@ function verifyWaveRewardLoop(): void {
   assertRule(after.gold > beforeGold, 'clearing a wave should grant gold');
 }
 
+function verifyAllyMovementStaysInLowerCombatArea(): void {
+  const movement = new MovementSystem();
+  const command = new UnitCommandSystem();
+  const warrior: SquadUnitState = {
+    instanceId: 'warrior',
+    unitId: 'warrior',
+    star: 1,
+    role: 'melee',
+    position: { x: 520, y: SQUAD_BATTLEFIELD.centerLineY },
+    velocity: { x: 0, y: 0 },
+    currentHp: SQUAD_UNIT_STATS.warrior.maxHp,
+    attackCooldownLeft: 0,
+    alive: true,
+    command: { type: 'idle' },
+  };
+
+  command.selectUnit('warrior', [warrior]);
+  command.issueMoveToGround({ x: -200, y: 10 }, [warrior]);
+  assertRule(warrior.command.position?.y === SQUAD_BATTLEFIELD.combatYMin, 'player move commands should clamp to lower combat area');
+
+  movement.moveTowards(warrior, { x: -200, y: 10 }, SQUAD_UNIT_STATS.warrior.moveSpeed, 10);
+  assertRule(warrior.position.x >= 0, 'ally movement should not leave left map edge');
+  assertRule(warrior.position.y >= SQUAD_BATTLEFIELD.combatYMin, 'ally movement should not enter upper half background');
+}
+
+function verifyIdleMeleeHoldsWhenAlreadyInCombatBand(): void {
+  const session = new SquadBattleSession();
+  session.loadFromSaveData({
+    difficulty: 'beginner',
+    phase: 'battle',
+    waveNumber: 1,
+    gold: 10,
+    shop: ['warrior', 'mage', 'priest'],
+    bench: [],
+    deployed: [],
+    divineTasks: [],
+    pendingBattleStart: false,
+    uiState: {
+      prepPanel: 'hidden',
+      battlefieldLighting: 'bright',
+      transitionProgress: 1,
+      nextWaveReady: true,
+    },
+    allies: [{
+      instanceId: 'idle-warrior',
+      unitId: 'warrior',
+      star: 1,
+      role: 'melee',
+      position: { x: 520, y: SQUAD_BATTLEFIELD.centerLineY },
+      velocity: { x: 0, y: 0 },
+      currentHp: SQUAD_UNIT_STATS.warrior.maxHp,
+      attackCooldownLeft: 0,
+      alive: true,
+      command: { type: 'idle' },
+    }],
+    enemies: [{
+      instanceId: 'near-combat-band',
+      enemyType: 'grunt',
+      position: { x: 585, y: SQUAD_BATTLEFIELD.centerLineY },
+      velocity: { x: 0, y: 0 },
+      currentHp: ENEMY_STATS.grunt.maxHp,
+      attackCooldownLeft: 0,
+      alive: true,
+    }],
+  });
+
+  const before = session.getSnapshot().allies[0].position.x;
+  session.tick(0.2);
+  const after = session.getSnapshot().allies[0];
+  assertRule(after.position.x <= before + 1, 'idle melee should hold position when already in combat band');
+}
+
+function verifyIdleMeleeCanApproachWhenUnengaged(): void {
+  const session = new SquadBattleSession();
+  session.loadFromSaveData({
+    difficulty: 'beginner',
+    phase: 'battle',
+    waveNumber: 1,
+    gold: 10,
+    shop: ['warrior', 'mage', 'priest'],
+    bench: [],
+    deployed: [],
+    divineTasks: [],
+    pendingBattleStart: false,
+    uiState: {
+      prepPanel: 'hidden',
+      battlefieldLighting: 'bright',
+      transitionProgress: 1,
+      nextWaveReady: true,
+    },
+    allies: [{
+      instanceId: 'idle-warrior',
+      unitId: 'warrior',
+      star: 1,
+      role: 'melee',
+      position: { x: 520, y: SQUAD_BATTLEFIELD.centerLineY },
+      velocity: { x: 0, y: 0 },
+      currentHp: SQUAD_UNIT_STATS.warrior.maxHp,
+      attackCooldownLeft: 0,
+      alive: true,
+      command: { type: 'idle' },
+    }],
+    enemies: [{
+      instanceId: 'approach-target',
+      enemyType: 'grunt',
+      position: { x: 650, y: SQUAD_BATTLEFIELD.centerLineY },
+      velocity: { x: 0, y: 0 },
+      currentHp: ENEMY_STATS.grunt.maxHp,
+      attackCooldownLeft: 0,
+      alive: true,
+    }],
+  });
+
+  const before = session.getSnapshot().allies[0].position.x;
+  session.tick(0.2);
+  const after = session.getSnapshot().allies[0];
+  assertRule(after.position.x > before, 'unengaged idle melee should be able to approach a nearby threat');
+}
+
 verifyTaskEligibility();
 verifyMergeCapsAt3Star();
+verifyMergedPurchaseReturnsLiveUnit();
 verifyActiveDivineTasksAreMergeProtected();
 verifyFailedPurchaseKeepsShopEntry();
 verifyActualHealingOnly();
@@ -699,5 +834,8 @@ verifyCollisionPreventsOverlap();
 verifyEnemiesHoldContactOutsideShieldGuardRadius();
 verifyEnemyBodyBlockingSteersRearEnemy();
 verifyWaveRewardLoop();
+verifyAllyMovementStaysInLowerCombatArea();
+verifyIdleMeleeHoldsWhenAlreadyInCombatBand();
+verifyIdleMeleeCanApproachWhenUnengaged();
 
 console.log('Squad rules verified.');

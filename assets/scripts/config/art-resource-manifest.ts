@@ -48,7 +48,7 @@ export const ART_RESOURCE_MANIFEST: ArtResourceManifest = {
         2: 'textures/units/warrior/warrior_star2',
         3: 'textures/units/warrior/warrior_star3',
       },
-      portrait: 'textures/units/warrior/portrait',
+      portrait: 'textures/units/warrior/idle_01',
       idleFrames: [
         'textures/units/warrior/idle_01',
         'textures/units/warrior/idle_02',
@@ -106,7 +106,7 @@ export const ART_RESOURCE_MANIFEST: ArtResourceManifest = {
         2: 'textures/units/archer/archer_star2',
         3: 'textures/units/archer/archer_star3',
       },
-      portrait: 'textures/units/archer/portrait',
+      portrait: 'archer_portrait.png',
       skillIcon: 'textures/units/archer/skill_icon_precision_snipe',
       classEmblem: 'textures/units/archer/class_emblem',
       idleFrames: [
@@ -170,7 +170,7 @@ export const ART_RESOURCE_MANIFEST: ArtResourceManifest = {
         2: 'textures/units/shield_guard/shield_guard_star2',
         3: 'textures/units/shield_guard/shield_guard_star3',
       },
-      portrait: 'textures/units/shield_guard/portrait',
+      portrait: 'shield_guard_portrait.png',
       idleFrames: [
         'textures/units/shield_guard/idle_01',
         'textures/units/shield_guard/idle_02',

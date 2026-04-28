@@ -35,6 +35,7 @@ export class BattleSceneController extends Component {
   private selectedDifficulty: DifficultyId = 'beginner';
 
   private selectedUnitId: string | undefined;
+  private selectedShopIndex: number | undefined;
   private transientNotice: { message: string; until: number } | null = null;
   private moveMarker: { x: number; y: number; until: number } | null = null;
 
@@ -82,15 +83,10 @@ export class BattleSceneController extends Component {
     this.menuController.initialize();
     this.menuController.onStart = () => this.startFromMainMenu();
     this.menuController.onLoadRequested = () => this.loadFromMenu();
-    this.menuController.onDifficultySelected = (difficulty) => {
-      this.selectedDifficulty = difficulty;
-      this.menuController?.setSelectedDifficulty(difficulty);
-    };
     this.menuController.onSettingAdjusted = (key, nextValue) => this.updateSetting(key, nextValue);
     this.menuController.setSettings(this.settings);
     this.menuController.setAchievements(this.achievements);
     this.menuController.setHasRunSave(this.storage.hasRunSave());
-    this.menuController.setSelectedDifficulty(this.selectedDifficulty);
 
     const selectNode = new Node('CharacterSelect');
     selectNode.layer = Layers.Enum.UI_2D;
@@ -100,7 +96,12 @@ export class BattleSceneController extends Component {
     this.selectController = selectNode.addComponent(CharacterSelectController);
     this.selectController.initialize();
     this.selectController.setOptions(SHOP_UNIT_POOL, this.selectedStarterUnitId);
+    this.selectController.setSelectedDifficulty(this.selectedDifficulty);
     this.selectController.onBack = () => this.backToMainMenu();
+    this.selectController.onDifficultySelected = (difficulty) => {
+      this.selectedDifficulty = difficulty;
+      this.selectController?.setSelectedDifficulty(difficulty);
+    };
     this.selectController.onConfirm = (unitId) => this.startBattleRunWithStarter(unitId);
   }
 
@@ -146,10 +147,11 @@ export class BattleSceneController extends Component {
     this.prepController = prepNode.addComponent(PrepPanelController);
     this.prepController.initialize();
     this.prepController.onBuy = (index) => this.onBuy(index);
+    this.prepController.onSelectShop = (index) => this.onPrepSelectShop(index);
     this.prepController.onSelectUnit = (id) => this.onPrepSelectUnit(id);
     this.prepController.onDeploy = (id) => this.onDeploy(id);
     this.prepController.onRecall = (id) => this.onRecall(id);
-    this.prepController.onSell = () => this.onSell();
+    this.prepController.onSell = (id) => this.onSell(id);
     this.prepController.onRefresh = () => this.onRefresh();
     this.prepController.onStartWave = () => this.onStartWave();
 
@@ -160,7 +162,7 @@ export class BattleSceneController extends Component {
     this.fieldController.onAllyClick = (allyId, allies) => this.onAllyClicked(allyId, allies);
 
     this.transitionController = root.addComponent(WaveTransitionController);
-    this.transitionController.bind(prepNode, battleNode);
+    this.transitionController.bind(prepNode, battleNode, hudNode, cmdNode);
 
     this.commandOverlayController = cmdNode.addComponent(CommandOverlayController);
     this.commandOverlayController.initialize();
@@ -176,6 +178,7 @@ export class BattleSceneController extends Component {
     if (this.selectController) {
       this.selectController.node.active = true;
       this.selectController.setOptions(SHOP_UNIT_POOL, this.selectedStarterUnitId);
+      this.selectController.setSelectedDifficulty(this.selectedDifficulty);
     }
   }
 
@@ -195,6 +198,7 @@ export class BattleSceneController extends Component {
     this.session.startNewRun(this.selectedDifficulty, unitId);
     this.mode = 'battle';
     this.selectedUnitId = undefined;
+    this.selectedShopIndex = undefined;
     this.moveMarker = null;
     this.transientNotice = null;
     this.ensureSceneGraph();
@@ -223,6 +227,7 @@ export class BattleSceneController extends Component {
     }
     this.mode = 'battle';
     this.selectedUnitId = undefined;
+    this.selectedShopIndex = undefined;
     this.moveMarker = null;
     this.transientNotice = null;
     this.selectedStarterUnitId = save.selectedStarterUnitId ?? this.selectedStarterUnitId;
@@ -242,11 +247,11 @@ export class BattleSceneController extends Component {
   private render(): void {
     const snap = this.session.getSnapshot();
     this.syncSelection(snap);
-    const selectedLabel = this.getSelectedUnitLabel(snap) ?? 'none';
+    const selectedLabel = this.getSelectedLabel(snap) ?? 'none';
     const notice = this.getNoticeText(snap);
 
     this.hudController?.render(snap, selectedLabel, notice);
-    this.prepController?.render(snap, selectedLabel, this.selectedUnitId);
+    this.prepController?.render(snap, selectedLabel, this.selectedUnitId, this.selectedShopIndex);
     this.fieldController?.render(snap, this.selectedUnitId, this.moveMarker);
     this.transitionController?.sync(snap);
     this.commandOverlayController?.render(snap, this.selectedUnitId, notice);
@@ -300,14 +305,30 @@ export class BattleSceneController extends Component {
     const snap = this.session.getSnapshot();
     const unitId = snap.shop[slotIndex];
     const bought = this.session.buyShopUnit(slotIndex);
-    this.pushNotice(bought ? `购买成功：${unitId}` : this.getBuyFailureReason(slotIndex));
+    if (bought) {
+      this.selectedShopIndex = undefined;
+      this.clearMissingPrepSelection(this.session.getSnapshot());
+      this.pushNotice(`购买成功：${unitId}`);
+    } else {
+      this.selectedShopIndex = slotIndex;
+      this.pushNotice(this.getBuyFailureReason(slotIndex));
+    }
     if (bought) this.persistRun();
+  }
+
+  private onPrepSelectShop(slotIndex: number): void {
+    const snap = this.session.getSnapshot();
+    this.selectedShopIndex = slotIndex;
+    this.selectedUnitId = undefined;
+    const unitId = snap.shop[slotIndex];
+    this.pushNotice(unitId ? `已选中商店：${UNIT_CONFIG[unitId].name}` : '已选中空商店槽位。', 1200);
   }
 
   private onPrepSelectUnit(instanceId: string): void {
     const snap = this.session.getSnapshot();
     const unit = [...snap.deployed, ...snap.bench].find((entry) => entry.instanceId === instanceId);
     this.selectedUnitId = instanceId;
+    this.selectedShopIndex = undefined;
     this.pushNotice(`已选中：${unit?.unitId ?? instanceId.slice(-4)}${unit ? `★${unit.star}` : ''}`, 1200);
   }
 
@@ -317,6 +338,7 @@ export class BattleSceneController extends Component {
     const deployed = this.session.deployFromBench(instanceId);
     if (deployed) {
       this.selectedUnitId = instanceId;
+      this.selectedShopIndex = undefined;
       this.pushNotice(`已上阵：${unit?.unitId ?? instanceId.slice(-4)}${unit ? `★${unit.star}` : ''}`);
       this.persistRun();
       return;
@@ -330,6 +352,7 @@ export class BattleSceneController extends Component {
     const recalled = this.session.recallFromDeployed(instanceId);
     if (recalled) {
       this.selectedUnitId = instanceId;
+      this.selectedShopIndex = undefined;
       this.pushNotice(`已撤回：${unit?.unitId ?? instanceId.slice(-4)}${unit ? `★${unit.star}` : ''}`);
       this.persistRun();
       return;
@@ -337,15 +360,17 @@ export class BattleSceneController extends Component {
     this.pushNotice('撤回失败：单位不存在。');
   }
 
-  private onSell(): void {
-    if (!this.selectedUnitId) {
+  private onSell(instanceId?: string): void {
+    const targetId = instanceId ?? this.selectedUnitId;
+    if (!targetId) {
       this.pushNotice('卖出失败：请先选中单位。');
       return;
     }
-    const sold = this.session.sellUnit(this.selectedUnitId);
+    const sold = this.session.sellUnit(targetId);
     if (sold) {
       this.pushNotice('已卖出当前选中单位。');
       this.selectedUnitId = undefined;
+      this.selectedShopIndex = undefined;
       this.persistRun();
       return;
     }
@@ -355,13 +380,27 @@ export class BattleSceneController extends Component {
   private onRefresh(): void {
     const refreshed = this.session.refreshShopByCost();
     this.pushNotice(refreshed ? '商店已刷新。' : '刷新失败：金币不足或当前不在准备阶段。');
-    if (refreshed) this.persistRun();
+    if (refreshed) {
+      this.selectedShopIndex = undefined;
+      this.persistRun();
+    }
   }
 
   private onStartWave(): void {
     const started = this.session.startNextWaveFromPrep();
     this.pushNotice(started ? '已开始下一波。' : '开始失败：至少需要 1 名已上阵单位，且当前必须处于准备阶段。');
-    if (started) this.persistRun();
+    if (started) {
+      this.selectedShopIndex = undefined;
+      this.persistRun();
+    }
+  }
+
+  private clearMissingPrepSelection(snap: SquadBattleSnapshot): void {
+    if (!this.selectedUnitId) return;
+    const stillInPrep = [...snap.bench, ...snap.deployed].some((unit) => unit.instanceId === this.selectedUnitId);
+    if (!stillInPrep) {
+      this.selectedUnitId = undefined;
+    }
   }
 
   private onCastSkill(skillId: string): void {
@@ -406,7 +445,7 @@ export class BattleSceneController extends Component {
     if (this.transientNotice && Date.now() > this.transientNotice.until) {
       this.transientNotice = null;
     }
-    const selected = this.getSelectedUnitLabel(snap);
+    const selected = this.getSelectedLabel(snap);
     return this.transientNotice?.message ?? (selected
       ? this.getSelectedHint(snap, selected)
       : snap.phase === 'prep'
@@ -456,6 +495,14 @@ export class BattleSceneController extends Component {
       return `${battleUnit.unitId}★${battleUnit.star} [battle]`;
     }
     return undefined;
+  }
+
+  private getSelectedLabel(snap: SquadBattleSnapshot): string | undefined {
+    const unitLabel = this.getSelectedUnitLabel(snap);
+    if (unitLabel) return unitLabel;
+    if (this.selectedShopIndex === undefined) return undefined;
+    const unitId = snap.shop[this.selectedShopIndex];
+    return unitId ? `${unitId} [shop]` : undefined;
   }
 
   private getBuyFailureReason(slotIndex: number): string {

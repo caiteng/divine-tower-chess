@@ -1,4 +1,6 @@
+import { SQUAD_BATTLEFIELD } from '../config/squad-battle-config';
 import type { SquadUnitState, Vec2 } from '../types';
+import { clamp } from './math';
 
 export class UnitCommandSystem {
   private selectedUnitId: string | undefined;
@@ -21,7 +23,7 @@ export class UnitCommandSystem {
   public issueMoveToGround(position: Vec2, allies: SquadUnitState[]): boolean {
     const unit = this.getSelectedAlly(allies);
     if (!unit) return false;
-    unit.command = { type: 'move', position: { ...position } };
+    unit.command = { type: 'move', position: this.clampMoveCommand(position) };
     return true;
   }
 
@@ -42,5 +44,12 @@ export class UnitCommandSystem {
   private getSelectedAlly(allies: SquadUnitState[]): SquadUnitState | undefined {
     if (!this.selectedUnitId) return undefined;
     return allies.find((ally) => ally.instanceId === this.selectedUnitId && ally.alive);
+  }
+
+  private clampMoveCommand(position: Vec2): Vec2 {
+    return {
+      x: clamp(position.x, 0, SQUAD_BATTLEFIELD.width),
+      y: clamp(position.y, SQUAD_BATTLEFIELD.combatYMin, SQUAD_BATTLEFIELD.combatYMax),
+    };
   }
 }

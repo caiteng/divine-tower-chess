@@ -81,12 +81,12 @@ export class CollisionSystem {
     for (const ally of allies) {
       const radius = this.getAllyRadius(ally);
       ally.position.x = clamp(ally.position.x, radius, SQUAD_BATTLEFIELD.width - radius);
-      ally.position.y = clamp(ally.position.y, radius, SQUAD_BATTLEFIELD.height - radius);
+      ally.position.y = clamp(ally.position.y, SQUAD_BATTLEFIELD.combatYMin + radius, SQUAD_BATTLEFIELD.combatYMax - radius);
     }
     for (const enemy of enemies) {
       const radius = this.getEnemyRadius(enemy);
       enemy.position.x = clamp(enemy.position.x, radius, SQUAD_BATTLEFIELD.width - radius);
-      enemy.position.y = clamp(enemy.position.y, radius, SQUAD_BATTLEFIELD.height - radius);
+      enemy.position.y = clamp(enemy.position.y, SQUAD_BATTLEFIELD.combatYMin + radius, SQUAD_BATTLEFIELD.combatYMax - radius);
     }
   }
 

@@ -5,12 +5,14 @@ export const SQUAD_BATTLEFIELD = {
   width: 1200,
   height: 700,
   centerLineX: 520,
-  centerLineY: 350,
-  allySpawnGapY: 92,
+  centerLineY: 525,
+  combatYMin: 360,
+  combatYMax: 668,
+  allySpawnGapY: 54,
   rightSpawnX: 1120,
   leftSpawnX: 80,
-  spawnYMin: 120,
-  spawnYMax: 580,
+  spawnYMin: 392,
+  spawnYMax: 648,
 };
 
 export const SQUAD_UNIT_STATS: Record<UnitId, UnitBattleStats> = {

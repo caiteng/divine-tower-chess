@@ -1,6 +1,6 @@
 import { _decorator, Color, Component, Graphics, Label, Layers, Node, Sprite, SpriteFrame, UIOpacity, UITransform, Vec3 } from 'cc';
 import { UNIT_CONFIG } from '../../config/unit-config';
-import { ENEMY_STATS, SQUAD_UNIT_STATS } from '../../squad/config/squad-battle-config';
+import { ENEMY_STATS, SQUAD_BATTLEFIELD, SQUAD_UNIT_STATS } from '../../squad/config/squad-battle-config';
 import type { BattleEffectState, EnemyUnitState, SquadBattleSnapshot, SquadUnitState } from '../../squad/types';
 import { BackgroundResolver, EnemySpriteResolver, UnitSpriteResolver } from '../resources/sprite-resolvers';
 import type { EnemyAnimationClip, UnitAnimationClip } from '../resources/sprite-resolvers';
@@ -69,9 +69,12 @@ export class BattlefieldController extends Component {
       const event = args[0] as { getUILocation: () => { x: number; y: number } };
       const uiPoint = event.getUILocation();
       const local = groundTransform.convertToNodeSpaceAR(new Vec3(uiPoint.x, uiPoint.y, 0));
-      const worldX = ((local.x / FIELD_BG_WIDTH) + 0.5) * 1200;
-      const worldY = (0.5 - (local.y / FIELD_BG_HEIGHT)) * 700;
-      this.onGroundClick?.(Math.max(0, Math.min(1200, worldX)), Math.max(0, Math.min(700, worldY)));
+      const worldX = ((local.x / FIELD_BG_WIDTH) + 0.5) * SQUAD_BATTLEFIELD.width;
+      const worldY = (0.5 - (local.y / FIELD_BG_HEIGHT)) * SQUAD_BATTLEFIELD.height;
+      this.onGroundClick?.(
+        Math.max(0, Math.min(SQUAD_BATTLEFIELD.width, worldX)),
+        Math.max(SQUAD_BATTLEFIELD.combatYMin, Math.min(SQUAD_BATTLEFIELD.combatYMax, worldY)),
+      );
     }, this);
 
     this.commandLayer = new Node('CommandLayer');
@@ -459,8 +462,8 @@ export class BattlefieldController extends Component {
 
   private worldToUi(worldX: number, worldY: number): { x: number; y: number } {
     return {
-      x: (worldX / 1200 - 0.5) * FIELD_BG_WIDTH,
-      y: (0.5 - worldY / 700) * FIELD_BG_HEIGHT,
+      x: (worldX / SQUAD_BATTLEFIELD.width - 0.5) * FIELD_BG_WIDTH,
+      y: (0.5 - worldY / SQUAD_BATTLEFIELD.height) * FIELD_BG_HEIGHT,
     };
   }
 

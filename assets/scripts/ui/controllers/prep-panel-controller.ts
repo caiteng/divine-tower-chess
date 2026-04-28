@@ -10,6 +10,7 @@ const SHOP_CARD_WIDTH = 132;
 const SHOP_CARD_HEIGHT = 76;
 const ROSTER_CARD_WIDTH = 92;
 const ROSTER_CARD_HEIGHT = 66;
+const INLINE_ACTION_HEIGHT = 22;
 const PREP_PANEL_WIDTH = 920;
 const PREP_PANEL_HEIGHT = 560;
 
@@ -21,10 +22,11 @@ export class PrepPanelController extends Component {
   private goldFrame: SpriteFrame | null = null;
 
   public onBuy?: (index: number) => void;
+  public onSelectShop?: (index: number) => void;
   public onSelectUnit?: (id: string) => void;
   public onDeploy?: (id: string) => void;
   public onRecall?: (id: string) => void;
-  public onSell?: () => void;
+  public onSell?: (id: string) => void;
   public onRefresh?: () => void;
   public onStartWave?: () => void;
 
@@ -47,7 +49,7 @@ export class PrepPanelController extends Component {
     });
   }
 
-  public render(snapshot: SquadBattleSnapshot, selectedLabel: string, selectedUnitId?: string): void {
+  public render(snapshot: SquadBattleSnapshot, selectedLabel: string, selectedUnitId?: string, selectedShopIndex?: number): void {
     this.node.removeAllChildren();
     this.infoLabel = this.makeLabel('Info', -430, 250, 680, 14, new Color(251, 191, 36, 255));
     this.infoLabel.string = `准备阶段 · 当前选择：${selectedLabel}`;
@@ -59,15 +61,18 @@ export class PrepPanelController extends Component {
         name: `Buy-${index}`,
         unitId,
         star: 1,
-        text: `${this.getUnitName(unitId)}\n购买`,
+        text: `${this.getUnitName(unitId)}\n商店`,
         x: -300 + index * 156,
         y: 168,
         width: SHOP_CARD_WIDTH,
         height: SHOP_CARD_HEIGHT,
-        selected: false,
+        selected: selectedShopIndex === index,
         color: new Color(30, 41, 59, 255),
-        onClick: () => this.onBuy?.(index),
+        onClick: () => this.onSelectShop?.(index),
       });
+      if (selectedShopIndex === index) {
+        this.makeInlineActionButton(`BuyAction-${index}`, '购买', -300 + index * 156, 116, 76, new Color(21, 128, 61, 255), () => this.onBuy?.(index));
+      }
     });
 
     this.makeLabel('DeployTitle', -430, 76, 140, 13, new Color(226, 232, 240, 255)).string = '上阵区（5）';
@@ -88,6 +93,9 @@ export class PrepPanelController extends Component {
           color: new Color(30, 41, 59, 255),
           onClick: () => this.onSelectUnit?.(unit.instanceId),
         });
+        if (unit.instanceId === selectedUnitId) {
+          this.makeInlineActionButton(`RecallAction-${unit.instanceId}`, '下阵', x, -14, 70, new Color(37, 99, 235, 255), () => this.onRecall?.(unit.instanceId));
+        }
       } else {
         this.makeButton(`DeployEmpty-${i}`, '空位', x, 34, 104, 68, new Color(51, 65, 85, 160));
       }
@@ -99,41 +107,35 @@ export class PrepPanelController extends Component {
       const col = i % 4;
       const row = Math.floor(i / 4);
       const x = -376 + col * 106;
-      const y = -110 - row * 74;
+      const y = -102 - row * 102;
       if (unit) {
         this.makeRosterCard(unit, x, y, unit.instanceId === selectedUnitId, () => this.onSelectUnit?.(unit.instanceId));
+        if (unit.instanceId === selectedUnitId) {
+          this.makeInlineActionButton(`DeployAction-${unit.instanceId}`, '上阵', x - 24, y - 46, 46, new Color(21, 128, 61, 255), () => this.onDeploy?.(unit.instanceId));
+          this.makeInlineActionButton(`SellAction-${unit.instanceId}`, '售出', x + 26, y - 46, 46, new Color(127, 29, 29, 255), () => this.onSell?.(unit.instanceId));
+        }
       } else {
         this.makeButton(`BenchEmpty-${i}`, '空位', x, y, ROSTER_CARD_WIDTH, ROSTER_CARD_HEIGHT, new Color(51, 65, 85, 160));
       }
     }
 
     const selectedRosterUnit = this.findSelectedRosterUnit(snapshot, selectedUnitId);
-    const selectedInBench = Boolean(selectedRosterUnit && snapshot.bench.some((unit) => unit.instanceId === selectedRosterUnit.instanceId));
-    const selectedInDeployed = Boolean(selectedRosterUnit && snapshot.deployed.some((unit) => unit.instanceId === selectedRosterUnit.instanceId));
-    this.makeButton(
-      'RosterAction',
-      selectedInBench ? '上阵选中' : selectedInDeployed ? '下阵选中' : '选择单位',
-      374,
-      168,
-      160,
-      34,
-      selectedRosterUnit ? new Color(21, 128, 61, 255) : new Color(71, 85, 105, 210),
-      selectedInBench
-        ? () => this.onDeploy?.(selectedRosterUnit!.instanceId)
-        : selectedInDeployed
-          ? () => this.onRecall?.(selectedRosterUnit!.instanceId)
-          : undefined,
-    );
-    this.makeButton('Sell', '卖出选中', 374, 120, 160, 34, selectedRosterUnit ? new Color(127, 29, 29, 255) : new Color(71, 85, 105, 210), selectedRosterUnit ? () => this.onSell?.() : undefined);
-    this.makeButton('Refresh', '刷新商店', 374, 72, 160, 34, new Color(37, 99, 235, 255), () => this.onRefresh?.());
-    this.makeButton('Start', '开始下一波', 374, 24, 160, 34, new Color(21, 128, 61, 255), () => this.onStartWave?.());
+    this.makeButton('Start', '开始下一波', 374, 172, 170, 48, new Color(21, 128, 61, 255), () => this.onStartWave?.());
+    this.makeButton('Refresh', '刷新商店', 374, 114, 150, 32, new Color(37, 99, 235, 255), () => this.onRefresh?.());
     this.makeSelectedInfoPanel(snapshot, selectedRosterUnit);
-    this.makeLabel('Hint', -430, -254, 860, 12, new Color(191, 219, 254, 255)).string = this.buildHint(snapshot, selectedUnitId);
+    this.makeLabel('Hint', -430, -266, 860, 12, new Color(191, 219, 254, 255)).string = this.buildHint(snapshot, selectedUnitId, selectedShopIndex);
   }
 
-  private buildHint(snapshot: SquadBattleSnapshot, selectedUnitId?: string): string {
+  private buildHint(snapshot: SquadBattleSnapshot, selectedUnitId?: string, selectedShopIndex?: number): string {
+    if (selectedShopIndex !== undefined) {
+      const unitId = snapshot.shop[selectedShopIndex];
+      return unitId
+        ? `提示：已选中商店 ${this.getUnitName(unitId)}，点击卡片下方购买按钮会加入备战区；购买失败不会移除该槽位。`
+        : '提示：当前商店槽位为空。';
+    }
+
     if (!selectedUnitId) {
-      return '提示：先购买或直接上阵起始队长。橙色高亮表示当前选中实例，带 ✦ 的单位持有神品任务。';
+      return '提示：点击商店、备战区或上阵区角色会先选中，实际购买 / 上阵 / 下阵 / 售出使用角色下方的小按钮。';
     }
 
     const rosterUnit = [...snapshot.deployed, ...snapshot.bench].find((unit) => unit.instanceId === selectedUnitId);
@@ -154,8 +156,8 @@ export class PrepPanelController extends Component {
     }
 
     return inDeployed
-      ? `提示：${this.getUnitName(rosterUnit.unitId)}★${rosterUnit.star} 当前在上阵区，可撤回或直接开波。`
-      : `提示：${this.getUnitName(rosterUnit.unitId)}★${rosterUnit.star} 当前在备战区，可上阵；3 个同名同星实例会自动合成。`;
+      ? `提示：${this.getUnitName(rosterUnit.unitId)}★${rosterUnit.star} 当前在上阵区，可用角色下方按钮撤回或直接开波。`
+      : `提示：${this.getUnitName(rosterUnit.unitId)}★${rosterUnit.star} 当前在备战区，可用角色下方按钮上阵或售出；3 个同名同星实例会自动合成。`;
   }
 
   private getUnitName(unitId: UnitId): string {
@@ -317,6 +319,10 @@ export class PrepPanelController extends Component {
       labelNode.addComponent(Button);
       labelNode.on(Button.EventType.CLICK, guardedClick, this);
     }
+  }
+
+  private makeInlineActionButton(name: string, text: string, x: number, y: number, width: number, color: Color, onClick: () => void): void {
+    this.makeButton(name, text, x, y, width, INLINE_ACTION_HEIGHT, color, onClick);
   }
 
   private makeUnitCard(options: {
