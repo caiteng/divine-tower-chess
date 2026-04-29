@@ -125,6 +125,12 @@ export class SquadBattleSession {
   public startBattle(): boolean {
     if (this.phase !== 'prep') return false;
     if (this.pendingBattleStart) return false;
+    if (this.roster.getDeployCount() === 0) {
+      const firstBenchUnit = this.roster.getBench()[0];
+      if (firstBenchUnit) {
+        this.roster.deploy(firstBenchUnit.instanceId);
+      }
+    }
     if (this.roster.getDeployCount() === 0) return false;
     this.uiState = {
       prepPanel: 'falling',
