@@ -307,8 +307,7 @@ export class PrepPanelController extends Component {
     this.paintRect(node, width, height, color, new Color(148, 163, 184, 70));
     const guardedClick = onClick ? this.makeGuardedClick(onClick) : undefined;
     if (guardedClick) {
-      node.addComponent(Button);
-      node.on(Button.EventType.CLICK, guardedClick, this);
+      this.bindClick(node, guardedClick);
     }
 
     const labelNode = new Node(`${name}-label`);
@@ -321,8 +320,7 @@ export class PrepPanelController extends Component {
     label.lineHeight = 14;
     label.color = new Color(248, 250, 252, 255);
     if (guardedClick) {
-      labelNode.addComponent(Button);
-      labelNode.on(Button.EventType.CLICK, guardedClick, this);
+      this.bindClick(labelNode, guardedClick);
     }
   }
 
@@ -407,12 +405,9 @@ export class PrepPanelController extends Component {
 
     const guardedClick = options.onClick ? this.makeGuardedClick(options.onClick) : undefined;
     if (guardedClick) {
-      node.addComponent(Button);
-      node.on(Button.EventType.CLICK, guardedClick, this);
-      labelNode.addComponent(Button);
-      labelNode.on(Button.EventType.CLICK, guardedClick, this);
-      imageNode.addComponent(Button);
-      imageNode.on(Button.EventType.CLICK, guardedClick, this);
+      this.bindClick(node, guardedClick);
+      this.bindClick(labelNode, guardedClick);
+      this.bindClick(imageNode, guardedClick);
     }
   }
 
@@ -427,6 +422,12 @@ export class PrepPanelController extends Component {
       graphics.rect(-width / 2 + 1, -height / 2 + 1, width - 2, height - 2);
       graphics.stroke();
     }
+  }
+
+  private bindClick(node: Node, onClick: () => void): void {
+    node.addComponent(Button);
+    node.on(Button.EventType.CLICK, onClick, this);
+    node.on(Node.EventType.TOUCH_END, onClick, this);
   }
 
   private makeGuardedClick(onClick: () => void): () => void {
