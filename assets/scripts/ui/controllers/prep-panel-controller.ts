@@ -13,6 +13,10 @@ const ROSTER_CARD_HEIGHT = 66;
 const INLINE_ACTION_HEIGHT = 22;
 const PREP_PANEL_WIDTH = 920;
 const PREP_PANEL_HEIGHT = 560;
+const SAFE_LEFT = -392;
+const SAFE_RIGHT = 392;
+const SAFE_TOP = 230;
+const SAFE_BOTTOM = -230;
 
 @ccclass('PrepPanelController')
 export class PrepPanelController extends Component {
@@ -38,7 +42,7 @@ export class PrepPanelController extends Component {
     transform.setContentSize(PREP_PANEL_WIDTH, PREP_PANEL_HEIGHT);
     this.paintRect(this.node, PREP_PANEL_WIDTH, PREP_PANEL_HEIGHT, new Color(15, 23, 42, 245));
 
-    this.infoLabel = this.makeLabel('Info', -430, 250, 840, 14, new Color(251, 191, 36, 255));
+    this.infoLabel = this.makeLabel('Info', SAFE_LEFT, SAFE_TOP, 620, 14, new Color(251, 191, 36, 255));
     for (const unitId of SHOP_UNIT_POOL) {
       void this.unitResolver.resolveAvatar(unitId).then((frame) => {
         if (frame) this.avatarFrames.set(unitId, frame);
@@ -51,19 +55,20 @@ export class PrepPanelController extends Component {
 
   public render(snapshot: SquadBattleSnapshot, selectedLabel: string, selectedUnitId?: string, selectedShopIndex?: number): void {
     this.node.removeAllChildren();
-    this.infoLabel = this.makeLabel('Info', -430, 250, 680, 14, new Color(251, 191, 36, 255));
+    this.infoLabel = this.makeLabel('Info', SAFE_LEFT, SAFE_TOP, 620, 14, new Color(251, 191, 36, 255));
     this.infoLabel.string = `准备阶段 · 当前选择：${selectedLabel}`;
     this.makeGoldReadout(snapshot.gold);
 
-    this.makeLabel('ShopTitle', -430, 206, 140, 13, new Color(226, 232, 240, 255)).string = '商店（3）';
+    this.makeLabel('ShopTitle', SAFE_LEFT, 186, 140, 13, new Color(226, 232, 240, 255)).string = '商店（3）';
     snapshot.shop.forEach((unitId, index) => {
+      const x = -260 + index * 156;
       this.makeUnitCard({
         name: `Buy-${index}`,
         unitId,
         star: 1,
         text: `${this.getUnitName(unitId)}\n商店`,
-        x: -300 + index * 156,
-        y: 168,
+        x,
+        y: 148,
         width: SHOP_CARD_WIDTH,
         height: SHOP_CARD_HEIGHT,
         selected: selectedShopIndex === index,
@@ -71,14 +76,14 @@ export class PrepPanelController extends Component {
         onClick: () => this.onSelectShop?.(index),
       });
       if (selectedShopIndex === index) {
-        this.makeInlineActionButton(`BuyAction-${index}`, '购买', -300 + index * 156, 116, 76, new Color(21, 128, 61, 255), () => this.onBuy?.(index));
+        this.makeInlineActionButton(`BuyAction-${index}`, '购买', x, 96, 76, new Color(21, 128, 61, 255), () => this.onBuy?.(index));
       }
     });
 
-    this.makeLabel('DeployTitle', -430, 76, 140, 13, new Color(226, 232, 240, 255)).string = '上阵区（5）';
+    this.makeLabel('DeployTitle', SAFE_LEFT, 56, 140, 13, new Color(226, 232, 240, 255)).string = '上阵区（5）';
     for (let i = 0; i < snapshot.slotConfig.deployed; i += 1) {
       const unit = snapshot.deployed[i];
-      const x = -372 + i * 116;
+      const x = -328 + i * 112;
       if (unit) {
         this.makeUnitCard({
           name: `Deployed-${unit.instanceId}`,
@@ -86,7 +91,7 @@ export class PrepPanelController extends Component {
           star: unit.star,
           text: `${unit.isCaptain ? '♛ ' : ''}${this.getUnitName(unit.unitId)}★${unit.star}${unit.assignedTaskId ? ' ✦' : ''}\n已上阵`,
           x,
-          y: 34,
+          y: 14,
           width: 104,
           height: 68,
           selected: unit.instanceId === selectedUnitId,
@@ -94,25 +99,25 @@ export class PrepPanelController extends Component {
           onClick: () => this.onSelectUnit?.(unit.instanceId),
         });
         if (unit.instanceId === selectedUnitId) {
-          this.makeInlineActionButton(`RecallAction-${unit.instanceId}`, '下阵', x, -14, 70, new Color(37, 99, 235, 255), () => this.onRecall?.(unit.instanceId));
+          this.makeInlineActionButton(`RecallAction-${unit.instanceId}`, '下阵', x, -34, 70, new Color(37, 99, 235, 255), () => this.onRecall?.(unit.instanceId));
         }
       } else {
-        this.makeButton(`DeployEmpty-${i}`, '空位', x, 34, 104, 68, new Color(51, 65, 85, 160));
+        this.makeButton(`DeployEmpty-${i}`, '空位', x, 14, 104, 68, new Color(51, 65, 85, 160));
       }
     }
 
-    this.makeLabel('BenchTitle', -430, -72, 140, 13, new Color(226, 232, 240, 255)).string = '备战区（8）';
+    this.makeLabel('BenchTitle', SAFE_LEFT, -82, 140, 13, new Color(226, 232, 240, 255)).string = '备战区（8）';
     for (let i = 0; i < snapshot.slotConfig.bench; i += 1) {
       const unit = snapshot.bench[i];
       const col = i % 4;
       const row = Math.floor(i / 4);
-      const x = -376 + col * 106;
-      const y = -102 - row * 102;
+      const x = -332 + col * 106;
+      const y = -112 - row * 88;
       if (unit) {
         this.makeRosterCard(unit, x, y, unit.instanceId === selectedUnitId, () => this.onSelectUnit?.(unit.instanceId));
         if (unit.instanceId === selectedUnitId) {
-          this.makeInlineActionButton(`DeployAction-${unit.instanceId}`, '上阵', x - 24, y - 46, 46, new Color(21, 128, 61, 255), () => this.onDeploy?.(unit.instanceId));
-          this.makeInlineActionButton(`SellAction-${unit.instanceId}`, '售出', x + 26, y - 46, 46, new Color(127, 29, 29, 255), () => this.onSell?.(unit.instanceId));
+          this.makeInlineActionButton(`DeployAction-${unit.instanceId}`, '上阵', x - 24, y - 44, 46, new Color(21, 128, 61, 255), () => this.onDeploy?.(unit.instanceId));
+          this.makeInlineActionButton(`SellAction-${unit.instanceId}`, '售出', x + 26, y - 44, 46, new Color(127, 29, 29, 255), () => this.onSell?.(unit.instanceId));
         }
       } else {
         this.makeButton(`BenchEmpty-${i}`, '空位', x, y, ROSTER_CARD_WIDTH, ROSTER_CARD_HEIGHT, new Color(51, 65, 85, 160));
@@ -120,10 +125,10 @@ export class PrepPanelController extends Component {
     }
 
     const selectedRosterUnit = this.findSelectedRosterUnit(snapshot, selectedUnitId);
-    this.makeButton('Start', '开始下一波', 374, 172, 170, 48, new Color(21, 128, 61, 255), () => this.onStartWave?.());
-    this.makeButton('Refresh', '刷新商店', 374, 114, 150, 32, new Color(37, 99, 235, 255), () => this.onRefresh?.());
+    this.makeButton('Start', '开始下一波', 342, 148, 170, 48, new Color(21, 128, 61, 255), () => this.onStartWave?.());
+    this.makeButton('Refresh', '刷新商店', 342, 90, 150, 32, new Color(37, 99, 235, 255), () => this.onRefresh?.());
     this.makeSelectedInfoPanel(snapshot, selectedRosterUnit);
-    this.makeLabel('Hint', -430, -266, 860, 12, new Color(191, 219, 254, 255)).string = this.buildHint(snapshot, selectedUnitId, selectedShopIndex);
+    this.makeLabel('Hint', SAFE_LEFT, SAFE_BOTTOM, 780, 12, new Color(191, 219, 254, 255)).string = this.buildHint(snapshot, selectedUnitId, selectedShopIndex);
   }
 
   private buildHint(snapshot: SquadBattleSnapshot, selectedUnitId?: string, selectedShopIndex?: number): string {
@@ -173,7 +178,7 @@ export class PrepPanelController extends Component {
     const panel = new Node('SelectedInfoPanel');
     panel.layer = Layers.Enum.UI_2D;
     this.node.addChild(panel);
-    panel.setPosition(new Vec3(322, -106, 0));
+    panel.setPosition(new Vec3(302, -104, 0));
     panel.addComponent(UITransform).setContentSize(220, 220);
     this.paintRect(panel, 220, 220, new Color(15, 23, 42, 240), new Color(148, 163, 184, 100));
 
@@ -237,7 +242,7 @@ export class PrepPanelController extends Component {
     const node = new Node('GoldReadout');
     node.layer = Layers.Enum.UI_2D;
     this.node.addChild(node);
-    node.setPosition(new Vec3(302, 250, 0));
+    node.setPosition(new Vec3(248, SAFE_TOP, 0));
     node.addComponent(UITransform).setContentSize(150, 28);
 
     const iconNode = new Node('GoldIcon');
