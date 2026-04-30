@@ -2,48 +2,44 @@
 
 ## 阶段目标
 
-冻结塔防改造的范围、目录、资源规范、角色规格、敌人规格、地图规格和 AI 执行模板。此阶段不写玩法代码。
+冻结塔防改造的范围、目录、资源规范、角色规格、敌人规格、地图规格和 AI 执行模板。此阶段不写玩法代码，不接 UI，不生成运行时资源。
 
+## 本阶段交付物
 
-## 每阶段固定要求
-
-每个阶段提交必须包含：
-
-1. 代码或文档变更清单。
-2. 自动化测试。
-3. 人工验收步骤。
-4. 回退方案。
-5. 下一阶段前置条件。
-6. 不修改无关旧主线。
-
-
-## 具体任务
-
-| 任务 | 文件 | 完成标准 |
-|---|---|---|
-| 设计总目标 | `00-repo-audit-and-goal.md` | 明确新增 TD 主线，不破坏 squad |
-| 核心玩法 | `01-product-gdd-core-loop.md` | 写清循环、经济、生命、胜负 |
-| 技术架构 | `02-technical-architecture.md` | 写清目录和模块边界 |
-| 美术管线 | `03-art-style-and-ai-asset-pipeline.md` | 写清图片尺寸、帧数、命名 |
-| 英雄规格 | `04-hero-character-spec.md` | 每个职业数值、技能、帧图齐全 |
-| 敌人规格 | `05-enemy-and-boss-spec.md` | 每类敌人机制、数值、帧图齐全 |
-| 地图波次 | `06-stage-map-and-wave-design.md` | 5 关路径、塔位、波次方向 |
-| AI 提示词 | `18-ai-task-prompts.md` | 每阶段可复制执行 |
+| 文件 | 目的 |
+|---|---|
+| `00-repo-audit-and-goal.md` | 明确仓库现状和 TD 改造边界 |
+| `01-product-gdd-core-loop.md` | 固定核心玩法循环 |
+| `02-technical-architecture.md` | 固定代码目录与模块边界 |
+| `03-art-style-and-ai-asset-pipeline.md` | 固定美术尺寸、帧数、命名 |
+| `04-hero-character-spec.md` | 固定英雄职业规格 |
+| `05-enemy-and-boss-spec.md` | 固定敌人与 Boss 规格 |
+| `06-stage-map-and-wave-design.md` | 固定 5 关地图与波次方向 |
+| `18-ai-task-prompts.md` | 固定后续 AI 开发提示词 |
+| `20-acceptance-checklists.md` | 固定阶段验收清单 |
+| `tools/verify-td-design-docs.ts` | 校验阶段 0 文档完整性 |
 
 ## AI 开发约束
 
-- 所有 AI 代码必须先读本阶段文档。
-- AI 不允许直接删除 `assets/scripts/squad/**`。
-- AI 不允许把商业竞品资源直接作为图片提示词。
-- AI 生成资源必须原创。
-- AI 每次只做一个阶段。
+- 每次只做一个阶段。
+- 不允许直接删除 `assets/scripts/squad/**`。
+- 不允许复制商业竞品美术。
+- 不允许给半截文件。
+- 每次交付必须包含完整文件内容。
+- 每次交付必须附测试步骤。
+- 代码阶段必须能通过 `npm test` 或对应阶段的验证脚本。
+- 资源阶段必须附 manifest 和校验脚本。
 
-## 验收
+## 阶段 0 验收命令
 
-- 所有 Markdown 文件存在。
-- 能直接把每阶段提示词复制给 AI。
-- 每阶段有明确文件清单、资源清单、测试清单。
+```bash
+npx tsx tools/verify-td-design-docs.ts
+```
 
-## 回退
+## 人工验收
 
-删除文档包即可，不影响仓库运行。
+打开 `docs/td-redesign/00` 到 `06`，确认职业、敌人、地图、资源尺寸都写清楚；打开 `18-ai-task-prompts.md`，确认每阶段提示词可以复制给 AI；运行文档校验脚本；确认没有修改旧主线代码。
+
+## 回退方案
+
+删除 `docs/td-redesign/**` 和 `tools/verify-td-design-docs.ts`，不会影响现有游戏运行。

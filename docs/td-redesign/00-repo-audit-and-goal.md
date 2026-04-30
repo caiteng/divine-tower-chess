@@ -1,89 +1,88 @@
 # 00 仓库现状与改造目标
 
-## 1. 当前仓库进展判断
+## 1. 当前仓库状态
 
-当前项目不是空壳，而是已经具备一条可运行的 Cocos + TypeScript 游戏主线。现有主线是 Battleheart 风格小队实时战斗，不是塔防。仓库当前值得保留的资产包括：
+当前项目已经不是空仓库。它已有一条可运行的小队实时战斗主线：
 
-| 已有资产 | 当前作用 | 塔防改造价值 |
+```text
+assets/scripts/squad/*
+assets/scripts/squad/squad-battle-session.ts
+assets/scripts/ui/battle-scene-controller.ts
+assets/scripts/ui/controllers/*
+assets/scripts/ui/resources/sprite-resolvers.ts
+tools/verify-squad-rules.ts
+tools/verify-art-resources.ts
+tools/run-web-e2e.js
+```
+
+当前能力：
+
+| 能力 | 当前状态 | 塔防改造价值 |
 |---|---|---|
-| `assets/scripts/squad/squad-battle-session.ts` | 运行时会话、阶段、tick、快照、保存/读取 | 设计思想可复用，但塔防战斗目标要重写 |
-| `assets/scripts/ui/battle-scene-controller.ts` | 主菜单、职业选择、准备页、战场 HUD 编排 | 可以加“塔防模式”入口 |
-| `assets/scripts/ui/controllers/prep-panel-controller.ts` | 商店、备战、上阵、按钮保护 | 可改造成塔防商店/背包/放置面板 |
-| `assets/scripts/ui/controllers/battlefield-controller.ts` | 战场背景、单位/敌人视图、点击 | 可改造成地图/路径/塔位渲染 |
-| `assets/scripts/systems/economy-system.ts` | 金币加减 | 可复用 |
-| `assets/scripts/systems/shop-system.ts` | 三格商店刷新 | 可复用或复制为 TD 版 |
-| `assets/scripts/squad/systems/roster-system.ts` | 备战区、上阵区、3 合 1 | 高度适合塔防三合一 |
-| `tools/verify-squad-rules.ts` | 规则回归测试 | 建议复制思想为 `verify-td-rules.ts` |
-| `tools/verify-art-resources.ts` | 资源校验 | 建议扩展为 TD 资源校验 |
-| `tools/run-web-e2e.js` | Web 冒烟 | 后续加 TD 冒烟链路 |
-| `assets/scripts/ui/resources/sprite-resolvers.ts` | 资源加载 resolver | 保留路径协议，扩展 TD 资源 |
+| 主菜单 | 已有 | 可扩展模式选择 |
+| 职业选择 | 已有 | 可复用为队长选择 |
+| 准备/战斗阶段 | 已有 | 可迁移为塔防准备/开波 |
+| 商店 | 已有 | 迁移为守卫英雄商店 |
+| 金币 | 已有 | 迁移为局内经济 |
+| 三合一 | 已有 | 作为塔防升星核心 |
+| 本地存档 | 已有 | 扩展 TD 存档 |
+| 资源 resolver | 已有 | 扩展 td 资源路径 |
+| 规则校验 | 已有 | 新增 verify-td-rules |
+| Web 冒烟 | 已有 | 新增 run-td-web-e2e |
 
-## 2. 不能直接复用的内容
+## 2. 当前不能直接复用的内容
 
-当前系统缺少塔防核心概念：
+现有战斗是“小队生存制”，不是塔防。以下必须重写或新增：
 
-- 固定路径
-- 路径进度
-- 漏怪扣生命
-- 塔位
-- 飞行路线
-- 波次出怪队列
-- 敌人抗性体系
-- 对空/潜行/重甲
-- 半固定英雄驻守
-- 队长英雄驻守点
-- 地图背景和关卡元素
+| 系统 | 原状态 | TD 目标 |
+|---|---|---|
+| 敌人目标 | 攻击我方小队 | 沿路径到终点漏怪 |
+| 地图 | 自由战场 | 固定路径 + 塔位 |
+| 生命 | 我方单位生命 | 关卡 10 点生命 |
+| 波次 | 敌人批量生成 | 队列出怪 + 清波奖励 |
+| 放置 | 上阵区/备战区 | 塔位放置 |
+| 战斗 | 自由移动接敌 | 范围索敌、阻挡、对空 |
+| 胜负 | 小队死光/杀光敌人 | 生命归零/第 10 波清完 |
 
-因此改造不是“修补当前战斗”，而是新增 `td` 主线。
+## 3. 改造目标
 
-## 3. 新玩法目标
+目标产品是横屏 2D 放置合成塔防：
 
-目标产品是“放置合成塔防”：
+- 单屏固定镜头。
+- 1280x720 逻辑分辨率。
+- 每关 10 点生命。
+- 每关 10 波。
+- 敌人沿路径推进。
+- 玩家在塔位放置英雄。
+- 三个同职业同星级英雄合成一个高星英雄。
+- 队长英雄负责主动技能和全局战术。
+- 守卫英雄自动攻击。
+- AI 生成原创占位图与帧动画，后续可逐步替换为精修美术。
 
-```text
-选择关卡 -> 选择队长 -> 准备阶段购买英雄 -> 放置到塔位 -> 三合一升星 -> 开始波次 -> 敌人沿路径推进 -> 英雄自动攻击/阻挡 -> 队长/法术手动释放 -> 清波结算 -> 第 10 波胜利或生命归零失败
-```
+## 4. 改造边界
 
-## 4. 核心特色
-
-| 特色 | 说明 |
-|---|---|
-| 10 点生命制 | 每关固定 10 点生命，漏怪扣血 |
-| 三合一升星 | 三个同职业同星级合成下一星 |
-| 半固定塔位 | 地图上固定 8-12 个塔位，保留读图策略 |
-| 英雄职业 | 弓箭手、法师、战士、骑士、刺客、牧师等 |
-| 队长英雄 | 队长不占塔位，可释放主动技能 |
-| AI 美术管线 | 由 AI 生成原创占位角色帧、敌人帧、地图元素 |
-| 自动校验 | 所有规则和资源必须可脚本验证 |
-
-## 5. 分支建议
+必须新建：
 
 ```text
-main                      当前稳定主线
-codex/td-design-roadmap   文档设计
-codex/td-mvp-runtime      阶段 1-5 逻辑
-codex/td-cocos-ui         阶段 6 UI
-codex/td-ai-art-pipeline  阶段 7 资源
-codex/td-alpha-content    阶段 8-10 内容与收口
+assets/scripts/td/**
+assets/scripts/ui/controllers/td-*.ts
+assets/scripts/ui/views/td-*.ts
+assets/resources/textures/td/**
+tools/verify-td-rules.ts
+tools/verify-td-art-resources.ts
+tools/generate-td-placeholder-art.ts
+tools/run-td-web-e2e.js
 ```
 
-## 6. 成功标准
+阶段 0 到阶段 5 禁止删除：
 
-MVP 成功标准：
+```text
+assets/scripts/squad/**
+assets/scripts/ui/controllers/prep-panel-controller.ts
+assets/scripts/ui/controllers/battlefield-controller.ts
+tools/verify-squad-rules.ts
+```
 
-- 第一关能完整玩。
-- 10 波敌人能出完。
-- 敌人能沿路径移动并漏怪扣血。
-- 玩家能购买英雄、放置塔位、三合一升星。
-- 英雄能攻击、阻挡、对空、AOE。
-- 能胜利或失败。
-- 有原创占位帧图和地图背景。
-- `npm test` 和 TD 规则测试通过。
+## 5. MVP 成功定义
 
-Alpha 成功标准：
-
-- 5 关、50 波、8 类敌人。
-- 3 个队长英雄。
-- 所有基础职业有帧动画。
-- 第一轮数值平衡完成。
-- Web 冒烟覆盖 TD 主流程。
+MVP 完成时，玩家应能进入塔防模式、选择第一关、获得 10 点生命和起始金币、购买英雄、把英雄放到塔位、三合一升星、点击开始下一波、看见敌人沿路径移动、英雄自动攻击、漏怪扣血、第 10 波清完胜利、生命归零失败。

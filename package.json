@@ -6,16 +6,17 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "verify:rules": "tsx tools/verify-squad-rules.ts",
+    "verify:td": "tsx tools/verify-td-rules.ts",
     "verify:art": "tsx tools/verify-art-resources.ts",
     "verify:web": "node tools/run-web-e2e.js",
-    "test": "npm run typecheck && npm run verify:rules && npm run verify:art"
+    "test": "npm run typecheck && npm run verify:rules && npm run verify:td && npm run verify:art"
   },
   "devDependencies": {
     "tsx": "^4.20.0",
     "typescript": "^5.8.0"
   },
   "creator": {
-    "version": "3.8.8"
+    "version": "3.4.0"
   },
   "uuid": "525e1146-1fcb-4d25-894a-4fded677997d"
 }

@@ -1,71 +1,61 @@
 # 18 AI 分阶段任务提示词
 
-## 使用方式
-
-每次只复制一个阶段给 AI。要求 AI 先列计划，再改代码，再补测试，最后给验收说明。
-
-## 通用前置提示词
+## 阶段 1：Runtime 核心
 
 ```text
-你正在开发 Cocos Creator + TypeScript 项目 divine-tower-chess。当前主线是 squad 小队战斗，塔防改造必须新增 assets/scripts/td/**，不要删除或重写 squad 主线。每次开发必须补测试，保证 npm test 通过。AI 生成资源必须原创，不复制任何商业游戏。
+请基于 docs/td-redesign/08-phase-1-runtime-core.md，实现塔防 Runtime 核心。新增 assets/scripts/td/types.ts、td-session.ts、config/td-game-config.ts、config/td-stage-ids.ts、systems/td-id.ts、tools/verify-td-rules.ts。不要修改 squad 主线。所有文件必须完整可用。完成后 npm run typecheck 和 npx tsx tools/verify-td-rules.ts 必须通过。
 ```
 
-## 阶段 1 提示词
+## 阶段 2：地图路径生命
 
 ```text
-请新增塔防 runtime 核心。创建 assets/scripts/td/types.ts、td-session.ts、config/td-game-config.ts、config/td-stage-ids.ts、systems/td-id.ts，以及 tools/verify-td-rules.ts。实现 startNewRun、getSnapshot、startNextWave、tick、damageLife、addGold、isTerminal。只做状态机，不接 UI，不改 squad。补测试：新局 10 生命、准备阶段、开波切状态、扣生命到 0 失败。
+请实现地图配置、路径推进、塔位数据和漏怪扣血。新增 td-map-config、td-enemy-config、enemy-path-system、life-system。第一关使用 1280x720 坐标、1 条地面路径、1 条飞行路径、8 个塔位。补充 verify-td-rules 测试。
 ```
 
-## 阶段 2 提示词
+## 阶段 3：波次循环
 
 ```text
-请实现塔防地图、路径、塔位和漏怪扣血。新增 td-map-config、td-enemy-config、enemy-path-system、life-system、td-stage-loader。第一关 stage_1_forest_loop 使用 1280x720、1 条地面路径、1 条飞行路径、8 个塔位。敌人实现 slime、shieldling、bat、gate_golem。补测试：路径长度、入口出口、软泥漏怪扣 1、Boss 漏怪扣 3、生命归零失败。
+请实现 wave-system 和 td-wave-config。第一关 10 波，支持按间隔出怪、出怪结束、敌人全部清除、发放奖励、进入下一准备阶段、第 10 波胜利。
 ```
 
-## 阶段 3 提示词
+## 阶段 4：商店放置三合一
 
 ```text
-请实现波次系统。新增 td-wave-config 和 wave-system。第一关 10 波固定配置，支持出怪间隔、spawn queue、清波奖励、第 10 波胜利。接入 TowerDefenseSession.tick。补测试：第一波数量、出怪间隔、清波奖励、第 10 波 victory、非 prep 不能重复开波。
+请实现 td-shop-system、td-roster-system、placement-system 和 td-hero-config。支持金币购买、刷新、背包、塔位放置、召回、出售、3 同职业同星级合成。
 ```
 
-## 阶段 4 提示词
+## 阶段 5：战斗职业差异
 
 ```text
-请实现英雄商店、背包、塔位放置和三合一。新增 td-hero-config、td-shop-config、td-economy-system、td-shop-system、td-roster-system、placement-system。实现 6 职业 archer/mage/warrior/knight/assassin/priest。商店 3 格，购买失败不移除，金币不足失败。三合一：3 个同职业同星级合成下一星，3 星封顶。补测试。
+请实现 td-combat-system 和 targeting-system。支持射程、攻速、最前索敌、对空、AOE、护甲、魔抗、阻挡、潜行侦测。6 个基础职业必须有差异。
 ```
 
-## 阶段 5 提示词
+## 阶段 6：Cocos UI 接入
 
 ```text
-请实现战斗系统。新增 td-combat-system、targeting-system、blocking-system、td-projectile-system、td-damage-config。实现攻击范围、攻速、索敌、护甲、魔抗、对空、AOE、阻挡、治疗。弓箭手能对空，法师 AOE，战士阻挡 1，骑士阻挡 2，刺客优先辅助，牧师治疗。补完整规则测试。
+请新增 td-map-controller、td-hud-controller、td-prep-panel-controller、td-command-bar-controller、td-hero-view、td-enemy-view。接入模式选择，但保留 squad 旧主线。玩家可通过 UI 完成第一关基本流程。
 ```
 
-## 阶段 6 提示词
+## 阶段 7：AI 美术与帧动画
 
 ```text
-请把 TD 逻辑接入 Cocos UI。新增 td-map-controller、td-hud-controller、td-prep-panel-controller、td-command-bar-controller、td-result-controller，以及 td-hero-view、td-enemy-view、td-projectile-view、td-vfx-view。在主菜单加塔防入口，MVP 直接进入第一关。实现买英雄、选英雄、点塔位放置、开波、HUD、胜负弹窗。按钮同时绑定 CLICK 和 TOUCH_END。
+请新增 assets/resources/textures/td/** 的原创占位资源，生成 td-art-manifest，新增 verify-td-art-resources。每个 MVP 英雄和敌人至少有 portrait/idle/attack/move/hit/death 等阶段要求帧。允许用脚本生成占位 PNG，但命名、尺寸和 manifest 必须完整。
 ```
 
-## 阶段 7 提示词
+## 阶段 8：队长技能 VFX
 
 ```text
-请实现 TD 美术资源管线。新增 td-art-manifest、td-sprite-resolvers、tools/generate-td-placeholder-art.ts、tools/verify-td-art-resources.ts。生成所有 MVP 资源的占位 PNG，并按 manifest 加载。英雄需要 portrait、star1-3、idle、attack、skill、hurt、death；骑士加 block，刺客加 teleport。敌人需要 move、hit、death，Boss 加 cast/phase。补资源校验。
+请实现 captain-system、td-skill-config、td-command-bar 技能释放。先做游侠队长、圣骑队长、奥术队长。新增基础 VFX 帧与校验。
 ```
 
-## 阶段 8 提示词
+## 阶段 9：五关 Alpha
 
 ```text
-请实现队长英雄和技能。新增 td-captain-config、td-skill-config、captain-system、td-skill-system。实现游侠队长、圣骑队长、奥术队长。支持 XP、等级、主动技能、被动光环、技能冷却、VFX 状态。补测试：升级、冷却、伤害、减伤、光环。
+请扩展 5 关地图配置、50 波波次、8 类敌人完整机制。补足数值测试和平衡测试，确保每关都能进入、开波、胜利或失败。
 ```
 
-## 阶段 9 提示词
+## 阶段 10：存档测试性能发布
 
 ```text
-请扩展到五关 Alpha。实现 stage_1 到 stage_5 的地图配置、路径、塔位和 50 波。新增 boneguard、shadehound、warlock、spore。每个敌人都有机制测试。关卡选择 UI 可进入五关。确保每关能 victory/defeat。
-```
-
-## 阶段 10 提示词
-
-```text
-请做收口：TD 存档、自动化测试、Web 冒烟、性能优化。新增 td-save-system，扩展 local-profile-storage。完善 verify-td-rules、verify-td-art-resources、run-td-web-e2e。实现敌人/弹道/VFX 对象池、SpriteFrame 缓存、坏档保护。最终 npm test、verify:td、verify:td-art、verify:td-web 通过。
+请实现 td-save-system、本地存档版本、Web 冒烟、对象池和性能收口。确保 npm test、verify:td、verify:td-art、verify:web 均可运行。
 ```
