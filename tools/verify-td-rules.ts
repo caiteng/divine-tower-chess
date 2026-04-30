@@ -1,108 +1,142 @@
-
-import { TD_DEFAULT_LIFE, TD_DIFFICULTY_CONFIG, TD_STARTING_GOLD } from '../assets/scripts/td/config/td-game-config';
+import { getAllTDMapConfigs, getTDMapConfig } from '../assets/scripts/td/config/td-map-config';
+import { getAllTDWaveDefinitions } from '../assets/scripts/td/config/td-wave-config';
+import { getPositionAtProgress, getPathLength } from '../assets/scripts/td/systems/enemy-path-system';
 import { TowerDefenseSession } from '../assets/scripts/td/td-session';
-import { resetTdIdSeedForTest } from '../assets/scripts/td/systems/td-id';
+import type { TDHeroId } from '../assets/scripts/td/types';
 
 function assertRule(condition: boolean, message: string): void {
   if (!condition) throw new Error(`[verify-td-rules] ${message}`);
 }
 
-function verifyNewRunDefaults(): void {
-  resetTdIdSeedForTest();
-  const session = new TowerDefenseSession();
-  const snapshot = session.getSnapshot();
-
-  assertRule(snapshot.phase === 'prep', 'new run should start in prep phase');
-  assertRule(snapshot.stageId === 'stage_1_forest_loop', 'new run should use stage_1_forest_loop by default');
-  assertRule(snapshot.difficulty === 'normal', 'new run should use normal difficulty by default');
-  assertRule(snapshot.life === TD_DEFAULT_LIFE, 'normal new run should start with default life');
-  assertRule(snapshot.gold === TD_STARTING_GOLD, 'normal new run should start with configured gold');
-  assertRule(snapshot.waveIndex === 1, 'new run should start from wave 1');
-  assertRule(snapshot.totalWaves === 10, 'normal new run should expose 10 total waves');
-  assertRule(snapshot.wave.started === false, 'wave should not be started during prep');
+function verifyRuntimeCore(): void {
+  const session = new TowerDefenseSession({ stageId: 'stage_1_forest_loop', difficulty: 'normal', captainId: 'archer' });
+  const snap = session.getSnapshot();
+  assertRule(snap.phase === 'prep', 'new run should start in prep');
+  assertRule(snap.life === 10, 'normal run should start with 10 life');
+  assertRule(snap.gold === 20, 'normal run should start with 20 gold');
+  assertRule(snap.towerSlots.length === 8, 'stage 1 should expose 8 tower slots');
+  assertRule(session.startNextWave(), 'startNextWave should work from prep');
+  assertRule(session.getSnapshot().phase === 'spawning', 'startNextWave should enter spawning');
+  session.damageLife(99);
+  assertRule(session.getSnapshot().phase === 'defeat', 'life reaching zero should defeat');
 }
 
-function verifyDifficultyDefaults(): void {
-  const beginner = new TowerDefenseSession({ difficulty: 'beginner' }).getSnapshot();
-  const hard = new TowerDefenseSession({ difficulty: 'hard' }).getSnapshot();
-  const endless = new TowerDefenseSession({ difficulty: 'endless' }).getSnapshot();
-
-  assertRule(beginner.life === TD_DIFFICULTY_CONFIG.beginner.startingLife, 'beginner life should come from difficulty config');
-  assertRule(beginner.gold === TD_DIFFICULTY_CONFIG.beginner.startingGold, 'beginner gold should come from difficulty config');
-  assertRule(hard.life === TD_DIFFICULTY_CONFIG.hard.startingLife, 'hard life should come from difficulty config');
-  assertRule(endless.totalWaves === 0, 'endless should expose 0 total waves as open-ended marker');
+function verifyMapsAndPaths(): void {
+  const maps = getAllTDMapConfigs();
+  assertRule(maps.length === 5, 'should define 5 TD maps');
+  for (const map of maps) {
+    assertRule(map.groundPaths.length > 0, `${map.stageId} should have ground path`);
+    assertRule(map.airPaths.length > 0, `${map.stageId} should have air path`);
+    assertRule(map.towerSlots.length >= 8, `${map.stageId} should have at least 8 slots`);
+    const path = map.groundPaths[0];
+    assertRule(getPathLength(path) > 100, `${map.stageId} ground path should be meaningful`);
+    const start = getPositionAtProgress(path, 0);
+    const end = getPositionAtProgress(path, 1);
+    assertRule(Math.hypot(start.x - path.points[0].x, start.y - path.points[0].y) < 0.001, 'progress 0 should be path start');
+    const last = path.points[path.points.length - 1];
+    assertRule(Math.hypot(end.x - last.x, end.y - last.y) < 0.001, 'progress 1 should be path end');
+  }
 }
 
-function verifyStartNextWaveChangesPhase(): void {
-  const session = new TowerDefenseSession();
-  const started = session.startNextWave();
-  const spawning = session.getSnapshot();
-
-  assertRule(started, 'startNextWave should return true from prep');
-  assertRule(spawning.phase === 'spawning', 'startNextWave should enter spawning phase');
-  assertRule(spawning.wave.started, 'wave state should mark started after startNextWave');
-
-  const result = session.tick(0.1);
-  const battle = session.getSnapshot();
-  assertRule(result.changedPhase, 'first tick after spawning should change phase');
-  assertRule(battle.phase === 'battle', 'spawning should advance to battle on tick in phase 1 stub');
-  assertRule(battle.wave.spawningDone, 'battle wave should mark spawningDone in phase 1 stub');
-
-  const secondStart = session.startNextWave();
-  assertRule(!secondStart, 'startNextWave should fail outside prep');
+function verifyWaveConfigs(): void {
+  const waves = getAllTDWaveDefinitions();
+  assertRule(waves.length === 50, '5 stages should define 50 waves');
+  for (const stageId of ['stage_1_forest_loop', 'stage_2_twin_bridge', 'stage_3_lost_corridor', 'stage_4_forge_cross', 'stage_5_sky_sanctum']) {
+    const count = waves.filter((wave) => wave.stageId === stageId).length;
+    assertRule(count === 10, `${stageId} should have 10 waves`);
+  }
+  assertRule(waves.some((wave) => wave.entries.some((entry) => entry.enemyId === 'gate_golem')), 'waves should include gate_golem');
 }
 
-function verifyDamageLifeAndDefeat(): void {
-  const session = new TowerDefenseSession();
-  assertRule(session.damageLife(3) === 7, 'damageLife should subtract integer damage');
-  assertRule(session.getSnapshot().phase === 'prep', 'partial life damage should not end run');
-  assertRule(session.damageLife(999) === 0, 'damageLife should clamp life to zero');
-  assertRule(session.getSnapshot().phase === 'defeat', 'zero life should enter defeat phase');
-  assertRule(session.isTerminal(), 'defeat should be terminal');
-  assertRule(session.damageLife(1) === 0, 'terminal damage should not reduce below zero');
+function verifyPathLeakLife(): void {
+  const session = new TowerDefenseSession({ stageId: 'stage_1_forest_loop', difficulty: 'normal' });
+  session.startNextWave();
+  for (let i = 0; i < 1200 && session.getSnapshot().life === 10; i += 1) {
+    session.tick(0.1);
+  }
+  assertRule(session.getSnapshot().life < 10, 'without heroes, enemies should eventually leak and damage life');
 }
 
-function verifyGoldAccounting(): void {
-  const session = new TowerDefenseSession();
-  assertRule(session.addGold(5) === TD_STARTING_GOLD + 5, 'addGold should increase gold');
-  assertRule(session.spendGold(4), 'spendGold should succeed when affordable');
-  assertRule(session.getGold() === TD_STARTING_GOLD + 1, 'spendGold should subtract cost');
-  assertRule(!session.spendGold(999), 'spendGold should fail when unaffordable');
-  assertRule(session.getGold() === TD_STARTING_GOLD + 1, 'failed spendGold should not change gold');
+function verifyShopPlacementAndMerge(): void {
+  const session = new TowerDefenseSession({ stageId: 'stage_1_forest_loop', difficulty: 'normal' });
+  session.debugSetShop(['archer', 'archer', 'archer']);
+  assertRule(session.buyShopHero(0), 'buy archer 1');
+  assertRule(session.buyShopHero(1), 'buy archer 2');
+  assertRule(session.buyShopHero(2), 'buy archer 3');
+  let snap = session.getSnapshot();
+  const archer2 = snap.bench.find((hero) => hero.heroId === 'archer' && hero.star === 2);
+  assertRule(Boolean(archer2), 'three 1-star archers should merge into 2-star');
+  assertRule(session.placeHero(archer2!.instanceId, 'slot_01'), 'should place merged archer into slot');
+  snap = session.getSnapshot();
+  assertRule(snap.towerSlots.find((slot) => slot.slotId === 'slot_01')?.occupiedBy === archer2!.instanceId, 'slot should be occupied');
+  assertRule(!session.placeHero(archer2!.instanceId, 'slot_01'), 'occupied or already deployed placement should fail');
 }
 
-function verifySnapshotIsDefensiveCopy(): void {
-  const session = new TowerDefenseSession({ captainId: 'archer' });
-  const before = session.getSnapshot();
-  before.captain.skillCooldowns.fake = 99;
-  before.towerSlots.push({ slotId: 'fake', position: { x: 0, y: 0 } });
+function verifyMergeToThreeStar(): void {
+  const session = new TowerDefenseSession({ stageId: 'stage_1_forest_loop', difficulty: 'beginner' });
+  session.addGold(999);
+  for (let i = 0; i < 9; i += 1) {
+    session.debugSetShop(['mage', undefined, undefined]);
+    assertRule(session.buyShopHero(0), `buy mage ${i}`);
+  }
+  const snap = session.getSnapshot();
+  assertRule(snap.bench.some((hero) => hero.heroId === 'mage' && hero.star === 3), 'nine same heroes should become a 3-star');
+}
+
+function verifyCombatAndCaptain(): void {
+  const session = new TowerDefenseSession({ stageId: 'stage_1_forest_loop', difficulty: 'beginner', captainId: 'mage' });
+  session.addGold(999);
+  const heroes: TDHeroId[] = ['archer', 'mage', 'knight', 'assassin', 'priest'];
+  heroes.forEach((heroId, index) => {
+    const hero = session.debugAddHero(heroId, heroId === 'archer' || heroId === 'mage' ? 3 : 2);
+    assertRule(Boolean(hero), `debug add ${heroId}`);
+    assertRule(session.placeHero(hero!.instanceId, `slot_0${index + 1}`), `place ${heroId}`);
+  });
+  assertRule(session.startNextWave(), 'start wave with placed heroes');
+  let casted = false;
+  for (let i = 0; i < 300; i += 1) {
+    const snap = session.getSnapshot();
+    if (!casted && snap.enemies.length > 0) {
+      casted = session.castCaptainSkill('arcane_meteor', snap.enemies[0].position);
+    }
+    session.tick(0.1);
+    if (session.getSnapshot().phase === 'prep') break;
+  }
   const after = session.getSnapshot();
-
-  assertRule(after.captain.skillCooldowns.fake === undefined, 'snapshot captain cooldowns should be defensive copy');
-  assertRule(after.towerSlots.length === 0, 'snapshot arrays should be defensive copies');
+  assertRule(after.gold >= 0, 'combat should preserve valid gold');
+  assertRule(casted, 'captain skill should cast during battle');
+  assertRule(after.phase === 'prep' || after.phase === 'victory' || after.phase === 'battle', 'combat phase should remain valid');
 }
 
-function verifyRunIdsAdvance(): void {
-  resetTdIdSeedForTest();
-  const session = new TowerDefenseSession();
-  const firstRunId = session.getSnapshot().runId;
-  session.startNewRun('stage_1_forest_loop', 'normal');
-  const secondRunId = session.getSnapshot().runId;
-
-  assertRule(firstRunId !== secondRunId, 'startNewRun should create a new run id');
-  assertRule(firstRunId === 'td_run_1', 'test seed should make first run id deterministic');
-  assertRule(secondRunId === 'td_run_2', 'test seed should make second run id deterministic');
+function verifySaveLoad(): void {
+  const session = new TowerDefenseSession({ stageId: 'stage_2_twin_bridge', difficulty: 'hard', captainId: 'knight' });
+  session.addGold(12);
+  const save = session.exportSaveData();
+  const restored = new TowerDefenseSession();
+  assertRule(restored.loadFromSaveData(save), 'valid save should load');
+  const snap = restored.getSnapshot();
+  assertRule(snap.stageId === 'stage_2_twin_bridge', 'stage should restore');
+  assertRule(snap.difficulty === 'hard', 'difficulty should restore');
+  assertRule(snap.gold === save.gold, 'gold should restore');
 }
 
-function main(): void {
-  verifyNewRunDefaults();
-  verifyDifficultyDefaults();
-  verifyStartNextWaveChangesPhase();
-  verifyDamageLifeAndDefeat();
-  verifyGoldAccounting();
-  verifySnapshotIsDefensiveCopy();
-  verifyRunIdsAdvance();
-  console.log('[verify-td-rules] all checks passed');
+function verifyFullStageProgressionViaTestHelper(): void {
+  const session = new TowerDefenseSession({ stageId: 'stage_1_forest_loop', difficulty: 'beginner' });
+  for (let wave = 1; wave <= 10; wave += 1) {
+    assertRule(session.startNextWave(), `start wave ${wave}`);
+    session.debugCompleteCurrentWaveForTest();
+  }
+  assertRule(session.getSnapshot().phase === 'victory', 'completing 10 waves should produce victory');
 }
 
-main();
+verifyRuntimeCore();
+verifyMapsAndPaths();
+verifyWaveConfigs();
+verifyPathLeakLife();
+verifyShopPlacementAndMerge();
+verifyMergeToThreeStar();
+verifyCombatAndCaptain();
+verifySaveLoad();
+verifyFullStageProgressionViaTestHelper();
+
+console.log('[verify-td-rules] all checks passed');

@@ -1,66 +1,67 @@
-
 import type { TDDifficultyId } from '../types';
 
-export const TD_DEFAULT_LIFE = 10;
 export const TD_TOTAL_WAVES = 10;
-export const TD_STARTING_GOLD = 20;
+export const TD_SHOP_SLOTS = 3;
+export const TD_BENCH_SLOTS = 12;
 export const TD_STARTING_STARDUST = 0;
+export const TD_MERGE_STARS_CAP = 3;
 export const TD_LOGIC_FPS = 60;
 
 export interface TDDifficultyConfig {
-  id: TDDifficultyId;
-  name: string;
+  difficulty: TDDifficultyId;
   startingLife: number;
   startingGold: number;
   enemyHpMultiplier: number;
   enemySpeedMultiplier: number;
-  rewardMultiplier: number;
+  goldMultiplier: number;
   isEndless: boolean;
 }
 
 export const TD_DIFFICULTY_CONFIG: Record<TDDifficultyId, TDDifficultyConfig> = {
   beginner: {
-    id: 'beginner',
-    name: '新手',
-    startingLife: TD_DEFAULT_LIFE,
-    startingGold: TD_STARTING_GOLD + 5,
-    enemyHpMultiplier: 0.88,
+    difficulty: 'beginner',
+    startingLife: 10,
+    startingGold: 28,
+    enemyHpMultiplier: 0.85,
     enemySpeedMultiplier: 0.95,
-    rewardMultiplier: 1.15,
+    goldMultiplier: 1.15,
     isEndless: false,
   },
   normal: {
-    id: 'normal',
-    name: '普通',
-    startingLife: TD_DEFAULT_LIFE,
-    startingGold: TD_STARTING_GOLD,
+    difficulty: 'normal',
+    startingLife: 10,
+    startingGold: 20,
     enemyHpMultiplier: 1,
     enemySpeedMultiplier: 1,
-    rewardMultiplier: 1,
+    goldMultiplier: 1,
     isEndless: false,
   },
   hard: {
-    id: 'hard',
-    name: '困难',
+    difficulty: 'hard',
     startingLife: 8,
-    startingGold: TD_STARTING_GOLD - 2,
-    enemyHpMultiplier: 1.18,
-    enemySpeedMultiplier: 1.06,
-    rewardMultiplier: 0.9,
+    startingGold: 18,
+    enemyHpMultiplier: 1.25,
+    enemySpeedMultiplier: 1.08,
+    goldMultiplier: 0.9,
     isEndless: false,
   },
   endless: {
-    id: 'endless',
-    name: '无尽',
-    startingLife: TD_DEFAULT_LIFE,
-    startingGold: TD_STARTING_GOLD,
-    enemyHpMultiplier: 1,
-    enemySpeedMultiplier: 1,
-    rewardMultiplier: 1,
+    difficulty: 'endless',
+    startingLife: 10,
+    startingGold: 22,
+    enemyHpMultiplier: 1.05,
+    enemySpeedMultiplier: 1.02,
+    goldMultiplier: 1,
     isEndless: true,
   },
 };
 
 export function getTDDifficultyConfig(difficulty: TDDifficultyId): TDDifficultyConfig {
-  return TD_DIFFICULTY_CONFIG[difficulty];
+  return TD_DIFFICULTY_CONFIG[difficulty] ?? TD_DIFFICULTY_CONFIG.normal;
+}
+
+export function getTDStarMultiplier(star: 1 | 2 | 3): number {
+  if (star === 3) return 2.95;
+  if (star === 2) return 1.72;
+  return 1;
 }
